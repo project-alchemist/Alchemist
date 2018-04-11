@@ -133,12 +133,9 @@ int Driver::register_workers()
 	uint16_t hostname_length, port;
 
 	for(Worker_ID id = 1; id <= num_workers; ++id) {
-		log->info("111111111");
 		MPI_Recv(&hostname_length, 1, MPI_UNSIGNED_SHORT, id, 0, world, &status[0]);
 		char hostname[hostname_length];
-		log->info("222222222");
 		MPI_Recv(hostname, hostname_length, MPI_CHAR, id, 0, world, &status[1]);
-		log->info("333333333");
 		MPI_Recv(&port, 1, MPI_UNSIGNED_SHORT, id, 0, world, &status[2]);
 
 		workers[id] = WorkerInfo();
