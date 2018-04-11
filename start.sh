@@ -4,18 +4,20 @@ source ./config.sh
 
 export ALCHEMIST_EXE=$ALCHEMIST_PATH/target/alchemist
 
+echo $ALCHEMIST_EXE
+
 CURR_DIR=$PWD
 
 if [ "$SYSTEM" == "MacOS" ]
 then
-	mpiexec -n 3 ALCHEMIST_EXE
+	mpiexec -n 3 $ALCHEMIST_EXE
 	
 elif [ "$SYSTEM" == "Cori" ]
 then
-	srun -n 5 ALCHEMIST_EXE
+	srun -n 5 $ALCHEMIST_EXE
 	
 elif [ "$SYSTEM" == "<your system here>" ]
 then
-	srun -n 5 ALCHEMIST_EXE
+	srun -n 5 $ALCHEMIST_EXE
 	
 fi

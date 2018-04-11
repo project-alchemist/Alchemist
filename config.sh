@@ -24,3 +24,5 @@ then
 	export ELEMENTAL_PATH=$SCRATCH/Software/Elemental
 	export SPDLOG_PATH=$SCRATCH/Software/SPDLog	
 fi
+
+echo $ALCHEMIST_PATH
