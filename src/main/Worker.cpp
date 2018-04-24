@@ -3,8 +3,8 @@
 namespace alchemist {
 
 
-Worker::Worker(MPI_Comm & _world, MPI_Comm & _peers, boost::asio::io_context & io_context, const tcp::endpoint & endpoint) :
-    	    Executor(_world, _peers), Server(io_context, endpoint), ID(0) //, grid(El::mpi::Comm(_peers))
+Worker::Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint) :
+    	    Executor(_world, _peers), Server(_io_context, endpoint), ID(0) //, grid(El::mpi::Comm(_peers))
 {
 	int world_rank;
 	MPI_Comm_rank(world, &world_rank);
@@ -179,13 +179,13 @@ int Worker::load_library() {
 
 // ----------------------------------------   Matrices   -----------------------------------------
 
-MatrixHandle Worker::register_matrix(size_t num_rows, size_t num_cols) {
-
-	MatrixHandle handle{0};
-
-
-	return handle;
-}
+//MatrixHandle Worker::register_matrix(size_t num_rows, size_t num_cols) {
+//
+//	MatrixHandle handle{0};
+//
+//
+//	return handle;
+//}
 
 int Worker::receive_new_matrix() {
 

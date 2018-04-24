@@ -24,7 +24,7 @@ class Worker : public Executor, public Server, public std::enable_shared_from_th
 {
 public:
 
-	Worker(MPI_Comm & _world, MPI_Comm & _peers, boost::asio::io_context & io_context, const tcp::endpoint & endpoint);
+	Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint);
 	~Worker();
 
 	int start();
@@ -66,7 +66,7 @@ private:
 
 	// -----------------------------------------   Matrices   ----------------------------------------
 
-	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);
+//	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);
 	int receive_new_matrix();
 	int get_matrix_dimensions();
 	int get_transpose();

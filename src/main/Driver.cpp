@@ -5,8 +5,8 @@ namespace alchemist {
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, boost::asio::io_context & io_context, const tcp::endpoint & endpoint) :
-    Executor(_world, _peers), Server(io_context, endpoint), next_matrix_ID(1)
+Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint) :
+    Executor(_world, _peers), Server(_io_context, endpoint), next_matrix_ID(1)
 {
 	log = start_log("driver");
 	Executor::set_log(log);
@@ -52,9 +52,11 @@ void Driver::print_welcome_message()
 	message += space;
 	message += "Max number of OpenMP threads: {}\n";
 	message += space;
+	message += "Using Boost {}.{}.{}\n";
+	message += space;
 	message += "Running on {} {}:{}";
 
-	log->info(message.c_str(), omp_get_max_threads(), hostname, address, port);
+	log->info(message.c_str(), omp_get_max_threads(), BOOST_VERSION / 100000, BOOST_VERSION / 100 % 1000, BOOST_VERSION % 100, hostname, address, port);
 }
 
 void Driver::print_ready_message()
@@ -319,12 +321,12 @@ int Driver::load_library() {
 // ----------------------------------------   Matrices   -----------------------------------------
 
 
-MatrixHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
-
-	MatrixHandle handle{next_matrix_ID++};
-
-	return handle;
-}
+//MatrixHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
+//
+//	MatrixHandle handle{next_matrix_ID++};
+//
+//	return handle;
+//}
 
 
 int Driver::receive_new_matrix() {

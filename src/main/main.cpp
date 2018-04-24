@@ -3,6 +3,7 @@
 
 #define ALCHEMIST_PORT 24960
 
+
 using boost::asio::ip::tcp;
 
 int main(int argc, char *argv[]) {
@@ -47,12 +48,12 @@ int main(int argc, char *argv[]) {
 
 	if (is_driver) {
 		try {
-			boost::asio::io_context io_context;
+			io_context _io_context;
 
-			alchemist::Driver d(world, peers, io_context, tcp::endpoint(tcp::v4(), ALCHEMIST_PORT));
+			alchemist::Driver d(world, peers, _io_context, tcp::endpoint(tcp::v4(), ALCHEMIST_PORT));
 			d.start();
 //
-			io_context.run();
+			_io_context.run();
 		}
 		catch (std::exception & e) {
 			std::cerr << "[Alchemist driver] Exception while starting server: " << e.what() << std::endl;
@@ -60,12 +61,12 @@ int main(int argc, char *argv[]) {
 	}
 	else {
 		try {
-			boost::asio::io_context io_context;
+			io_context _io_context;
 
-			alchemist::Worker w(world, peers, io_context, tcp::endpoint(tcp::v4(), ALCHEMIST_PORT+world_rank));
+			alchemist::Worker w(world, peers, _io_context, tcp::endpoint(tcp::v4(), ALCHEMIST_PORT+world_rank));
 //			w.start();
 //
-			io_context.run();
+			_io_context.run();
 		}
 		catch (std::exception & e) {
 			std::cerr << "[Alchemist worker] Exception while starting server: " << e.what() << std::endl;

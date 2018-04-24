@@ -15,7 +15,7 @@ class Driver : public Executor, public Server, public std::enable_shared_from_th
 {
 public:
 
-	Driver(MPI_Comm & _world, MPI_Comm & _peers, boost::asio::io_context & io_context, const tcp::endpoint & endpoint);
+	Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint);
 	~Driver();
 
 	int start();
@@ -25,7 +25,7 @@ private:
 
 	Log_ptr log;
 
-	std::map<MatrixHandle, MatrixDescriptor> matrices;
+//	std::map<MatrixHandle, MatrixDescriptor> matrices;
 	std::map<Worker_ID, WorkerInfo> workers;
 
 	std::map<Worker_ID, Session_ID> active_workers;
@@ -86,7 +86,7 @@ private:
 
 	// -----------------------------------------   Matrices   ----------------------------------------
 
-	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);
+//	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);
 	int receive_new_matrix();
 	int get_matrix_dimensions();
 	int get_transpose();

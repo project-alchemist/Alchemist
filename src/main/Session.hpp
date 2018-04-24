@@ -2,6 +2,7 @@
 #define ALCHEMIST__SESSION_HPP
 
 
+
 #include <cstdlib>
 #include <deque>
 #include <iostream>
@@ -9,11 +10,18 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <boost/version.hpp>
 #include <boost/asio.hpp>
 #include "Message.hpp"
-#include "data_stream.hpp"
+//#include "data_stream.hpp"
 #include "Server.hpp"
 #include "utility/logging.hpp"
+
+#if BOOST_VERSION < 106600
+typedef boost::asio::io_service io_context;
+#else
+typedef boost::asio::io_context io_context;
+#endif
 
 namespace alchemist {
 

@@ -140,6 +140,8 @@ public:
 		return body_length + header_length;
 	}
 
+	const uint32_t get_max_body_length() const { return max_body_length; }
+
 	const char * header() const
 	{
 		return data;
