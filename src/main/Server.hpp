@@ -23,23 +23,37 @@ using boost::asio::ip::tcp;
 using std::string;
 
 
-class Server : public std::enable_shared_from_this<Server>
+class Server// : public std::enable_shared_from_this<Server>
 {
 public:
 
-	Server(boost::asio::io_context & io_context, const tcp::endpoint & endpoint);
+
+	Server();
+	Server(io_context & _io_context, const tcp::endpoint & endpoint);
 	virtual ~Server() { }
 
-	void deliver(const Session_ptr session, const Message & msg);
+//	void deliver(const Session_ptr session, Message & msg);
 
 	void add_session(Session_ptr session);
 	void remove_session(Session_ptr session);
+
+	virtual int start() = 0;
+
+//	virtual string list_workers() = 0;
+//	virtual string list_inactive_workers() = 0;
+//	virtual string list_active_workers() = 0;
+//	virtual string list_assigned_workers(Session_ptr) = 0;
+//	virtual string list_sessions() = 0;
+//	virtual std::map<Worker_ID, WorkerInfo> assign_workers(Session_ptr, uint16_t) = 0;
 
 protected:
 	string hostname;
 	string address;
 	uint16_t port;
 	Session_ID next_session_ID;
+
+	io_context & ic;
+	Log_ptr log;
 
 	std::map<Session_ID, Session_ptr> sessions;
 	enum { max_recent_msgs = 100 };
@@ -50,18 +64,11 @@ protected:
 	void set_log(Log_ptr _log);
 
 	void print_num_sessions();
-	int handshake();
+//	void handshake(const Session_ptr session, Message & msg);
 	int get_num_sessions();
-	void accept_connection();
-
-	virtual int receive_test_string(const Session_ptr, const char *, const uint32_t) = 0;
-	virtual int send_test_string(Session_ptr) = 0;
+	virtual void accept_connection() = 0;
 
 	void print_IP();
-
-	virtual int handle_message(Session_ptr session, const Message & msg) = 0;
-private:
-	Log_ptr log;
 };
 
 typedef std::shared_ptr<Server> Server_ptr;

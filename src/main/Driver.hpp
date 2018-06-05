@@ -1,29 +1,41 @@
 #ifndef ALCHEMIST__DRIVER_HPP
 #define ALCHEMIST__DRIVER_HPP
 
-#include "Executor.hpp"
-#include "Server.hpp"
 #include "Worker.hpp"
-#include "Library.hpp"
-#include "utility/logging.hpp"
+#include "DriverSession.hpp"
 
 namespace alchemist {
 
+class DriverSession;
+
+typedef std::shared_ptr<DriverSession> DriverSession_ptr;
+
 using std::string;
 
-class Driver : public Executor, public Server, public std::enable_shared_from_this<Driver>
+class Driver : public Server, public std::enable_shared_from_this<Driver>
 {
 public:
 
+	Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const unsigned int port);
 	Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint);
 	~Driver();
 
 	int start();
 
-private:
-	uint16_t num_workers;
+	string list_workers();
+	string list_inactive_workers();
+	string list_active_workers();
+	string list_allocated_workers(DriverSession_ptr);
+	string list_sessions();
 
-	Log_ptr log;
+	std::map<Worker_ID, WorkerInfo> allocate_workers(DriverSession_ptr, uint16_t);
+	void deallocate_workers(DriverSession_ptr);
+
+private:
+	MPI_Comm & world;
+	MPI_Comm & peers;
+
+	uint16_t num_workers;
 
 //	std::map<MatrixHandle, MatrixDescriptor> matrices;
 	std::map<Worker_ID, WorkerInfo> workers;
@@ -31,7 +43,7 @@ private:
 	std::map<Worker_ID, Session_ID> active_workers;
 	std::vector<Worker_ID> inactive_workers;
 
-	std::map<Session_ID, std::vector<Worker_ID> > assigned_workers;
+	std::map<Session_ID, std::map<Worker_ID, WorkerInfo> > allocated_workers;
 
 	uint32_t next_matrix_ID;
 
@@ -42,17 +54,13 @@ private:
 	void print_welcome_message();
 	void print_ready_message();
 
-	void print_inactive_workers();
-	void print_active_workers();
-	void print_sessions();
-
 	string make_daytime_string();
 
 	// -----------------------------------------   Workers   -----------------------------------------
 
 	int start_workers();
 	int register_workers();
-	int assign_workers();
+	void open_workers();
 
 	// ----------------------------------------   File I/O   ----------------------------------------
 
@@ -60,7 +68,6 @@ private:
 
 	// ====================================   COMMAND FUNCTIONS   ====================================
 
-	int handle_message(Session_ptr session, const Message & msg);
 	int handle_command(int command_code);
 	int run_task();
 
@@ -68,7 +75,7 @@ private:
 
 	// ---------------------------------------   Information   ---------------------------------------
 
-	int send_assigned_worker_info();
+	int send_assigned_workers_info();
 
 	// ----------------------------------------   Parameters   ---------------------------------------
 
@@ -81,8 +88,8 @@ private:
 
 	// -----------------------------------------   Testing   -----------------------------------------
 
-	int receive_test_string(const Session_ptr, const char *, const uint32_t);
-	int send_test_string(Session_ptr);
+	int receive_test_string(const DriverSession_ptr, const char *, const uint32_t);
+	int send_test_string(DriverSession_ptr);
 
 	// -----------------------------------------   Matrices   ----------------------------------------
 
@@ -92,6 +99,8 @@ private:
 	int get_transpose();
 	int matrix_multiply();
 	int get_matrix_rows();
+
+	void accept_connection();
 };
 
 }

@@ -1,7 +1,4 @@
-#include "Alchemist.hpp"
 #include "Driver.hpp"
-
-#define ALCHEMIST_PORT 24960
 
 
 using boost::asio::ip::tcp;
@@ -46,31 +43,17 @@ int main(int argc, char *argv[]) {
 
 //	printf("WORLD RANK/SIZE: %d/%d \t PEERS RANK/SIZE: %d/%d\n", world_rank, world_size, peers_rank, peers_size);
 
-	if (is_driver) {
-		try {
-			io_context _io_context;
 
-			alchemist::Driver d(world, peers, _io_context, tcp::endpoint(tcp::v4(), ALCHEMIST_PORT));
-			d.start();
-//
-			_io_context.run();
-		}
-		catch (std::exception & e) {
-			std::cerr << "[Alchemist driver] Exception while starting server: " << e.what() << std::endl;
-		}
+	io_context _io_context;
+
+	try {
+		if (is_driver)
+			alchemist::Driver d(world, peers, _io_context, ALCHEMIST_PORT);
+		else
+			alchemist::Worker w(world, peers, _io_context, ALCHEMIST_PORT+world_rank);
 	}
-	else {
-		try {
-			io_context _io_context;
-
-			alchemist::Worker w(world, peers, _io_context, tcp::endpoint(tcp::v4(), ALCHEMIST_PORT+world_rank));
-//			w.start();
-//
-			_io_context.run();
-		}
-		catch (std::exception & e) {
-			std::cerr << "[Alchemist worker] Exception while starting server: " << e.what() << std::endl;
-		}
+	catch (std::exception & e) {
+		std::cerr << "Exception while starting Alchemist: " << e.what() << std::endl;
 	}
 
 	MPI_Barrier(world);

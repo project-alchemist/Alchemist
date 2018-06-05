@@ -2,7 +2,8 @@
 
 namespace alchemist {
 
-Server::Server(boost::asio::io_context & io_context, const tcp::endpoint & endpoint) : acceptor(io_context, endpoint), next_session_ID(1)
+Server::Server(io_context & _io_context, const tcp::endpoint & endpoint) :
+		ic(_io_context), acceptor(_io_context, endpoint), next_session_ID(1), log(nullptr)
 {
 	char _hostname[256];
 	gethostname(_hostname, sizeof(_hostname));
@@ -34,13 +35,14 @@ void Server::add_session(Session_ptr session)
 
 	sessions[session_ID] = session;
 
-	log->info("Session {} at {} has been added", session->get_ID(), session->get_address().c_str());
+	log->info("[Session {}] [{}] Connection established", session->get_ID(), session->get_address().c_str());
 	print_num_sessions();
 }
 
 void Server::remove_session(Session_ptr session)
 {
 	Session_ID session_ID = session->get_ID();
+
 
 	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
 	sessions.erase(session_ID);
@@ -50,41 +52,23 @@ void Server::remove_session(Session_ptr session)
 
 int Server::get_num_sessions()
 {
+
+
 	return sessions.size();
 }
 
-void Server::deliver(Session_ptr session, const Message & msg)
-{
-
-	log->info("Received message from Session {} at {}: {}", session->get_ID(), session->get_address().c_str(), msg.body());
-
-	handle_message(session, msg);
-
-//	int command_code = std::atoi(str.c_str());
-	//
-	//	handle_command(command_code);
-	//
-	//	log->info("Waiting on next command");
-}
-
-int Server::handshake() {
-
-
-	return 0;
-}
-
-void Server::accept_connection()
-{
-	acceptor.async_accept(
-		[this](boost::system::error_code ec, tcp::socket socket)
-		{
-			if (!ec) {
-				std::make_shared<Session>(std::move(socket), *this, next_session_ID++)->start();
-			}
-
-			accept_connection();
-		});
-}
+//void Server::deliver(const Session_ptr session, Message & msg)
+//{
+//
+//
+//	handle_message(session, msg);
+//
+////	int command_code = std::atoi(str.c_str());
+//	//
+//	//	handle_command(command_code);
+//	//
+//	//	log->info("Waiting on next command");
+//}
 
 void Server::print_IP()
 {

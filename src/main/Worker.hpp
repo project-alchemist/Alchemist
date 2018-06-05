@@ -1,39 +1,43 @@
 #ifndef ALCHEMIST__WORKER_HPP
 #define ALCHEMIST__WORKER_HPP
 
-#include "Executor.hpp"
 #include "Server.hpp"
-#include "Library.hpp"
-#include "utility/logging.hpp"
+#include "WorkerSession.hpp"
 
 namespace alchemist {
 
+class WorkerSession;
+
+typedef std::shared_ptr<WorkerSession> WorkerSession_ptr;
+
 using std::string;
 
-typedef uint16_t Worker_ID;
-
-struct WorkerInfo {
-	WorkerInfo(): hostname(string("0")), port(0) {}
-	WorkerInfo(string _hostname, uint16_t _port): hostname(_hostname), port(_port) {}
-
-	string hostname;
-	uint16_t port;
-};
-
-class Worker : public Executor, public Server, public std::enable_shared_from_this<Worker>
+class Worker : public Server, public std::enable_shared_from_this<Worker>
 {
 public:
 
+	Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const unsigned int port);
 	Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint);
 	~Worker();
 
 	int start();
 
+	int handle_message(WorkerSession_ptr session, Message & msg);
+
 private:
+	MPI_Comm & world;
+	MPI_Comm & peers;
+
 	Worker_ID ID;
-	Log_ptr log;
+
+	bool accept_connections;
 
 	// ====================================   UTILITY FUNCTIONS   ====================================
+
+	string list_workers();
+	string list_inactive_workers();
+	string list_active_workers();
+	string list_sessions();
 
 	// ----------------------------------------   File I/O   ----------------------------------------
 
@@ -41,8 +45,6 @@ private:
 
 	// ====================================   COMMAND FUNCTIONS   ====================================
 
-
-	int handle_message(Session_ptr session, const Message & msg);
 	int wait_for_command();
 
 	int send_info();
@@ -61,8 +63,8 @@ private:
 
 	// -----------------------------------------   Testing   -----------------------------------------
 
-	int receive_test_string(const Session_ptr, const char *, const uint32_t);
-	int send_test_string(Session_ptr);
+	int receive_test_string(const WorkerSession_ptr, const char *, const uint32_t);
+	int send_test_string(WorkerSession_ptr);
 
 	// -----------------------------------------   Matrices   ----------------------------------------
 
@@ -72,6 +74,8 @@ private:
 	int get_transpose();
 	int matrix_multiply();
 	int get_matrix_rows();
+
+	void accept_connection();
 };
 
 }

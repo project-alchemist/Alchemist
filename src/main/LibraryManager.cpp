@@ -1,4 +1,4 @@
-#include "Executor.hpp"
+#include "LibraryManager.hpp"
 
 namespace alchemist {
 
@@ -7,51 +7,40 @@ namespace alchemist {
 //	log = _log;
 //}
 
-int Executor::load_library(std::string args) {
+int LibraryManager::load_library(string library_name, string library_path) {
 
-	typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-	boost::char_separator<char> sep(" ");
-	tokenizer tok(args, sep);
+//	char * cstr = new char [library_path.length()+1];
+//	std::strcpy(cstr, library_path.c_str());
+//
+////	log->info("Loading library {} located at {}", library_name, library_path);
+//
+//	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
+//	if (lib == NULL) {
+////		log->info("dlopen failed: {}", dlerror());
+//
+//		return -1;
+//	}
+//
+//	dlerror();			// Reset errors
+//
+//    create_t * create_library = (create_t*) dlsym(lib, "create");
+//    const char * dlsym_error = dlerror();
+//    	if (dlsym_error) {
+////    		log->info("dlsym with command \"load\" failed: {}", dlerror());
+//
+////        	delete [] cstr;
+////        	delete dlsym_error;
+//
+//    		return -1;
+//    	}
+//
+//    	Library * library = create_library(world);
+//
+//    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
+//
+//    	library->load();
 
-	tokenizer::iterator iter = tok.begin();
-
-	std::string library_name = *iter;
-	std::string library_path = *(++iter);
-
-	char * cstr = new char [library_path.length()+1];
-	std::strcpy(cstr, library_path.c_str());
-
-	log->info("Loading library {} located at {}", library_name, library_path);
-
-	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
-	if (lib == NULL) {
-		log->info("dlopen failed: {}", dlerror());
-
-//		delete [] cstr;
-
-		return -1;
-	}
-
-	dlerror();			// Reset errors
-
-    create_t * create_library = (create_t*) dlsym(lib, "create");
-    const char * dlsym_error = dlerror();
-    	if (dlsym_error) {
-    		log->info("dlsym with command \"load\" failed: {}", dlerror());
-
-//        	delete [] cstr;
-//        	delete dlsym_error;
-
-    		return -1;
-    	}
-
-    	Library * library = create_library(world);
-
-    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
-
-    	library->load();
-
-    	log->info("Library {} loaded", library_name);
+//    	log->info("Library {} loaded", library_name);
 
 //    	delete [] cstr;
 //    	delete dlsym_error;
@@ -59,7 +48,7 @@ int Executor::load_library(std::string args) {
     	return 0;
 }
 
-int Executor::run_task(std::string args, Parameters & output_parameters) {
+int LibraryManager::run_task(std::string args, Parameters & output_parameters) {
 
 //	log->info("Received: {}", args);
 //
@@ -100,27 +89,33 @@ int Executor::run_task(std::string args, Parameters & output_parameters) {
 	return 0;
 }
 
-int Executor::unload_libraries() {
+int LibraryManager::unload_library(string library_name) {
 
-	for (auto const & library : libraries) {
-
-//		log->info("Closing library {}", library.second.name);
-
-		destroy_t* destroy_library = (destroy_t*) dlsym(library.second.lib_ptr, "destroy");
-	    const char* dlsym_error = dlerror();
-	    	if (dlsym_error) {
-//	    		log->info("dlsym with command \"close\" failed: {}", dlerror());
-	    		return -1;
-	    	}
-
-	    	destroy_library(library.second.lib);
-	    	dlclose(library.second.lib_ptr);
-	}
 
 	return 0;
 }
 
-void Executor::deserialize_parameters(std::string input_parameter, Parameters & input_parameters) {
+int LibraryManager::unload_libraries() {
+
+//	for (auto const & library : libraries) {
+//
+////		log->info("Closing library {}", library.second.name);
+//
+//		destroy_t* destroy_library = (destroy_t*) dlsym(library.second.lib_ptr, "destroy");
+//	    const char* dlsym_error = dlerror();
+//	    	if (dlsym_error) {
+////	    		log->info("dlsym with command \"close\" failed: {}", dlerror());
+//	    		return -1;
+//	    	}
+//
+//	    	destroy_library(library.second.lib);
+//	    	dlclose(library.second.lib_ptr);
+//	}
+
+	return 0;
+}
+
+void LibraryManager::deserialize_parameters(std::string input_parameter, Parameters & input_parameters) {
 
 //	boost::char_separator<char> sep("()");
 //	boost::tokenizer<boost::char_separator<char> > tok(input_parameter, sep);
@@ -158,7 +153,7 @@ void Executor::deserialize_parameters(std::string input_parameter, Parameters & 
 //		input_parameters.add_matrixhandle(parameter_name, std::stoi(parameter_value));
 }
 
-std::string Executor::serialize_parameters(const Parameters & output) const {
+std::string LibraryManager::serialize_parameters(const Parameters & output) const {
 
 	return output.to_string();
 }

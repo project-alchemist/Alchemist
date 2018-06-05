@@ -16,8 +16,8 @@ LDFLAGS += -lmpi
 OBJ_FILES = \
 	$(TARGET_PATH)/main.o \
 	$(TARGET_PATH)/Session.o \
+	$(TARGET_PATH)/LibraryManager.o \
 	$(TARGET_PATH)/Server.o \
-	$(TARGET_PATH)/Executor.o \
 	$(TARGET_PATH)/Driver.o \
 	$(TARGET_PATH)/Worker.o
 

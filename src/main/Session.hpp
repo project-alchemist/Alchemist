@@ -2,26 +2,13 @@
 #define ALCHEMIST__SESSION_HPP
 
 
-
-#include <cstdlib>
-#include <deque>
-#include <iostream>
-#include <list>
-#include <memory>
-#include <set>
-#include <utility>
-#include <boost/version.hpp>
-#include <boost/asio.hpp>
+#include "Alchemist.hpp"
 #include "Message.hpp"
 //#include "data_stream.hpp"
 #include "Server.hpp"
+#include "LibraryManager.hpp"
 #include "utility/logging.hpp"
 
-#if BOOST_VERSION < 106600
-typedef boost::asio::io_service io_context;
-#else
-typedef boost::asio::io_context io_context;
-#endif
 
 namespace alchemist {
 
@@ -33,14 +20,15 @@ typedef std::deque<Message> Message_queue;
 
 class Server;
 
-
 class Session : public std::enable_shared_from_this<Session>
 {
 public:
 	Session(tcp::socket, Server &);
 	Session(tcp::socket, Server &, uint16_t);
+	Session(tcp::socket, Server &, uint16_t, Log_ptr &);
+	virtual ~Session() { };
 
-	void start();
+	virtual void start() = 0;
 
 	void set_log(Log_ptr _log);
 	void set_ID(Session_ID _ID);
@@ -50,20 +38,44 @@ public:
 	string get_address() const;
 	bool get_admin_privilege() const;
 
+	bool send_handshake();
+	bool check_handshake();
+
+	bool send_response_string();
+	bool send_test_string();
+
+	bool load_library();
+	bool run_task();
+	bool unload_library();
+
+	void wait();
+
+	int handle_message();
+
 	void write_string(const string & data);
 	void write_unsigned_char(const unsigned char & data);
 	void write_uint16(const uint16_t & data);
 	void write_uint32(const uint32_t & data);
 
-	void write(const char * data, std::size_t length, Datatype dt);
+	void write(const char * data, std::size_t length, datatype dt);
 	void flush();
 
-private:
-	bool admin_privilege;
-	Log_ptr log;
+//	void assign_workers();
+//	bool list_all_workers();
+//	bool list_active_workers();
+//	bool list_inactive_workers();
+//	bool list_assigned_workers();
 
-	void read_header();
-	void read_body();
+	Message & new_message();
+
+protected:
+	bool admin_privilege;
+	bool ready;
+	Log_ptr log;
+	LibraryManager lm;
+
+	virtual void read_header() = 0;
+	virtual void read_body() = 0;
 
 	tcp::socket socket;
 	Server & server;
@@ -72,7 +84,8 @@ private:
 	Message_queue write_msgs;
 
 	Session_ID ID;
-	string address;
+	string address = "";
+	uint16_t port = 0;
 };
 
 typedef std::shared_ptr<Session> Session_ptr;
