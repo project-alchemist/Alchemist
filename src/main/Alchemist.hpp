@@ -28,6 +28,7 @@
 #include <utility>
 #include <boost/version.hpp>
 #include <boost/asio.hpp>
+#include <boost/thread.hpp>
 #include "mpi.h"
 #include "Library.hpp"
 #include "Parameters.hpp"
@@ -63,6 +64,8 @@ const std::string get_Alchemist_version();
 const std::string get_Boost_version();
 
 typedef uint16_t Worker_ID;
+typedef uint16_t Session_ID;
+typedef uint16_t Job_ID;
 
 struct WorkerInfo {
 	WorkerInfo():

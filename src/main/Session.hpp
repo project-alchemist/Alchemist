@@ -29,6 +29,8 @@ public:
 	virtual ~Session() { };
 
 	virtual void start() = 0;
+	virtual void remove_session() = 0;
+	virtual int handle_message() = 0;
 
 	void set_log(Log_ptr _log);
 	void set_ID(Session_ID _ID);
@@ -36,12 +38,13 @@ public:
 
 	Session_ID get_ID() const;
 	string get_address() const;
+	uint16_t get_port() const;
 	bool get_admin_privilege() const;
 
 	bool send_handshake();
 	bool check_handshake();
 
-	bool send_response_string();
+	virtual bool send_response_string() = 0;
 	bool send_test_string();
 
 	bool load_library();
@@ -50,14 +53,15 @@ public:
 
 	void wait();
 
-	int handle_message();
-
 	void write_string(const string & data);
 	void write_unsigned_char(const unsigned char & data);
 	void write_uint16(const uint16_t & data);
 	void write_uint32(const uint32_t & data);
 
 	void write(const char * data, std::size_t length, datatype dt);
+
+	void read_header();
+	void read_body();
 	void flush();
 
 //	void assign_workers();
@@ -73,9 +77,6 @@ protected:
 	bool ready;
 	Log_ptr log;
 	LibraryManager lm;
-
-	virtual void read_header() = 0;
-	virtual void read_body() = 0;
 
 	tcp::socket socket;
 	Server & server;

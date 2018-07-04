@@ -28,6 +28,14 @@ public:
 	string list_allocated_workers(DriverSession_ptr);
 	string list_sessions();
 
+	void add_session(DriverSession_ptr session);
+	void remove_session(DriverSession_ptr session);
+
+	void idle_workers();
+	void print_workers();
+
+	void go();
+
 	std::map<Worker_ID, WorkerInfo> allocate_workers(DriverSession_ptr, uint16_t);
 	void deallocate_workers(DriverSession_ptr);
 
@@ -36,6 +44,12 @@ private:
 	MPI_Comm & peers;
 
 	uint16_t num_workers;
+
+	void print_num_sessions();
+//	void handshake(const Session_ptr session, Message & msg);
+	int get_num_sessions();
+
+	std::map<Session_ID, DriverSession_ptr> sessions;
 
 //	std::map<MatrixHandle, MatrixDescriptor> matrices;
 	std::map<Worker_ID, WorkerInfo> workers;

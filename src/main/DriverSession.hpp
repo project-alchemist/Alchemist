@@ -30,8 +30,10 @@ public:
 
 	void start();
 
-	void read_header();
-	void read_body();
+	bool send_response_string();
+	bool send_test_string();
+
+	void remove_session();
 
 	bool allocate_workers();
 	bool deallocate_workers();

@@ -15,7 +15,6 @@ namespace alchemist {
 
 class Session;
 
-typedef uint16_t Session_ID;
 typedef std::shared_ptr<Session> Session_ptr;
 typedef std::deque<Message> Message_queue;
 
@@ -34,8 +33,6 @@ public:
 
 //	void deliver(const Session_ptr session, Message & msg);
 
-	void add_session(Session_ptr session);
-	void remove_session(Session_ptr session);
 
 	virtual int start() = 0;
 
@@ -50,12 +47,13 @@ protected:
 	string hostname;
 	string address;
 	uint16_t port;
+
+	Job_ID next_job_ID;
 	Session_ID next_session_ID;
 
 	io_context & ic;
 	Log_ptr log;
 
-	std::map<Session_ID, Session_ptr> sessions;
 	enum { max_recent_msgs = 100 };
 	Message_queue recent_msgs;
 
@@ -63,9 +61,6 @@ protected:
 
 	void set_log(Log_ptr _log);
 
-	void print_num_sessions();
-//	void handshake(const Session_ptr session, Message & msg);
-	int get_num_sessions();
 	virtual void accept_connection() = 0;
 
 	void print_IP();

@@ -22,6 +22,11 @@ public:
 
 	int start();
 
+	Worker_ID get_ID();
+
+	void add_session(WorkerSession_ptr session);
+	void remove_session(WorkerSession_ptr session);
+
 	int handle_message(WorkerSession_ptr session, Message & msg);
 
 private:
@@ -30,7 +35,17 @@ private:
 
 	Worker_ID ID;
 
+	std::map<Session_ID, WorkerSession_ptr> sessions;
+	WorkerSession_ptr ses;
+
 	bool accept_connections;
+
+	void print_num_sessions();
+//	void handshake(const Session_ptr session, Message & msg);
+	int get_num_sessions();
+
+
+	std::vector<boost::thread> some_threads;
 
 	// ====================================   UTILITY FUNCTIONS   ====================================
 
@@ -49,6 +64,8 @@ private:
 
 	int send_info();
 	int run_task();
+
+	void handle_command(alchemist_command c);
 
 	// ---------------------------------------   Information   ---------------------------------------
 

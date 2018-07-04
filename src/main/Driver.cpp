@@ -45,32 +45,24 @@ Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, c
 
 	print_ready_message();
 
-	start();
-//	MPI_Status status[1];
-//	uint16_t done;
-//
-//
-//	for(uint16_t id = 1; id <= num_workers; ++id)
-//		MPI_Recv(&done, 1, MPI_UNSIGNED_CHAR, id, 0, world, &status[0]);
+	boost::thread t = boost::thread(&Driver::accept_connection, this);
 
+//	print_workers();
+	t.join();
 }
-
-
 
 Driver::~Driver() { }
 
 int Driver::start()
 {
-	open_workers();
 	accept_connection();
 
-	ic.run();
-
-
-//	alchemist_command command = ACCEPT_CONNECTION;
-//	MPI_Bcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world);
-
 	return 0;
+}
+
+void Driver::go()
+{
+	accept_connection();
 }
 
 // ===============================================================================================
@@ -109,8 +101,9 @@ std::map<Worker_ID, WorkerInfo> Driver::allocate_workers(DriverSession_ptr s, ui
 {
 	Session_ID session_ID = s->get_ID();
 
-	if (inactive_workers.size() >= num_workers) {
+	log->info("Allocating {} workers to Session {}", num_workers, session_ID);
 
+	if (inactive_workers.size() >= num_workers) {
 		auto it = inactive_workers.begin();
 
 		for (uint16_t i = 0; i < num_workers; i++) {
@@ -121,6 +114,8 @@ std::map<Worker_ID, WorkerInfo> Driver::allocate_workers(DriverSession_ptr s, ui
 		}
 		inactive_workers.erase(inactive_workers.begin(), inactive_workers.begin() + num_workers);
 	}
+
+	open_workers();
 
 	return allocated_workers[session_ID];
 }
@@ -241,7 +236,7 @@ int Driver::start_workers()
 {
 	alchemist_command command = START;
 
-//	log->info("Sending command {}", command);
+	log->info("Sending command {} to workers", get_command_name(command));
 
 	MPI_Request req;
 	MPI_Status status;
@@ -257,7 +252,8 @@ int Driver::register_workers()
 {
 	alchemist_command command = SEND_INFO;
 
-//	log->info("Sending command {}", command);
+	log->info("Sending command {} to workers", get_command_name(command));
+
 	MPI_Request req;
 	MPI_Status status;
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
@@ -285,9 +281,9 @@ int Driver::register_workers()
 	if (num_workers == 0)
 		log->info("No workers ready");
 	else if (num_workers == 1)
-		log->info("1 worker ready:");
+		log->info("1 worker ready");
 	else
-		log->info("{} workers ready:", num_workers);
+		log->info("{} workers ready", num_workers);
 
 	log->info(list_workers());
 
@@ -298,7 +294,31 @@ void Driver::open_workers()
 {
 	alchemist_command command = ACCEPT_CONNECTION;
 
-//	log->info("Sending command {}", command);
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
+	MPI_Wait(&req, &status);
+}
+
+void Driver::idle_workers()
+{
+	alchemist_command command = IDLE;
+
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
+	MPI_Wait(&req, &status);
+}
+
+void Driver::print_workers()
+{
+	alchemist_command command = PRINT_SOMETHING;
+
+	log->info("Sending command {} to workers", get_command_name(command));
 
 	MPI_Request req;
 	MPI_Status status;
@@ -447,6 +467,44 @@ int Driver::load_library() {
 	return 0;
 }
 
+
+void Driver::print_num_sessions()
+{
+	if (sessions.size() == 0)
+		log->info("No active sessions");
+	else if (sessions.size() == 1)
+		log->info("1 active session");
+	else
+		log->info("{} active sessions", sessions.size());
+}
+
+void Driver::add_session(DriverSession_ptr session)
+{
+	Session_ID session_ID = session->get_ID();
+
+	sessions[session_ID] = session;
+
+	log->info("[Session {}] [{}:{}] Connection established", session->get_ID(), session->get_address().c_str(), session->get_port());
+	print_num_sessions();
+}
+
+void Driver::remove_session(DriverSession_ptr session)
+{
+	Session_ID session_ID = session->get_ID();
+
+	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
+	sessions.erase(session_ID);
+
+	print_num_sessions();
+}
+
+int Driver::get_num_sessions()
+{
+
+
+	return sessions.size();
+}
+
 // -----------------------------------------   Testing   -----------------------------------------
 
 
@@ -505,12 +563,12 @@ void Driver::accept_connection()
 	acceptor.async_accept(
 		[this](boost::system::error_code ec, tcp::socket socket)
 		{
-			if (!ec) {
-				std::make_shared<DriverSession>(std::move(socket), *this, next_session_ID++, log)->start();
-			}
+			if (!ec) std::make_shared<DriverSession>(std::move(socket), *this, next_session_ID++, log)->start();
 
 			accept_connection();
 		});
+
+	ic.run();
 }
 
 // ===============================================================================================

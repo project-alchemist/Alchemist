@@ -26,10 +26,11 @@ typedef enum _client_command : uint8_t {
 } client_command;
 
 typedef enum _alchemist_command : uint8_t {
-	IDLE                            = 0,
-	START                           = 1,
-	SEND_INFO                       = 2,
-	ACCEPT_CONNECTION               = 3
+	IDLE = 0,
+	START,
+	SEND_INFO,
+	ACCEPT_CONNECTION,
+	PRINT_SOMETHING
 } alchemist_command;
 
 inline const std::string get_command_name(const client_command & c)
@@ -79,6 +80,8 @@ inline const std::string get_command_name(const alchemist_command & c)
 			return "SEND_INFO";
 		case ACCEPT_CONNECTION:
 			return "ACCEPT CONNECTION";
+		case PRINT_SOMETHING:
+			return "PRINT SOMETHING";
 		default:
 			return "INVALID COMMAND";
 		}

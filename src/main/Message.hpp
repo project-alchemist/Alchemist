@@ -79,6 +79,7 @@ public:
 
 	void start(const client_command & cc)
 	{
+		clear();
 		add_client_command(cc);
 	}
 

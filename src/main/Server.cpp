@@ -3,7 +3,7 @@
 namespace alchemist {
 
 Server::Server(io_context & _io_context, const tcp::endpoint & endpoint) :
-		ic(_io_context), acceptor(_io_context, endpoint), next_session_ID(1), log(nullptr)
+		ic(_io_context), acceptor(_io_context, endpoint), next_session_ID(1), next_job_ID(1), log(nullptr)
 {
 	char _hostname[256];
 	gethostname(_hostname, sizeof(_hostname));
@@ -19,43 +19,6 @@ void Server::set_log(Log_ptr _log)
 	log = _log;
 }
 
-void Server::print_num_sessions()
-{
-	if (sessions.size() == 0)
-		log->info("No active sessions");
-	else if (sessions.size() == 1)
-		log->info("1 active session");
-	else
-		log->info("{} active sessions", sessions.size());
-}
-
-void Server::add_session(Session_ptr session)
-{
-	Session_ID session_ID = session->get_ID();
-
-	sessions[session_ID] = session;
-
-	log->info("[Session {}] [{}] Connection established", session->get_ID(), session->get_address().c_str());
-	print_num_sessions();
-}
-
-void Server::remove_session(Session_ptr session)
-{
-	Session_ID session_ID = session->get_ID();
-
-
-	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
-	sessions.erase(session_ID);
-
-	print_num_sessions();
-}
-
-int Server::get_num_sessions()
-{
-
-
-	return sessions.size();
-}
 
 //void Server::deliver(const Session_ptr session, Message & msg)
 //{

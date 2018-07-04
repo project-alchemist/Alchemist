@@ -39,6 +39,11 @@ int Worker::start()
 	return 0;
 }
 
+Worker_ID Worker::get_ID()
+{
+	return ID;
+}
+
 // ===============================================================================================
 // ====================================   UTILITY FUNCTIONS   ====================================
 
@@ -85,6 +90,7 @@ int Worker::wait_for_command()
 	MPI_Request req = MPI_REQUEST_NULL;
 	MPI_Status status;
 
+
 	while (!should_exit) {
 
 		MPI_Ibcast(&c, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
@@ -93,27 +99,38 @@ int Worker::wait_for_command()
 			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		}
 
-		switch (c) {
-			case IDLE:
-				break;
-			case START:
-				start();
-				break;
-			case SEND_INFO:
-				send_info();
-				break;
-			case ACCEPT_CONNECTION:
-				accept_connection();
+//		handle_command(c);
 
-				ic.run();
-				break;
-		}
+		some_threads.push_back(boost::thread(&Worker::handle_command, this, c));
 
 		flag = 0;
 		c = IDLE;
 	}
 
+	for (auto & t: some_threads) t.join();
+
 	return 0;
+}
+
+void Worker::handle_command(alchemist_command c)
+{
+
+	switch (c) {
+		case IDLE:
+			break;
+		case START:
+			start();
+			break;
+		case SEND_INFO:
+			send_info();
+			break;
+		case ACCEPT_CONNECTION:
+			accept_connection();
+			break;
+		case PRINT_SOMETHING:
+			log->info("SOMETHING");
+			break;
+	}
 }
 
 int Worker::send_info() {
@@ -217,6 +234,45 @@ int Worker::process_output_parameters(Parameters & output_parameters) {
 // -----------------------------------------   Library   -----------------------------------------
 
 
+void Worker::print_num_sessions()
+{
+	if (sessions.size() == 0)
+		log->info("No active sessions");
+	else if (sessions.size() == 1)
+		log->info("1 active session");
+	else
+		log->info("{} active sessions", sessions.size());
+}
+
+void Worker::add_session(WorkerSession_ptr session)
+{
+	Session_ID session_ID = session->get_ID();
+
+	ses = session;
+
+	sessions[session_ID] = session;
+
+	log->info("[Session {}] [{}:{}] Connection established", session->get_ID(), session->get_address().c_str(), session->get_port());
+	print_num_sessions();
+}
+
+void Worker::remove_session(WorkerSession_ptr session)
+{
+	Session_ID session_ID = session->get_ID();
+
+	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
+	sessions.erase(session_ID);
+
+	print_num_sessions();
+}
+
+int Worker::get_num_sessions()
+{
+
+
+	return sessions.size();
+}
+
 int Worker::load_library() {
 
 
@@ -270,19 +326,17 @@ int Worker::get_matrix_rows() {
 	return 0;
 }
 
-
 void Worker::accept_connection()
 {
-	log->info("Accepting connections ...");
 	acceptor.async_accept(
 		[this](boost::system::error_code ec, tcp::socket socket)
 		{
-			if (!ec) {
-				std::make_shared<WorkerSession>(std::move(socket), *this, next_session_ID++, log)->start();
-			}
+			if (!ec) std::make_shared<WorkerSession>(std::move(socket), *this, next_session_ID++, log)->start();
 
 			accept_connection();
 		});
+
+	ic.run();
 }
 
 // ===============================================================================================

@@ -42,8 +42,6 @@ public:
 
 	virtual ~Executor() {}
 
-	virtual int start() = 0;
-
 //	void set_log(Log_ptr _log);
 
 //	virtual int process_input_parameters(Parameters &) = 0;

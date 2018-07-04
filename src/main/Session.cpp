@@ -11,6 +11,7 @@ namespace alchemist {
 Session::Session(tcp::socket _socket, Server & _server)
     : socket(std::move(_socket)), server(_server), ID(0), lm(LibraryManager()), ready(false), admin_privilege(false)
 {
+	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
@@ -18,6 +19,7 @@ Session::Session(tcp::socket _socket, Server & _server)
 Session::Session(tcp::socket _socket, Server & _server, uint16_t _ID)
     : socket(std::move(_socket)), server(_server), ID(_ID), lm(LibraryManager()), ready(false), admin_privilege(false)
 {
+	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
@@ -25,6 +27,7 @@ Session::Session(tcp::socket _socket, Server & _server, uint16_t _ID)
 Session::Session(tcp::socket _socket, Server & _server, uint16_t _ID, Log_ptr & _log)
     : socket(std::move(_socket)), server(_server), ID(_ID), lm(LibraryManager()), ready(false), admin_privilege(false), log(_log)
 {
+	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
@@ -55,16 +58,14 @@ string Session::get_address() const
 	return address;
 }
 
+uint16_t Session::get_port() const
+{
+	return port;
+}
+
 bool Session::get_admin_privilege() const
 {
 	return admin_privilege;
-}
-
-void Session::start()
-{
-	server.add_session(shared_from_this());
-//	send_handshake();
-	read_header();
 }
 
 //void Session::deliver(const Message & msg)
@@ -93,36 +94,12 @@ bool Session::check_handshake()
 {
 	if (read_msg.next_datatype() == UINT16_T && read_msg.next_data_length() == 1 && read_msg.read_uint16() == 1234) {
 		if (read_msg.next_datatype() == STRING && read_msg.next_data_length() == 4 && read_msg.read_string().compare("ABCD") == 0) {
-			log->info("[Session {}] [{}] Received handshake from client", get_ID(), get_address().c_str());
+			log->info("[Session {}] [{}:{}] Received handshake", get_ID(), get_address().c_str(), get_port());
 			return true;
 		}
 	}
 
 	return false;
-}
-
-bool Session::send_response_string()
-{
-	string test_str = "Alchemist received: '";
-	test_str += read_msg.read_string();
-	test_str += "'";
-
-	write_msg.start(SEND_TEST_STRING);
-	write_msg.add_string(test_str);
-	flush();
-
-	return true;
-}
-
-bool Session::send_test_string()
-{
-	string test_str = "This is a test string from Alchemist";
-
-	write_msg.start(REQUEST_TEST_STRING);
-	write_msg.add_string(test_str);
-	flush();
-
-	return true;
 }
 
 Message & Session::new_message()
@@ -185,6 +162,29 @@ bool Session::unload_library()
 	return true;
 }
 
+void Session::read_header()
+{
+	read_msg.read_index = 0;
+	auto self(shared_from_this());
+	boost::asio::async_read(socket,
+			boost::asio::buffer(read_msg.header(), Message::header_length),
+				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
+			if (!ec && read_msg.decode_header()) read_body();
+			else remove_session();
+		});
+}
+
+void Session::read_body()
+{
+	auto self(shared_from_this());
+	boost::asio::async_read(socket,
+			boost::asio::buffer(read_msg.body(), read_msg.body_length),
+				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
+			if (!ec) handle_message();
+			else remove_session();
+		});
+}
+
 void Session::flush()
 {
 	auto self(shared_from_this());
@@ -192,14 +192,8 @@ void Session::flush()
 			boost::asio::buffer(write_msg.data, write_msg.length()),
 				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
 			if (!ec) write_msg.clear();
-			else server.remove_session(shared_from_this());
+			else remove_session();
 		});
-}
-
-int Session::handle_message()
-{
-
-	return 0;
 }
 
 //int Session::handle_message()
@@ -341,7 +335,6 @@ DriverSession::DriverSession(tcp::socket _socket, Driver & _driver, uint16_t _ID
 DriverSession::DriverSession(tcp::socket _socket, Driver & _driver, uint16_t _ID, Log_ptr & _log) :
 		Session(std::move(_socket), _driver, _ID, _log), driver(_driver) { }
 
-
 void DriverSession::start()
 {
 	driver.add_session(shared_from_this());
@@ -377,7 +370,14 @@ int DriverSession::handle_message()
 			allocate_workers();
 			break;
 		case YIELD_WORKERS:
-			deallocate_workers();
+			driver.print_workers();
+
+			write_msg.start(YIELD_WORKERS);
+			write_msg.add_string("Alchemist workers have been deallocated");
+				flush();
+
+				read_header();
+//			deallocate_workers();
 			break;
 		case SEND_ASSIGNED_WORKERS_INFO:
 //			send_assigned_workers_info();
@@ -408,6 +408,35 @@ int DriverSession::handle_message()
 	return 0;
 }
 
+void DriverSession::remove_session()
+{
+	driver.remove_session(shared_from_this());
+}
+
+bool DriverSession::send_test_string()
+{
+	string test_str = "This is a test string from Alchemist driver";
+
+	write_msg.start(REQUEST_TEST_STRING);
+	write_msg.add_string(test_str);
+	flush();
+
+	return true;
+}
+
+bool DriverSession::send_response_string()
+{
+	string test_str = "Alchemist driver received: '";
+	test_str += read_msg.read_string();
+	test_str += "'";
+
+	write_msg.start(SEND_TEST_STRING);
+	write_msg.add_string(test_str);
+	flush();
+
+	return true;
+}
+
 bool DriverSession::allocate_workers()
 {
 	write_msg.start(REQUEST_WORKERS);
@@ -417,21 +446,35 @@ bool DriverSession::allocate_workers()
 		uint16_t num_workers = read_msg.read_uint16();
 
 		if (num_workers > 0) {
+
+			std::stringstream list_of_alchemist_workers;
+			char buffer[4];
+
+			list_of_alchemist_workers << "[Session " << get_ID() << "] [" << get_address().c_str() << "] ";
+
 			if (num_workers == 1)
-				log->info("[Session {}] [{}] Allocating 1 worker", get_ID(), get_address().c_str());
+				list_of_alchemist_workers << "Allocating 1 worker:", get_ID(), get_address().c_str();
 			else
-				log->info("[Session {}] [{}] Allocating {} workers", get_ID(), get_address().c_str(), num_workers);
+				list_of_alchemist_workers << "Allocating " << num_workers << " workers:";
+			list_of_alchemist_workers << std::endl;
 
 			workers = driver.allocate_workers(DriverSession::shared_from_this(), num_workers);
 
 			write_msg.add_uint16(num_workers);
 
 			for (auto it = workers.begin(); it != workers.end(); it++) {
+				sprintf(buffer, "%03d", it->first);
+				list_of_alchemist_workers << SPACE;
+				list_of_alchemist_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " ";
+				list_of_alchemist_workers << it->second.address << ":" << it->second.port << std::endl;
+
 				write_msg.add_uint16(it->first);
 				write_msg.add_string(it->second.hostname);
 				write_msg.add_string(it->second.address);
 				write_msg.add_uint16(it->second.port);
 			}
+
+			log->info(list_of_alchemist_workers.str());
 		}
 	}
 	else {
@@ -441,7 +484,6 @@ bool DriverSession::allocate_workers()
 	}
 
 	flush();
-
 	read_header();
 
 	return true;
@@ -522,33 +564,6 @@ bool DriverSession::list_assigned_workers()
 	return true;
 }
 
-
-void DriverSession::read_header()
-{
-	read_msg.read_index = 0;
-	auto self(shared_from_this());
-	boost::asio::async_read(socket,
-			boost::asio::buffer(read_msg.header(), Message::header_length),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
-			if (!ec && read_msg.decode_header()) read_body();
-			else driver.remove_session(shared_from_this());
-		});
-}
-
-void DriverSession::read_body()
-{
-
-	auto self(shared_from_this());
-	boost::asio::async_read(socket,
-			boost::asio::buffer(read_msg.body(), read_msg.body_length),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
-			if (!ec) {
-				handle_message();
-			}
-			else driver.remove_session(shared_from_this());
-		});
-}
-
 // =============================================================================================
 //                                         WorkerSession
 // =============================================================================================
@@ -569,9 +584,14 @@ void WorkerSession::start()
 	read_header();
 }
 
+void WorkerSession::remove_session()
+{
+	worker.remove_session(shared_from_this());
+}
+
 int WorkerSession::handle_message()
 {
-//	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
+//	log->info("Received message from Session {} at {}:{}", get_ID(), get_address().c_str(), get_port());
 //	log->info("{}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
@@ -581,37 +601,48 @@ int WorkerSession::handle_message()
 		case SHUT_DOWN:
 //			shut_down();
 			break;
+		case HANDSHAKE:
+			if (check_handshake()) send_handshake();
+			read_header();
+			break;
+		case REQUEST_TEST_STRING:
+			send_test_string();
+			break;
+		case SEND_TEST_STRING:
+			send_response_string();
+			break;
 	}
 
 	return 0;
 }
 
-
-
-void WorkerSession::read_header()
+bool WorkerSession::send_test_string()
 {
-	read_msg.read_index = 0;
-	auto self(shared_from_this());
-	boost::asio::async_read(socket,
-			boost::asio::buffer(read_msg.header(), Message::header_length),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
-			if (!ec && read_msg.decode_header()) read_body();
-			else worker.remove_session(shared_from_this());
-		});
+	char buffer[4];
+	std::stringstream test_str;
+
+	sprintf(buffer, "%03d", worker.get_ID());
+	test_str << "This is a test string from Alchemist worker " << buffer;
+
+	write_msg.start(REQUEST_TEST_STRING);
+	write_msg.add_string(test_str.str());
+	flush();
+
+	return true;
 }
 
-void WorkerSession::read_body()
+bool WorkerSession::send_response_string()
 {
+	string test_str = "Alchemist worker received: '";
+	test_str += read_msg.read_string();
+	test_str += "'";
 
-	auto self(shared_from_this());
-	boost::asio::async_read(socket,
-			boost::asio::buffer(read_msg.body(), read_msg.body_length),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
-			if (!ec) {
-				handle_message();
-			}
-			else worker.remove_session(shared_from_this());
-		});
+	write_msg.start(SEND_TEST_STRING);
+	write_msg.add_string(test_str);
+	flush();
+
+	return true;
 }
+
 
 }			// namespace alchemist

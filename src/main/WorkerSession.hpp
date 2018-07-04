@@ -13,7 +13,6 @@
 namespace alchemist {
 
 using boost::asio::ip::tcp;
-using std::string;
 
 typedef uint16_t Session_ID;
 typedef std::deque<Message> Message_queue;
@@ -31,9 +30,10 @@ public:
 
 	void start();
 
+	bool send_response_string();
+	bool send_test_string();
 
-	void read_header();
-	void read_body();
+	void remove_session();
 
 	std::shared_ptr<WorkerSession> shared_from_this()
 	{
