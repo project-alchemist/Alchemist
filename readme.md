@@ -11,26 +11,17 @@ We also distinguish between the Spark side and the MPI side:
 * The Spark (or application) side consists of the Spark application, the Spark-Alchemist interface for each library, and the Alchemist subsystem that takes in a Spark-based data structure. This part of the core Alchemist code is written in Scala, and it is expected that the Spark application and interface are written in Scala as well, although this requirement may be eased at some point.
 * The MPI (or library) side consists of the MPI libraries, the library-Alchemist interface for each library, and the Alchemist subsystem that takes in the data from the Spark side and creates the distributed data structures that are needed by the libraries, and then returns the computed results to the Spark side. This subsystem is written in C++ and it is expected that the library and its interface are also written in C++, although this requirement may also be eased at some point. 
 
-For now we require that the MPI libraries use the Elemental library and Boost MPI.
+For now we require that the MPI libraries use the Elemental library and MPI.
 
 # Dependencies
 
-The following dependencies are required by AlLib and the MPI side of Alchemist:
+The following dependencies are required by Alchemist:
 
 ## Alchemist Dependencies
 
 The MPI side of the core Alchemist code requires the following supporting libraries:
 * Elemental: For distributing the matrices between Alchemist processes and distributed linear algebra
 * SPDLog: For thread-safe logging during execution
-* Eigen3: For local matrix manipulations (more convenient interface than Elemental)
-
-## AlLib Dependencies
-
-AlLib additionally requires the following supporting libraries:
-* Arpack-ng: For the computation of truncated SVDs
-* Arpackpp: Very convenient C++ interface to Arpack-ng
-
-See below for installation instructions for each of these libraries.
 
 # Installation instructions
 
@@ -44,13 +35,11 @@ The following prerequisites are needed by the Alchemist framework. Assuming that
 brew install gcc
 brew install make --with-default-names
 brew install cmake
-brew install boost-mpi
-brew install sbt
 ```
 
 ### Install dependencies
 
-If some or all of the dependencies listed above have not yet been installed on the system, follow the instructions below. Elemental and SPDLog are needed by Alchemist, AlLib additionally requires Eigen3, Arpack-ng and Arpackpp.
+If some or all of the dependencies listed above have not yet been installed on the system, follow the instructions below. 
 
 #### Install Elemental
 ```
