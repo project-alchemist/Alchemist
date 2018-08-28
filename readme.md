@@ -81,8 +81,8 @@ git clone https://github.com/project-alchemist/Alchemist.git
 ### Update configuration file
 
 In the config.sh file:
-* Change SYSTEM to the system you are working on.
-* Set ALCHEMIST_PATH, ELEMENTAL_PATH, and SPDLOG_PATH to the appropriate paths
+* change SYSTEM to the system you are working on;
+* set ALCHEMIST_PATH, ELEMENTAL_PATH, and SPDLOG_PATH to the appropriate paths.
 
 It may also be a good idea to add the above paths to the bash profile.
 
