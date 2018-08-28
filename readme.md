@@ -106,6 +106,13 @@ Assuming the above dependencies have been installed and the configuration file u
 
 TO BE ADDED
 
+# Running Alchemist
+
+Alchemist is started using
+```
+./start.sh
+```
+
 # Testing Alchemist
 
 For now, testing is done using the Alchemist-Client Interface (ACI) located at 
