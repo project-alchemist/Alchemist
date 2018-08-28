@@ -11,6 +11,7 @@ class DriverSession;
 typedef std::shared_ptr<DriverSession> DriverSession_ptr;
 
 using std::string;
+using std::vector;
 
 class Driver : public Server, public std::enable_shared_from_this<Driver>
 {
@@ -36,14 +37,29 @@ public:
 
 	void go();
 
+	vector<uint16_t> & get_row_assignments(Matrix_ID & matrix_ID);
+	void determine_row_assignments(Matrix_ID & matrix_ID);
+
+
+
+
+
 	std::map<Worker_ID, WorkerInfo> allocate_workers(DriverSession_ptr, uint16_t);
 	void deallocate_workers(DriverSession_ptr);
+
+	int load_library(string library_name, string library_path);
+
+//	vector<vector<uint32_t> > new_matrix(unsigned char type, unsigned char layout, uint32_t num_rows, uint32_t num_cols);
+	Matrix_ID new_matrix(unsigned char type, unsigned char layout, uint32_t num_rows, uint32_t num_cols);
+
+	vector<vector<vector<float> > > prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers);
 
 private:
 	MPI_Comm & world;
 	MPI_Comm & peers;
 
 	uint16_t num_workers;
+	LibraryManager * lm;
 
 	void print_num_sessions();
 //	void handshake(const Session_ptr session, Message & msg);
@@ -51,7 +67,7 @@ private:
 
 	std::map<Session_ID, DriverSession_ptr> sessions;
 
-//	std::map<MatrixHandle, MatrixDescriptor> matrices;
+	std::map<Matrix_ID, MatrixInfo> matrices;
 	std::map<Worker_ID, WorkerInfo> workers;
 
 	std::map<Worker_ID, Session_ID> active_workers;
@@ -59,7 +75,7 @@ private:
 
 	std::map<Session_ID, std::map<Worker_ID, WorkerInfo> > allocated_workers;
 
-	uint32_t next_matrix_ID;
+	Matrix_ID next_matrix_ID;
 
 	// ====================================   UTILITY FUNCTIONS   ====================================
 
@@ -98,7 +114,6 @@ private:
 
 	// -----------------------------------------   Library   -----------------------------------------
 
-	int load_library() ;
 
 	// -----------------------------------------   Testing   -----------------------------------------
 

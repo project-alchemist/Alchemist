@@ -7,6 +7,7 @@
 #include <string>
 #include <unistd.h>
 #include "Alchemist.hpp"
+#include "utility/logging.hpp"
 
 namespace alchemist {
 
@@ -29,18 +30,18 @@ struct LibraryInfo {
 class LibraryManager : public std::enable_shared_from_this<LibraryManager>
 {
 public:
-//	MPI_Comm & world;
+//	MPI_Comm & group;
 //	MPI_Comm & peers;
 
 	std::map<std::string, LibraryInfo> libraries;
-
-	LibraryManager() { }
-	LibraryManager(MPI_Comm & _world, MPI_Comm & _peers) { }
+//
+//	LibraryManager();
+	LibraryManager(Log_ptr &);
 
 //	virtual int process_input_parameters(Parameters &) = 0;
 //	virtual int process_output_parameters(Parameters &) = 0;
 
-	int load_library(string library_name, string library_path);
+	int load_library(MPI_Comm & group, string library_name, string library_path);
 	int run_task(string library_name, Parameters &);
 	int unload_library(string library_name);
 
@@ -54,9 +55,9 @@ public:
 
 	void deserialize_parameters(std::string, Parameters &);
 	std::string serialize_parameters(const Parameters &) const;
-//
-//private:
-//	Log_ptr log;
+
+private:
+	Log_ptr log;
 };
 
 }

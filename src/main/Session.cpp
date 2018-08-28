@@ -9,7 +9,7 @@ namespace alchemist {
 // =============================================================================================
 
 Session::Session(tcp::socket _socket, Server & _server)
-    : socket(std::move(_socket)), server(_server), ID(0), lm(LibraryManager()), ready(false), admin_privilege(false)
+    : socket(std::move(_socket)), server(_server), ID(0), ready(false), admin_privilege(false)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
@@ -17,7 +17,7 @@ Session::Session(tcp::socket _socket, Server & _server)
 }
 
 Session::Session(tcp::socket _socket, Server & _server, uint16_t _ID)
-    : socket(std::move(_socket)), server(_server), ID(_ID), lm(LibraryManager()), ready(false), admin_privilege(false)
+    : socket(std::move(_socket)), server(_server), ID(_ID), ready(false), admin_privilege(false)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
@@ -25,7 +25,7 @@ Session::Session(tcp::socket _socket, Server & _server, uint16_t _ID)
 }
 
 Session::Session(tcp::socket _socket, Server & _server, uint16_t _ID, Log_ptr & _log)
-    : socket(std::move(_socket)), server(_server), ID(_ID), lm(LibraryManager()), ready(false), admin_privilege(false), log(_log)
+    : socket(std::move(_socket)), server(_server), ID(_ID), ready(false), admin_privilege(false), log(_log)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
@@ -134,37 +134,9 @@ void Session::write(const char * data, std::size_t length, datatype dt)
 	write_msg.add(data, length, dt);
 }
 
-bool Session::load_library()
-{
-	string library_name = read_msg.read_string();
-	string library_path = read_msg.read_string();
-
-	lm.load_library(library_name, library_path);
-
-	return true;
-}
-
-bool Session::run_task()
-{
-	string library_name = read_msg.read_string();
-
-//	lm.run_task(library_name, input_parameters);
-
-	return true;
-}
-
-bool Session::unload_library()
-{
-	string library_name = read_msg.read_string();
-
-	lm.unload_library(library_name);
-
-	return true;
-}
-
 void Session::read_header()
 {
-	read_msg.read_index = 0;
+	read_msg.clear();
 	auto self(shared_from_this());
 	boost::asio::async_read(socket,
 			boost::asio::buffer(read_msg.header(), Message::header_length),
@@ -187,6 +159,7 @@ void Session::read_body()
 
 void Session::flush()
 {
+//	log->info("{}", write_msg.to_string());
 	auto self(shared_from_this());
 	boost::asio::async_write(socket,
 			boost::asio::buffer(write_msg.data, write_msg.length()),
@@ -327,13 +300,13 @@ void Session::flush()
 // =============================================================================================
 
 DriverSession::DriverSession(tcp::socket _socket, Driver & _driver) :
-		Session(std::move(_socket), _driver), driver(_driver) { }
+		Session(std::move(_socket), _driver), driver(_driver), num_client_workers(0) { }
 
 DriverSession::DriverSession(tcp::socket _socket, Driver & _driver, uint16_t _ID) :
-		Session(std::move(_socket), _driver, _ID), driver(_driver) { }
+		Session(std::move(_socket), _driver, _ID), driver(_driver), num_client_workers(0) { }
 
 DriverSession::DriverSession(tcp::socket _socket, Driver & _driver, uint16_t _ID, Log_ptr & _log) :
-		Session(std::move(_socket), _driver, _ID, _log), driver(_driver) { }
+		Session(std::move(_socket), _driver, _ID, _log), driver(_driver), num_client_workers(0) { }
 
 void DriverSession::start()
 {
@@ -358,6 +331,10 @@ int DriverSession::handle_message()
 			if (check_handshake()) send_handshake();
 			read_header();
 			break;
+		case CLIENT_INFO:
+			receive_client_info();
+			read_header();
+			break;
 		case REQUEST_TEST_STRING:
 			send_test_string();
 			read_header();
@@ -368,6 +345,7 @@ int DriverSession::handle_message()
 			break;
 		case REQUEST_WORKERS:
 			allocate_workers();
+			read_header();
 			break;
 		case YIELD_WORKERS:
 			driver.print_workers();
@@ -394,6 +372,9 @@ int DriverSession::handle_message()
 		case LIST_ASSIGNED_WORKERS:
 			list_assigned_workers();
 			break;
+		case MATRIX_INFO:
+			new_matrix();
+			break;
 		case LOAD_LIBRARY:
 			load_library();
 			break;
@@ -411,6 +392,87 @@ int DriverSession::handle_message()
 void DriverSession::remove_session()
 {
 	driver.remove_session(shared_from_this());
+}
+
+void DriverSession::send_matrix_info(Matrix_ID matrix_ID)
+{
+	write_msg.start(MATRIX_INFO);
+	write_msg.add_uint16(matrix_ID);
+
+	driver.determine_row_assignments(matrix_ID);
+	vector<uint16_t> & row_assignments = driver.get_row_assignments(matrix_ID);
+
+	uint32_t num_rows = row_assignments.size();
+	uint16_t worker;
+
+	write_msg.add_uint32(num_rows);
+
+	for (uint32_t row = 0; row < num_rows; row++)
+		write_msg.add_uint16(row_assignments[row]);
+
+	flush();
+}
+
+void DriverSession::send_layout(vector<vector<uint32_t> > & rows_on_workers)
+{
+	uint16_t num_workers = rows_on_workers.size();
+	uint32_t worker_num_rows, row;
+
+	write_msg.start(MATRIX_LAYOUT);
+	write_msg.add_uint16(num_workers);
+
+	for (uint16_t i = 0; i < num_workers; i++) {
+		write_msg.add_uint16(i);
+		worker_num_rows = rows_on_workers[i].size();
+		write_msg.add_uint32(worker_num_rows);
+		for (uint32_t j = 0; j < worker_num_rows; j++) {
+			row = rows_on_workers[i][j];
+			write_msg.add_uint32(row);
+		}
+	}
+
+	flush();
+}
+
+void DriverSession::send_layout(vector<uint16_t> & row_assignments)
+{
+	uint32_t num_rows = row_assignments.size();
+	uint16_t worker;
+
+	write_msg.start(MATRIX_LAYOUT);
+	write_msg.add_uint32(num_rows);
+
+	for (uint32_t row = 0; row < num_rows; row++)
+		write_msg.add_uint16(row_assignments[row]);
+
+	flush();
+}
+
+void DriverSession::new_matrix()
+{
+	unsigned char type   = read_msg.read_unsigned_char();
+	unsigned char layout = read_msg.read_unsigned_char();
+	uint32_t num_rows    = read_msg.read_uint32();
+	uint32_t num_cols    = read_msg.read_uint32();
+
+	send_matrix_info(driver.new_matrix(type, layout, num_rows, num_cols));
+}
+
+bool DriverSession::receive_client_info()
+{
+	num_client_workers = read_msg.read_uint16();
+	log_dir = read_msg.read_string();
+
+	string response_str = "Logs saved to: ";
+	response_str += log_dir;
+
+	write_msg.start(CLIENT_INFO);
+	write_msg.add_string(response_str);
+	flush();
+
+	log->info(response_str);
+
+	return true;
 }
 
 bool DriverSession::send_test_string()
@@ -433,6 +495,44 @@ bool DriverSession::send_response_string()
 	write_msg.start(SEND_TEST_STRING);
 	write_msg.add_string(test_str);
 	flush();
+
+	return true;
+}
+
+bool DriverSession::load_library()
+{
+	string library_name = read_msg.read_string();
+	string library_path = read_msg.read_string();
+
+	log->info("Loading library {} at {}", library_name, library_path);
+
+	int result = driver.load_library(library_name, library_path);
+
+	write_msg.start(LOAD_LIBRARY);
+	if (result == 0)
+		write_msg.add_string("Library successfully loaded");
+	else
+		write_msg.add_string("Could not load library");
+
+	flush();
+
+	return true;
+}
+
+bool DriverSession::run_task()
+{
+	string library_name = read_msg.read_string();
+
+//	lm.run_task(library_name, input_parameters);
+
+	return true;
+}
+
+bool DriverSession::unload_library()
+{
+//	string library_name = read_msg.read_string();
+//
+//	driver.unload_library(library_name);
 
 	return true;
 }
@@ -474,17 +574,26 @@ bool DriverSession::allocate_workers()
 				write_msg.add_uint16(it->second.port);
 			}
 
+			auto layout_rr = driver.prepare_data_layout_table(num_workers, num_client_workers);
+
+			write_msg.add_uint16(num_client_workers);
+			for (int i = 0; i < num_client_workers; i++) {
+				for (int j = 0; j < num_workers; j++) {
+					write_msg.add_float(layout_rr[i][j][0]);
+					write_msg.add_float(layout_rr[i][j][1]);
+				}
+			}
+
 			log->info(list_of_alchemist_workers.str());
 		}
-	}
-	else {
-		write_msg.add_uint16(0);
-		write_msg.add_string("ERROR: Insufficient number of Alchemist workers available");
-		write_msg.add_string("       Try again later or request fewer workers");
+		else {
+			write_msg.add_uint16(0);
+			write_msg.add_string("ERROR: Insufficient number of Alchemist workers available");
+			write_msg.add_string("       Try again later or request fewer workers");
+		}
 	}
 
 	flush();
-	read_header();
 
 	return true;
 }
@@ -593,9 +702,10 @@ int WorkerSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}:{}", get_ID(), get_address().c_str(), get_port());
 //	log->info("{}", read_msg.to_string());
-//	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
+
+//	log->info("{}", command);
 
 	switch (command) {
 		case SHUT_DOWN:
@@ -607,13 +717,72 @@ int WorkerSession::handle_message()
 			break;
 		case REQUEST_TEST_STRING:
 			send_test_string();
+			read_header();
 			break;
 		case SEND_TEST_STRING:
 			send_response_string();
+			read_header();
+			break;
+		case MATRIX_BLOCK:
+			receive_data();
+			read_header();
 			break;
 	}
 
 	return 0;
+}
+
+bool WorkerSession::receive_data()
+{
+	float value;
+	uint32_t num_blocks, row_start, row_end, col_start, col_end;
+
+	Matrix_ID ID = read_msg.read_uint16();
+	num_blocks = read_msg.read_uint32();
+
+//	std::vector<std::vector<float> > data;
+
+	for (auto block = 0; block < num_blocks; block++) {
+
+		row_start = read_msg.read_uint32();
+		row_end   = read_msg.read_uint32();
+		col_start = read_msg.read_uint32();
+		col_end   = read_msg.read_uint32();
+
+//		log->info("Matrix {} block dimensions: {} {} {} {}", ID, row_start, row_end, col_start, col_end);
+
+//		data = std::vector<std::vector<float> >(row_end-row_start+1, std::vector<float>(col_end-col_start+1));
+
+		for (auto i = row_start; i <= row_end; i++)
+			for (auto j = col_start; j <= col_end; j++) {
+//				value = read_msg.read_float();
+
+				worker.set_value(ID, i, j, read_msg.read_float());
+//				data[i-row_start][j-col_start] = value;
+			}
+
+//		for (auto i = 0; i <= row_end-row_start; i++) {
+//			for (auto j = 0; j <= col_end-col_start; j++)
+//				std::cout << data[i][j] << " ";
+//			std::cout << std::endl;
+//		}
+
+		log->info("[Session {}] [{}:{}] Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", get_ID(), get_address().c_str(), get_port(), ID, row_start, row_end, col_start, col_end);
+	}
+
+//	worker.print_data(ID);
+
+	char buffer[4];
+	std::stringstream test_str;
+
+	sprintf(buffer, "%03d", worker.get_ID());
+	test_str << "Alchemist worker " << buffer << " received " << num_blocks << " blocks for matrix " << ID;
+
+	write_msg.start(MATRIX_BLOCK);
+	write_msg.add_string(test_str.str());
+	flush();
+
+	return true;
 }
 
 bool WorkerSession::send_test_string()

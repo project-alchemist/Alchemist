@@ -10,6 +10,7 @@ typedef enum _client_command : uint8_t {
 	WAIT = 0,
 	HANDSHAKE,
 	REQUEST_ID,
+	CLIENT_INFO,
 	SEND_TEST_STRING,
 	REQUEST_TEST_STRING,
 	REQUEST_WORKERS,
@@ -22,6 +23,9 @@ typedef enum _client_command : uint8_t {
 	LOAD_LIBRARY,
 	RUN_TASK,
 	UNLOAD_LIBRARY,
+	MATRIX_INFO,
+	MATRIX_LAYOUT,
+	MATRIX_BLOCK,
 	SHUT_DOWN
 } client_command;
 
@@ -30,7 +34,10 @@ typedef enum _alchemist_command : uint8_t {
 	START,
 	SEND_INFO,
 	ACCEPT_CONNECTION,
-	PRINT_SOMETHING
+	PRINT_SOMETHING,
+	NEW_MATRIX,
+	CLIENT_MATRIX_LAYOUT,
+	PRINT_DATA
 } alchemist_command;
 
 inline const std::string get_command_name(const client_command & c)
@@ -42,6 +49,8 @@ inline const std::string get_command_name(const client_command & c)
 			return "HANDSHAKE";
 		case REQUEST_ID:
 			return "REQUEST ID";
+		case CLIENT_INFO:
+			return "CLIENT INFO";
 		case SEND_TEST_STRING:
 			return "SEND TEST STRING";
 		case REQUEST_TEST_STRING:
@@ -66,6 +75,12 @@ inline const std::string get_command_name(const client_command & c)
 			return "RUN TASK";
 		case UNLOAD_LIBRARY:
 			return "UNLOAD LIBRARY";
+		case MATRIX_INFO:
+			return "MATRIX INFO";
+		case MATRIX_LAYOUT:
+			return "MATRIX LAYOUT";
+		case MATRIX_BLOCK:
+			return "MATRIX BLOCK";
 		default:
 			return "INVALID COMMAND";
 		}
@@ -82,6 +97,12 @@ inline const std::string get_command_name(const alchemist_command & c)
 			return "ACCEPT CONNECTION";
 		case PRINT_SOMETHING:
 			return "PRINT SOMETHING";
+		case NEW_MATRIX:
+			return "NEW MATRIX";
+		case CLIENT_MATRIX_LAYOUT:
+			return "CLIENT MATRIX LAYOUT";
+		case PRINT_DATA:
+			return "PRINT DATA";
 		default:
 			return "INVALID COMMAND";
 		}

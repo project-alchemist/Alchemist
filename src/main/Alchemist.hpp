@@ -26,6 +26,7 @@
 #include <memory>
 #include <set>
 #include <utility>
+#include <ctime>
 #include <boost/version.hpp>
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
@@ -57,6 +58,8 @@ typedef boost::asio::io_context io_context;
 
 namespace alchemist {
 
+using std::vector;
+
 typedef El::Matrix<double> Matrix;
 typedef El::AbstractDistMatrix<double> DistMatrix;
 
@@ -66,6 +69,7 @@ const std::string get_Boost_version();
 typedef uint16_t Worker_ID;
 typedef uint16_t Session_ID;
 typedef uint16_t Job_ID;
+typedef uint16_t Matrix_ID;
 
 struct WorkerInfo {
 	WorkerInfo():
@@ -78,27 +82,20 @@ struct WorkerInfo {
 	bool active;
 };
 
-struct MatrixHandle {
-  uint32_t ID;
-};
+struct MatrixInfo {
+	Matrix_ID ID;
+	uint32_t num_rows;
+	uint32_t num_cols;
 
-struct MatrixDescriptor {
-	MatrixHandle handle;
-	size_t num_rows;
-	size_t num_cols;
+	vector<Worker_ID> row_assignments;
 
-	explicit MatrixDescriptor() :
-		num_rows(0), num_cols(0) {
-	}
+	explicit MatrixInfo() : ID(0), num_rows(0), num_cols(0) { }
 
-	MatrixDescriptor(MatrixHandle handle, size_t num_rows, size_t num_cols) :
-		handle(handle), num_rows(num_rows), num_cols(num_cols) {
+	MatrixInfo(Matrix_ID _ID, uint32_t _num_rows, uint32_t _num_cols) :
+		ID(_ID), num_rows(_num_rows), num_cols(_num_cols) {
+		row_assignments.resize(num_rows);
 	}
 };
-
-inline bool operator < (const MatrixHandle & lhs, const MatrixHandle & rhs) {
-  return lhs.ID < rhs.ID;
-}
 
 //inline bool exist_test (const std::string & name) {
 //    struct stat buffer;

@@ -6,7 +6,7 @@ Worker::Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, c
     	    Worker(_world, _peers, _io_context, tcp::endpoint(tcp::v4(), port)) { }
 
 Worker::Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint) :
-			world(_world), peers(_peers), Server(_io_context, endpoint), ID(0)
+			world(_world), peers(_peers), Server(_io_context, endpoint), ID(0), grid(El::mpi::Comm(_peers))
 {
 	int world_rank;
 	MPI_Comm_rank(world, &world_rank);
@@ -96,15 +96,18 @@ int Worker::wait_for_command()
 		MPI_Ibcast(&c, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
 		while (flag == 0) {
 			MPI_Test(&req, &flag, &status);
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 		}
 
 //		handle_command(c);
 
+//		current_thread = boost::thread(&Worker::handle_command, this, c);
 		some_threads.push_back(boost::thread(&Worker::handle_command, this, c));
 
 		flag = 0;
 		c = IDLE;
+
+		log->info("Number of threads: {}", some_threads.size());
 	}
 
 	for (auto & t: some_threads) t.join();
@@ -130,7 +133,14 @@ void Worker::handle_command(alchemist_command c)
 		case PRINT_SOMETHING:
 			log->info("SOMETHING");
 			break;
+		case NEW_MATRIX:
+			new_matrix();
+			break;
+		case CLIENT_MATRIX_LAYOUT:
+			get_matrix_layout();
+			break;
 	}
+
 }
 
 int Worker::send_info() {
@@ -172,6 +182,83 @@ int Worker::send_test_string(WorkerSession_ptr session) {
 	return 0;
 }
 
+void Worker::new_matrix()
+{
+	log->info("Creating new Elemental distributed matrix");
+
+	uint32_t num_rows, num_cols;
+	Matrix_ID ID;
+
+	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, world);
+	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, world);
+	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, world);
+
+	DistMatrix * matrix = new El::DistMatrix<double, El::VR, El::STAR>(num_rows, num_cols, grid);
+	Zero(*matrix);
+
+	matrices.insert(std::make_pair(ID, std::unique_ptr<DistMatrix>(matrix)));
+	log->info("Created new Elemental distributed matrix");
+
+	MPI_Barrier(world);
+
+}
+
+void Worker::get_matrix_layout()
+{
+//	std::clock_t start = std::clock();
+
+	log->info("Creating vector of local rows");
+
+	Matrix_ID ID;
+
+	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, world);
+
+	uint32_t num_local_rows = matrices[ID]->LocalHeight();
+	uint32_t * local_rows = new uint32_t[num_local_rows];
+
+	std::stringstream ss;
+	ss << "Local rows (" << matrices[ID]->LocalHeight() << "): ";
+	for (uint32_t i = 0; i < num_local_rows; i++) {
+		log->info("nnn {}", i);
+		local_rows[i] = (uint32_t) matrices[ID]->GlobalRow(i);
+		ss << "(" << matrices[ID]->GlobalRow(i) << ", " << local_rows[i] << ") ";
+	}
+	log->info(ss.str());
+
+	MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, world);
+//	MPI_Send(local_rows, (int) num_local_rows, MPI_UNSIGNED_LONG, 0, 0, world);		// For some reason this doesn't work
+	for (uint32_t i = 0; i < num_local_rows; i++)
+		MPI_Send(&local_rows[i], 1, MPI_UNSIGNED_LONG, 0, 0, world);
+
+//	log->info("DURATION: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
+
+	delete [] local_rows;
+
+	MPI_Barrier(world);
+}
+
+void Worker::set_value(Matrix_ID ID, uint32_t row, uint32_t col, float value)
+{
+	matrices[ID]->Set(row, col, value);
+}
+
+void Worker::set_value(Matrix_ID ID, uint32_t row, uint32_t col, double value)
+{
+	matrices[ID]->Set(row, col, value);
+}
+
+void Worker::print_data(Matrix_ID ID)
+{
+	std::stringstream ss;
+	ss << "LOCAL DATA:" << std::endl;
+	ss << "Local size: " << matrices[ID]->LocalHeight() << " x " << matrices[ID]->LocalWidth() << std::endl;
+	for (El::Int i = 0; i < matrices[ID]->LocalHeight(); i++) {
+		for (El::Int j = 0; j < matrices[ID]->LocalWidth(); j++)
+			ss <<  matrices[ID]->GetLocal(i, j) << " ";
+		ss << std::endl;
+	}
+	log->info(ss.str());
+}
 
 string Worker::list_workers()
 {

@@ -10,7 +10,7 @@ CURR_DIR=$PWD
 
 if [ "$SYSTEM" == "MacOS" ]
 then
-	mpiexec -n 3 $ALCHEMIST_EXE
+	mpiexec -n 4 $ALCHEMIST_EXE
 	
 elif [ "$SYSTEM" == "Cori" ]
 then

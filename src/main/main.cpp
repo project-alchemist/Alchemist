@@ -43,7 +43,6 @@ int main(int argc, char *argv[]) {
 
 //	printf("WORLD RANK/SIZE: %d/%d \t PEERS RANK/SIZE: %d/%d\n", world_rank, world_size, peers_rank, peers_size);
 
-
 	io_context _io_context;
 
 	try {

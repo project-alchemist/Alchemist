@@ -20,13 +20,17 @@ class Message
 {
 public:
 	enum { header_length = 5 };
-	enum { max_body_length = 65536 };
+	enum { max_body_length = 1065536 };
 
-	Message() : cc(WAIT), body_length(0), read_index(0) {  }
+	Message() : cc(WAIT), body_length(0), read_index(0), current_dt(NONE), current_length_pos(0) {  }
 
 	client_command cc;
 	uint32_t body_length;
 	uint32_t read_index;
+
+	// For writing data
+	datatype current_dt;
+	uint32_t current_length_pos;
 
 	const uint32_t get_max_body_length() const { return max_body_length; }
 
@@ -75,6 +79,9 @@ public:
 		cc = WAIT;
 		body_length = 0;
 		read_index = 0;
+
+		current_dt = NONE;
+		current_length_pos = 0;
 	}
 
 	void start(const client_command & cc)
@@ -94,10 +101,14 @@ public:
 		auto cdata = _data.c_str();
 
 		datatype dt = STRING;
+		current_dt = dt;
 
 		memcpy(data + header_length + body_length, &dt, sizeof(datatype));
 		body_length += sizeof(datatype);
-		memcpy(data + header_length + body_length, &string_length, 4);
+
+		current_length_pos = header_length + body_length;
+
+		memcpy(data + current_length_pos, &string_length, 4);
 		body_length += 4;
 
 		memcpy(data + header_length + body_length, cdata, string_length);
@@ -138,10 +149,24 @@ public:
 
 	void add(const void * _data, const uint32_t & length, const datatype & dt)
 	{
-		memcpy(data + header_length + body_length, &dt, sizeof(datatype));
-		body_length += sizeof(datatype);
-		memcpy(data + header_length + body_length, &length, 4);
-		body_length += 4;
+		if (dt == current_dt) {
+			uint32_t current_length;
+
+			memcpy(&current_length, data + current_length_pos, 4);
+			current_length += length;
+			memcpy(data + current_length_pos, &current_length, 4);
+		}
+		else {    // new datatype being written
+			current_dt = dt;
+
+			memcpy(data + header_length + body_length, &dt, sizeof(datatype));
+			body_length += sizeof(datatype);
+
+			current_length_pos = header_length + body_length;
+
+			memcpy(data + current_length_pos, &length, 4);
+			body_length += 4;
+		}
 
 		uint32_t data_length = get_word_length(length, dt);
 
@@ -149,6 +174,7 @@ public:
 		body_length += data_length;
 
 		memcpy(data + sizeof(client_command), &body_length, 4);
+
 	}
 
 	uint32_t get_word_length(const uint32_t & length, const datatype & dt)
@@ -183,6 +209,23 @@ public:
 	{
 		signed char x;
 		read_atom(i, &x, 1);
+
+		return x;
+	}
+
+	const unsigned char read_unsigned_char()
+	{
+		if (current_dt != UNSIGNED_CHAR) {
+			current_dt = UNSIGNED_CHAR;
+
+			read_index += sizeof(datatype);
+			read_index += 4;
+		}
+
+		unsigned char x;
+
+		memcpy(&x, &data[header_length + read_index], 1);
+		read_index += 1;
 
 		return x;
 	}
@@ -325,10 +368,14 @@ public:
 
 	const uint16_t read_uint16()
 	{
-		uint16_t x;
+		if (current_dt != UINT16_T) {
+			current_dt = UINT16_T;
 
-		read_index += sizeof(datatype);
-		read_index += 4;
+			read_index += sizeof(datatype);
+			read_index += 4;
+		}
+
+		uint16_t x;
 
 		memcpy(&x, &data[header_length + read_index], 2);
 		read_index += 2;
@@ -365,6 +412,23 @@ public:
 		return x;
 	}
 
+	const uint32_t read_uint32()
+	{
+		if (current_dt != UINT32_T) {
+			current_dt = UINT32_T;
+
+			read_index += sizeof(datatype);
+			read_index += 4;
+		}
+
+		uint32_t x;
+
+		memcpy(&x, &data[header_length + read_index], 4);
+		read_index += 4;
+
+		return x;
+	}
+
 	const uint32_t read_uint32(const uint32_t & i)
 	{
 		uint32_t x;
@@ -397,10 +461,44 @@ public:
 		return x;
 	}
 
+	const float read_float()
+	{
+		if (current_dt != FLOAT) {
+			current_dt = FLOAT;
+
+			read_index += sizeof(datatype);
+			read_index += 4;
+		}
+
+		float x;
+
+		memcpy(&x, &data[header_length + read_index], 4);
+		read_index += 4;
+
+		return x;
+	}
+
 	const double read_double(const uint32_t & i)
 	{
 		double x;
 		read_atom(i, &x, 8);
+
+		return x;
+	}
+
+	const double read_double()
+	{
+		if (current_dt != DOUBLE) {
+			current_dt = DOUBLE;
+
+			read_index += sizeof(datatype);
+			read_index += 4;
+		}
+
+		double x;
+
+		memcpy(&x, &data[header_length + read_index], 8);
+		read_index += 8;
 
 		return x;
 	}
@@ -412,6 +510,8 @@ public:
 
 	const std::string read_string()
 	{
+		current_dt = STRING;
+
 		uint32_t data_length;
 
 		read_index += sizeof(datatype);
@@ -530,10 +630,13 @@ public:
 		memcpy(&_cc, &data[0], sizeof(client_command));
 		memcpy(&_body_length, &data[sizeof(client_command)], 4);
 
-		ss << "==============================================" << std::endl;
-		ss << "Command code:        " << _cc << " (" << get_command_name(_cc) << ") " << std::endl;
-		ss << "Message body length: " << _body_length << std::endl;
-		ss << "----------------------------------------------" << std::endl;
+		std::string space = "                                              ";
+
+		ss << std::endl;
+		ss << space << "==============================================" << std::endl;
+		ss << space << "Command code:        " << _cc << " (" << get_command_name(_cc) << ") " << std::endl;
+		ss << space << "Message body length: " << _body_length << std::endl;
+		ss << space << "----------------------------------------------" << std::endl;
 		ss << std::endl;
 
 		uint16_t datatype_length;
@@ -546,8 +649,8 @@ public:
 			memcpy(&data_length, &data[header_length + i], 4);
 			i += 4;
 
-			ss << "datatype (length):    " << get_datatype_name(dt) << " (" << data_length << ")" << std::endl;
-			ss << "Data:                 ";
+			ss << space << "Datatype (length):    " << get_datatype_name(dt) << " (" << data_length << ")" << std::endl;
+			ss << space << "Data:                 ";
 
 			if (dt == STRING) {
 				ss << read_string(header_length + i, data_length);
@@ -564,7 +667,7 @@ public:
 			}
 			ss << std::endl << std::endl;
 		}
-		ss << "==============================================" << std::endl;
+		ss << space << "==============================================" << std::endl;
 
 		return ss.str();
 	}

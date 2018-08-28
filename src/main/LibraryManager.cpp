@@ -7,43 +7,52 @@ namespace alchemist {
 //	log = _log;
 //}
 
-int LibraryManager::load_library(string library_name, string library_path) {
+//LibraryManager::LibraryManager() { }
+//
+LibraryManager::LibraryManager(Log_ptr & _log) : log(_log) { }
 
-//	char * cstr = new char [library_path.length()+1];
-//	std::strcpy(cstr, library_path.c_str());
-//
-////	log->info("Loading library {} located at {}", library_name, library_path);
-//
-//	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
-//	if (lib == NULL) {
-////		log->info("dlopen failed: {}", dlerror());
-//
-//		return -1;
-//	}
-//
-//	dlerror();			// Reset errors
-//
-//    create_t * create_library = (create_t*) dlsym(lib, "create");
-//    const char * dlsym_error = dlerror();
-//    	if (dlsym_error) {
-////    		log->info("dlsym with command \"load\" failed: {}", dlerror());
-//
-////        	delete [] cstr;
-////        	delete dlsym_error;
-//
-//    		return -1;
-//    	}
-//
-//    	Library * library = create_library(world);
-//
+int LibraryManager::load_library(MPI_Comm & group, string library_name, string library_path) {
+
+	char * cstr = new char [library_path.length()+1];
+	std::strcpy(cstr, library_path.c_str());
+
+	log->info("Loading library {} located at {}", library_name, library_path);
+
+	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
+	if (lib == NULL) {
+		log->info("dlopen failed: {}", dlerror());
+
+		return -1;
+	}
+
+	dlerror();			// Reset errors
+
+    create_t * create_library = (create_t*) dlsym(lib, "create");
+    const char * dlsym_error = dlerror();
+    	if (dlsym_error) {
+//    		log->info("dlsym with command \"load\" failed: {}", dlerror());
+
+//        	delete [] cstr;
+//        	delete dlsym_error;
+
+    		return -1;
+    	}
+
+    	Library * library = create_library(group);
+
 //    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
-//
-//    	library->load();
 
-//    	log->info("Library {} loaded", library_name);
+    	library->load();
 
-//    	delete [] cstr;
-//    	delete dlsym_error;
+    	Parameters input;
+    	Parameters output;
+
+    	library->run("greet", input, output);
+
+    	log->info("Library {} loaded", library_name);
+
+    	delete [] cstr;
+    	delete dlsym_error;
 
     	return 0;
 }

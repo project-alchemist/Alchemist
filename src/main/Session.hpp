@@ -47,10 +47,6 @@ public:
 	virtual bool send_response_string() = 0;
 	bool send_test_string();
 
-	bool load_library();
-	bool run_task();
-	bool unload_library();
-
 	void wait();
 
 	void write_string(const string & data);
@@ -76,7 +72,6 @@ protected:
 	bool admin_privilege;
 	bool ready;
 	Log_ptr log;
-	LibraryManager lm;
 
 	tcp::socket socket;
 	Server & server;

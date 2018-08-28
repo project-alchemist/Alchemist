@@ -23,12 +23,14 @@ Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, c
 		Driver(_world, _peers, _io_context, tcp::endpoint(tcp::v4(), port)) { }
 
 Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint) :
-		world(_world), peers(_peers), Server(_io_context, endpoint), next_matrix_ID(1)
+		world(_world), peers(_peers), Server(_io_context, endpoint), next_matrix_ID(0)
 {
 	log = start_log("driver");
 	log->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]     %v");
 //	Executor::set_log(log);
 	Server::set_log(log);
+
+	lm = new LibraryManager(log);
 
 	int world_size;
 	MPI_Comm_size(world, &world_size);
@@ -231,6 +233,146 @@ string Driver::make_daytime_string()
 }
 
 // -----------------------------------------   Workers   -----------------------------------------
+
+int Driver::load_library(string library_name, string library_path)
+{
+	return lm->load_library(world, library_name, library_path);
+}
+
+Matrix_ID Driver::new_matrix(unsigned char type, unsigned char layout, uint32_t num_rows, uint32_t num_cols)
+{
+	alchemist_command command = NEW_MATRIX;
+
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	next_matrix_ID++;
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
+	MPI_Wait(&req, &status);
+
+	MPI_Bcast(&next_matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, world);
+	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, world);
+	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, world);
+
+	MPI_Barrier(world);
+
+	matrices.insert(std::make_pair(next_matrix_ID, MatrixInfo(next_matrix_ID, num_rows, num_cols)));
+
+	return next_matrix_ID;
+}
+
+vector<uint16_t> & Driver::get_row_assignments(Matrix_ID & matrix_ID)
+{
+	return matrices[matrix_ID].row_assignments;
+}
+
+void Driver::determine_row_assignments(Matrix_ID & matrix_ID)
+{
+	MatrixInfo & matrix = matrices[matrix_ID];
+	uint32_t worker_num_rows;
+	uint32_t * row_indices;
+
+	std::clock_t start;
+
+	alchemist_command command = CLIENT_MATRIX_LAYOUT;
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
+	MPI_Wait(&req, &status);
+
+	MPI_Bcast(&matrix.ID, 1, MPI_UNSIGNED_SHORT, 0, world);
+
+	for (Worker_ID id = 1; id <= num_workers; id++) {
+		start = std::clock();
+		MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, world, &status);
+		log->info("DURATION 1: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
+
+		start = std::clock();
+		row_indices = new uint32_t[worker_num_rows];
+//		MPI_Recv(row_indices, worker_num_rows, MPI_UNSIGNED_LONG, id, 0, world, &status);		// For some reason this doesn't work
+
+		log->info("DURATION 2: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
+
+		start = std::clock();
+		for (uint32_t i = 0; i < worker_num_rows; i++) {
+			MPI_Recv(&row_indices[i], 1, MPI_UNSIGNED_LONG, id, 0, world, &status);
+			matrix.row_assignments[row_indices[i]] = id-1;
+		}
+		log->info("DURATION 3: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
+
+		delete [] row_indices;
+	}
+
+	MPI_Barrier(world);
+
+	std::stringstream ss;
+
+	ss << std::endl << "Row | Worker " << std::endl;
+	for (uint32_t row = 0; row < matrix.num_rows; row++) {
+		ss << row << " | " << matrix.row_assignments[row] << std::endl;
+	}
+
+	log->info(ss.str());
+}
+
+vector<vector<vector<float> > > Driver::prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers)
+{
+	auto data_ratio = float(num_alchemist_workers)/float(num_client_workers);
+
+	vector<vector<vector<float> > > layout_rr = vector<vector<vector<float> > >(num_client_workers, vector<vector<float> >(num_alchemist_workers, vector<float>(2)));
+
+	for (int i = 0; i < num_client_workers; i++)
+		for (int j = 0; j < num_alchemist_workers; j++) {
+			layout_rr[i][j][0] = 0.0;
+			layout_rr[i][j][1] = 0.0;
+		}
+
+	int j = 0;
+	float diff, col_sum;
+
+	for (int i = 0; i < num_client_workers; i++) {
+		auto dr = data_ratio;
+		for (; j < num_alchemist_workers; j++) {
+			col_sum = 0.0;
+			for (int k = 0; k < i; k++)
+				col_sum += layout_rr[k][j][1];
+
+			if (i > 0) diff = 1.0 - col_sum;
+			else diff = 1.0;
+
+			if (dr >= diff) {
+				layout_rr[i][j][1] = layout_rr[i][j][0] + diff;
+				dr -= diff;
+			}
+			else {
+				layout_rr[i][j][1] = layout_rr[i][j][0] + dr;
+				break;
+			}
+		}
+	}
+
+	for (int i = 0; i < num_client_workers; i++)
+		for (int j = 0; j < num_alchemist_workers; j++) {
+			layout_rr[i][j][0] /= data_ratio;
+			layout_rr[i][j][1] /= data_ratio;
+			if (j > 0) {
+				layout_rr[i][j][0] += layout_rr[i][j-1][1];
+				layout_rr[i][j][1] += layout_rr[i][j-1][1];
+				if (layout_rr[i][j][1] >= 0.99) break;
+			}
+		}
+
+//	for (int i = 0; i < num_client_workers; i++) {
+//			for (int j = 0; j < num_alchemist_workers; j++)
+//				std::cout << layout_rr[i][j][0] << "," << layout_rr[i][j][1] << " ";
+//		std::cout << std::endl;
+//	}
+
+	return layout_rr;
+}
 
 int Driver::start_workers()
 {
@@ -459,14 +601,6 @@ int Driver::process_output_parameters(Parameters & output_parameters) {
 }
 
 // -----------------------------------------   Library   -----------------------------------------
-
-int Driver::load_library() {
-
-
-
-	return 0;
-}
-
 
 void Driver::print_num_sessions()
 {

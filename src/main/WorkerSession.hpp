@@ -33,6 +33,8 @@ public:
 	bool send_response_string();
 	bool send_test_string();
 
+	bool receive_data();
+
 	void remove_session();
 
 	std::shared_ptr<WorkerSession> shared_from_this()

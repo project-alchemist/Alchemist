@@ -29,9 +29,18 @@ public:
 
 	int handle_message(WorkerSession_ptr session, Message & msg);
 
+	void print_data(Matrix_ID ID);
+
+	void set_value(Matrix_ID ID, uint32_t row, uint32_t col, float value);
+	void set_value(Matrix_ID ID, uint32_t row, uint32_t col, double value);
+
 private:
 	MPI_Comm & world;
 	MPI_Comm & peers;
+
+	El::Grid grid;
+
+	std::map<Matrix_ID, std::unique_ptr<DistMatrix>> matrices;
 
 	Worker_ID ID;
 
@@ -44,8 +53,12 @@ private:
 //	void handshake(const Session_ptr session, Message & msg);
 	int get_num_sessions();
 
+	void new_matrix();
+	void get_matrix_layout();
+
 
 	std::vector<boost::thread> some_threads;
+	boost::thread current_thread;
 
 	// ====================================   UTILITY FUNCTIONS   ====================================
 
