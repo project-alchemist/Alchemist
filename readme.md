@@ -45,7 +45,7 @@ If some or all of the dependencies listed above have not yet been installed on t
 ```
 brew install mpich
 ```
-OR
+or
 ```
 brew install open-mpi
 ```
@@ -95,12 +95,16 @@ In the config.sh file:
 
 It may also be a good idea to add the above paths to the bash profile.
 
-# Building Alchemist
+### Building Alchemist
 
 Assuming the above dependencies have been installed and the configuration file updated, Alchemist can be built using
 ```
 ./build.sh
 ```
+
+## Cori
+
+TO BE ADDED
 
 # Testing Alchemist
 
