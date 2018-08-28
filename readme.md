@@ -2,6 +2,8 @@ Alchemist is a framework for easily and efficiently calling MPI-based codes from
 
 # Alchemist Framework Structure
 
+THIS DISCUSSION WILL BE UPDATED SOON
+
 The Alchemist framework has a modular structure in order to achieve flexibility and ease of use. We distinguish between three "layers":
 * The core Alchemist system
 * The library layer, consisting of one or more MPI-based libraries, as well as two interfaces for each of these libraries, one for bridging Apache Spark and Alchemist, and another one for bridging the MPI library and Alchemist.
@@ -15,11 +17,9 @@ For now we require that the MPI libraries use the Elemental library and MPI.
 
 # Dependencies
 
-The following dependencies are required by Alchemist:
+Alchemist requires an implementation of MPI 3.0, for instance MPICH or Open-MPI. Don't install more than one implementation.
 
-## Alchemist Dependencies
-
-The MPI side of the core Alchemist code requires the following supporting libraries:
+Alchemist also requires the following supporting libraries:
 * Elemental: For distributing the matrices between Alchemist processes and distributed linear algebra
 * SPDLog: For thread-safe logging during execution
 
@@ -29,7 +29,7 @@ The MPI side of the core Alchemist code requires the following supporting librar
 
 ### Install prerequisites
 
-The following prerequisites are needed by the Alchemist framework. Assuming that the XCode command line tools, Homebrew, and Spark have been installed:
+The following prerequisites are needed by the Alchemist framework. Assuming that the XCode command line tools and Homebrew have been installed:
 
 ```
 brew install gcc
@@ -40,6 +40,15 @@ brew install cmake
 ### Install dependencies
 
 If some or all of the dependencies listed above have not yet been installed on the system, follow the instructions below. 
+
+#### Install an MPI implementation
+```
+brew install mpich
+```
+OR
+```
+brew install open-mpi
+```
 
 #### Install Elemental
 ```
@@ -89,7 +98,6 @@ It may also be a good idea to add the above paths to the bash profile.
 # Building Alchemist
 
 Assuming the above dependencies have been installed and the configuration file updated, Alchemist can be built using
-
 ```
 ./build.sh
 ```
@@ -97,7 +105,6 @@ Assuming the above dependencies have been installed and the configuration file u
 # Testing Alchemist
 
 For now, testing is done using the Alchemist-Client Interface (ACI) located at 
-
 ```
 github.com/project-alchemist/ACI
 ```
