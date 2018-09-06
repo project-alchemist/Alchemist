@@ -17,9 +17,10 @@ For now we require that the MPI libraries use the Elemental library and MPI.
 
 # Dependencies
 
-Alchemist requires an implementation of MPI 3.0, for instance MPICH or Open-MPI. Don't install more than one implementation.
+Alchemist requires an implementation of MPI 3.0, for instance MPICH or Open MPI. Don't install more than one implementation.
 
-Alchemist also requires the following supporting libraries:
+Alchemist also requires the following packages:
+* Asio: For asynchronous network and low-level I/O operations
 * Elemental: For distributing the matrices between Alchemist processes and distributed linear algebra
 * spdlog: For thread-safe logging during execution
 
@@ -95,7 +96,7 @@ git clone https://github.com/project-alchemist/Alchemist.git
 
 In the config.sh file:
 * change SYSTEM to the system you are working on;
-* set ALCHEMIST_PATH, ELEMENTAL_PATH, and SPDLOG_PATH to the appropriate paths.
+* set ALCHEMIST_PATH and ELEMENTAL_PATH to the appropriate paths.
 
 It may also be a good idea to add the above paths to the bash profile.
 
