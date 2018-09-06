@@ -2,8 +2,10 @@
 #define ALCHEMIST__LOGGING_HPP
 
 #include <string>
-#include "spdlog/fmt/fmt.h"
+//#include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 namespace alchemist {
 
@@ -12,17 +14,22 @@ namespace alchemist {
 
 typedef std::shared_ptr<spdlog::logger> Log_ptr;
 
-inline Log_ptr start_log(std::string name)
+inline Log_ptr start_log(std::string name, std::string pattern)
 {
 	std::string logfile_name = name + ".log";
 
+	auto console_sink = std::make_shared<spdlog::sinks:: stdout_color_sink_st>();
+	console_sink->set_level(spdlog::level::info);
+	console_sink->set_pattern(pattern);
+
+	auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_st>(logfile_name, true);
+	file_sink->set_level(spdlog::level::trace);
+
 	Log_ptr log;
 	std::vector<spdlog::sink_ptr> sinks;
-	sinks.push_back(std::make_shared<spdlog::sinks::ansicolor_stderr_sink_st>());
-	sinks.push_back(std::make_shared<spdlog::sinks::simple_file_sink_st>(logfile_name));
+	sinks.push_back(console_sink);
+	sinks.push_back(file_sink);
 	log = std::make_shared<spdlog::logger>(name, std::begin(sinks), std::end(sinks));
-	log->flush_on(spdlog::level::info);
-	log->set_level(spdlog::level::info); // only log stuff at or above info level, for production
 	return log;
 }
 

@@ -15,7 +15,7 @@ Worker::Worker(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, c
 	char buffer[12];
 	sprintf(buffer, "worker-%03d", ID);
 
-	log = start_log(string(buffer));
+	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v");
 //	Executor::set_log(log);
 	Server::set_log(log);
 

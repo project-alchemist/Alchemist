@@ -6,11 +6,10 @@ TARGET_PATH = $(ALCHEMIST_PATH)/target
 # Put Elemental's CXXFLAGS in front so ours can override them
 CXXFLAGS += $(EL_COMPILE_FLAGS) -fdiagnostics-color=always
 CXXFLAGS += -Wno-unused -Wno-reorder -std=c++11 -fext-numeric-literals -fopenmp
-CXXFLAGS += "-I$(ELEMENTAL_PATH)/include" "-I$(SPDLOG_PATH)/include"
+CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
-LDFLAGS += -lboost_serialization-mt -lboost_mpi-mt -lboost_system-mt -lboost_thread-mt
-LDFLAGS += -Wl,-rpath,$(SPDLOG_PATH)/lib
+LDFLAGS += -lboost_system-mt -lboost_thread-mt
 LDFLAGS += -lmpi
 
 OBJ_FILES = \

@@ -25,9 +25,7 @@ Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, c
 Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint) :
 		world(_world), peers(_peers), Server(_io_context, endpoint), next_matrix_ID(0)
 {
-	log = start_log("driver");
-	log->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]     %v");
-//	Executor::set_log(log);
+	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]     %v");
 	Server::set_log(log);
 
 	lm = new LibraryManager(log);
@@ -270,6 +268,8 @@ vector<uint16_t> & Driver::get_row_assignments(Matrix_ID & matrix_ID)
 
 void Driver::determine_row_assignments(Matrix_ID & matrix_ID)
 {
+	int i = 5;
+
 	MatrixInfo & matrix = matrices[matrix_ID];
 	uint32_t worker_num_rows;
 	uint32_t * row_indices;

@@ -9,7 +9,7 @@ then
 	export ALCHEMIST_PATH=$HOME/Projects/Alchemist2
 	
 	export ELEMENTAL_PATH=$HOME/Software/Elemental
-	export SPDLOG_PATH=$HOME/Software/SPDLog
+	
 elif [ "$SYSTEM" == "Cori" ]
 then
 	export ALCHEMIST_PATH=$SCRATCH/Projects/Alchemist2
