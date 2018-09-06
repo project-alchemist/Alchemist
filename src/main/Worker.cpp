@@ -99,18 +99,15 @@ int Worker::wait_for_command()
 			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 		}
 
-//		handle_command(c);
-
-//		current_thread = boost::thread(&Worker::handle_command, this, c);
-		some_threads.push_back(boost::thread(&Worker::handle_command, this, c));
+		threads.push_back(std::thread(&Worker::handle_command, this, c));
 
 		flag = 0;
 		c = IDLE;
 
-		log->info("Number of threads: {}", some_threads.size());
+		log->info("Number of threads: {}", threads.size());
 	}
 
-	for (auto & t: some_threads) t.join();
+	for (auto & t: threads) t.join();
 
 	return 0;
 }
@@ -416,7 +413,7 @@ int Worker::get_matrix_rows() {
 void Worker::accept_connection()
 {
 	acceptor.async_accept(
-		[this](boost::system::error_code ec, tcp::socket socket)
+		[this](error_code ec, tcp::socket socket)
 		{
 			if (!ec) std::make_shared<WorkerSession>(std::move(socket), *this, next_session_ID++, log)->start();
 

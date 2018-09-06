@@ -138,9 +138,9 @@ void Session::read_header()
 {
 	read_msg.clear();
 	auto self(shared_from_this());
-	boost::asio::async_read(socket,
-			boost::asio::buffer(read_msg.header(), Message::header_length),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
+	asio::async_read(socket,
+			asio::buffer(read_msg.header(), Message::header_length),
+				[this, self](error_code ec, std::size_t /*length*/) {
 			if (!ec && read_msg.decode_header()) read_body();
 			else remove_session();
 		});
@@ -149,9 +149,9 @@ void Session::read_header()
 void Session::read_body()
 {
 	auto self(shared_from_this());
-	boost::asio::async_read(socket,
-			boost::asio::buffer(read_msg.body(), read_msg.body_length),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
+	asio::async_read(socket,
+			asio::buffer(read_msg.body(), read_msg.body_length),
+				[this, self](error_code ec, std::size_t /*length*/) {
 			if (!ec) handle_message();
 			else remove_session();
 		});
@@ -161,9 +161,9 @@ void Session::flush()
 {
 //	log->info("{}", write_msg.to_string());
 	auto self(shared_from_this());
-	boost::asio::async_write(socket,
-			boost::asio::buffer(write_msg.data, write_msg.length()),
-				[this, self](boost::system::error_code ec, std::size_t /*length*/) {
+	asio::async_write(socket,
+			asio::buffer(write_msg.data, write_msg.length()),
+				[this, self](error_code ec, std::size_t /*length*/) {
 			if (!ec) write_msg.clear();
 			else remove_session();
 		});

@@ -18,7 +18,7 @@ class Session;
 typedef std::shared_ptr<Session> Session_ptr;
 typedef std::deque<Message> Message_queue;
 
-using boost::asio::ip::tcp;
+using asio::ip::tcp;
 using std::string;
 
 

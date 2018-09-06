@@ -12,8 +12,6 @@
 
 namespace alchemist {
 
-using boost::asio::ip::tcp;
-
 typedef uint16_t Session_ID;
 typedef std::deque<Message> Message_queue;
 

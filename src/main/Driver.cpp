@@ -9,12 +9,14 @@ const string get_Alchemist_version()
 	return ss.str();
 }
 
+#ifndef ASIO_STANDALONE
 const string get_Boost_version()
 {
 	std::stringstream ss;
 	ss << BOOST_VERSION / 100000 << "." << BOOST_VERSION / 100 % 1000 << "." << BOOST_VERSION % 100;
 	return ss.str();
 }
+#endif
 
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
@@ -45,7 +47,7 @@ Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, c
 
 	print_ready_message();
 
-	boost::thread t = boost::thread(&Driver::accept_connection, this);
+	std::thread t = std::thread(&Driver::accept_connection, this);
 
 //	print_workers();
 	t.join();
@@ -77,14 +79,20 @@ void Driver::print_welcome_message()
 	message += "Starting Alchemist {}\n";
 	message += SPACE;
 	message += "-----------------------------\n";
-	message += SPACE;
-	message += "Maximum number of OpenMP threads: {}\n";
+//	message += SPACE;
+//	message += "Maximum number of OpenMP threads: {}\n";
+	#ifndef ASIO_STANDALONE
 	message += SPACE;
 	message += "Using Boost.Asio {}\n";
+	#endif
 	message += SPACE;
 	message += "Running on {} {}:{}";
 
-	log->info(message.c_str(), get_Alchemist_version(), omp_get_max_threads(), get_Boost_version(), hostname, address, port);
+	#ifndef ASIO_STANDALONE
+	log->info(message.c_str(), get_Alchemist_version(), get_Boost_version(), hostname, address, port);
+	#else
+	log->info(message.c_str(), get_Alchemist_version(), hostname, address, port);
+	#endif
 }
 
 void Driver::print_ready_message()
@@ -695,7 +703,7 @@ void Driver::accept_connection()
 {
 	log->info("Accepting connections ...");
 	acceptor.async_accept(
-		[this](boost::system::error_code ec, tcp::socket socket)
+		[this](error_code ec, tcp::socket socket)
 		{
 			if (!ec) std::make_shared<DriverSession>(std::move(socket), *this, next_session_ID++, log)->start();
 

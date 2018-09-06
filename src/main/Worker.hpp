@@ -56,9 +56,7 @@ private:
 	void new_matrix();
 	void get_matrix_layout();
 
-
-	std::vector<boost::thread> some_threads;
-	boost::thread current_thread;
+	std::vector<std::thread> threads;
 
 	// ====================================   UTILITY FUNCTIONS   ====================================
 

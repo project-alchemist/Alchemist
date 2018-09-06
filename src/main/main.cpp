@@ -1,8 +1,5 @@
 #include "Driver.hpp"
 
-
-using boost::asio::ip::tcp;
-
 int main(int argc, char *argv[]) {
 
 	MPI_Init(NULL, NULL);

@@ -11,7 +11,6 @@
 
 namespace alchemist {
 
-using boost::asio::ip::tcp;
 using std::string;
 using std::vector;
 

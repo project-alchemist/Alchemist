@@ -2,7 +2,6 @@
 #define ALCHEMIST__LOGGING_HPP
 
 #include <string>
-//#include "spdlog/fmt/fmt.h"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
@@ -18,7 +17,7 @@ inline Log_ptr start_log(std::string name, std::string pattern)
 {
 	std::string logfile_name = name + ".log";
 
-	auto console_sink = std::make_shared<spdlog::sinks:: stdout_color_sink_st>();
+	auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_st>();
 	console_sink->set_level(spdlog::level::info);
 	console_sink->set_pattern(pattern);
 

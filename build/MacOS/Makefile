@@ -5,11 +5,11 @@ TARGET_PATH = $(ALCHEMIST_PATH)/target
 
 # Put Elemental's CXXFLAGS in front so ours can override them
 CXXFLAGS += $(EL_COMPILE_FLAGS) -fdiagnostics-color=always
-CXXFLAGS += -Wno-unused -Wno-reorder -std=c++11 -fext-numeric-literals -fopenmp
+CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++11 -fext-numeric-literals
 CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
-LDFLAGS += -lboost_system-mt -lboost_thread-mt
+# LDFLAGS += -lboost_system-mt -lboost_thread-mt
 LDFLAGS += -lmpi
 
 OBJ_FILES = \

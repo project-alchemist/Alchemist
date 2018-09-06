@@ -21,7 +21,7 @@ Alchemist requires an implementation of MPI 3.0, for instance MPICH or Open-MPI.
 
 Alchemist also requires the following supporting libraries:
 * Elemental: For distributing the matrices between Alchemist processes and distributed linear algebra
-* SPDLog: For thread-safe logging during execution
+* spdlog: For thread-safe logging during execution
 
 # Installation instructions
 
@@ -42,12 +42,29 @@ brew install cmake
 If some or all of the dependencies listed above have not yet been installed on the system, follow the instructions below. 
 
 #### Install an MPI implementation
+
+To install MPICH 3.3:
 ```
 brew install mpich
 ```
-or
+Alternatively, install Open MPI 3.1.2: 
 ```
 brew install open-mpi
+```
+Other MPI implementations can also be used.
+
+#### Install Asio
+
+Alchemist on MacOS uses the standalone version of Asio, the latest version of which can be installed using 
+```
+brew install asio
+```
+
+#### Install spdlog
+
+The latest version of spdlog can be installed using
+```
+brew install spdlog
 ```
 
 #### Install Elemental
@@ -66,19 +83,6 @@ cd ../..
 rm -rf Elemental
 ```
 
-#### Install SPDLog
-```
-export SPDLOG_PATH=(/desired/path/to/SPDLog/directory)
-cd $SPDLOG_PATH
-git clone https://github.com/gabime/spdlog.git
-cd spdlog
-mkdir build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX=$SPDLOG_PATH ..
-make install
-cd ../..
-rm -rf spdlog
-```
 
 ### Clone the Alchemist repo
 ```

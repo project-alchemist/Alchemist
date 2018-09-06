@@ -1,35 +1,22 @@
 #ifndef ALCHEMIST__ALCHEMIST_HPP
 #define ALCHEMIST__ALCHEMIST_HPP
 
-//#include <omp.h>
-//#include <El.hpp>
-//#include <cassert>
-//#include <cstdlib>
-//#include <cstdio>
-//#include <memory>
-//#include <thread>
-//#include <fstream>
-//#include <sstream>
-//#include <unistd.h>
-////#include <arpa/inet.h>
-//#include <sys/stat.h>
-//#include <iostream>
-//#include <string>
-//#include <map>
-//#include <random>
-
-#include "omp.h"
 #include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <list>
 #include <memory>
 #include <set>
+#include <thread>
 #include <utility>
 #include <ctime>
+#ifdef ASIO_STANDALONE
+#include <asio.hpp>
+#else
 #include <boost/version.hpp>
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
+#endif
 #include "mpi.h"
 #include "Library.hpp"
 #include "Parameters.hpp"
@@ -49,11 +36,17 @@
   fprintf(stderr, "FATAL: invariant violated: %s:%d: %s\n", __FILE__, __LINE__, #x); fflush(stderr); abort(); } while(0)
 #endif
 
-
-#if BOOST_VERSION < 106600
-typedef boost::asio::io_service io_context;
+#ifdef ASIO_STANDALONE
+typedef asio::io_context io_context;
+typedef asio::error_code error_code;
 #else
-typedef boost::asio::io_context io_context;
+typedef boost::asio asio;
+typedef boost::system::error_code error_code;
+#if BOOST_VERSION < 106600
+typedef asio::io_service io_context;
+#else
+typedef asio::io_context io_context;
+#endif
 #endif
 
 namespace alchemist {
