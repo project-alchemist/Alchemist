@@ -83,8 +83,10 @@ void Session::wait()
 bool Session::send_handshake()
 {
 	write_msg.start(HANDSHAKE);
-	write_msg.add_uint16(4321);
-	write_msg.add_string("DCBA");
+
+	add_uint16(4321);
+	add_string("DCBA");
+
 	flush();
 
 	return true;
@@ -92,11 +94,44 @@ bool Session::send_handshake()
 
 bool Session::check_handshake()
 {
-	if (read_msg.next_datatype() == UINT16_T && read_msg.next_data_length() == 1 && read_msg.read_uint16() == 1234) {
-		if (read_msg.next_datatype() == STRING && read_msg.next_data_length() == 4 && read_msg.read_string().compare("ABCD") == 0) {
-			log->info("[Session {}] [{}:{}] Received handshake", get_ID(), get_address().c_str(), get_port());
-			return true;
+
+//	log->info("[Sea {}", read_msg.read_pos);
+//	log->info("[Sea {}", read_msg.next_datatype());
+//	log->info("[Sea {}", read_msg.next_data_length());
+//	log->info("[Se0 {} {} {} {}", read_msg.read_pos, read_msg.next_datatype(), read_msg.next_data_length(), read_msg.read_byte());
+
+	client_language = read_msg.read_byte();			// 0 - C/C++, 1 - Java/Scala, 2 - Python
+
+
+
+	switch (client_language) {
+	case C:
+	case CPP:
+		if (read_msg.next_datatype() == UINT16_T && read_msg.next_data_length() == 1 && read_msg.read_uint16() == 1234) {
+			if (read_msg.next_datatype() == STRING && read_msg.next_data_length() == 4 && read_msg.read_string().compare("ABCD") == 0) {
+				log->info("[Session {}] [{}:{}] Received handshake", get_ID(), get_address().c_str(), get_port());
+				return true;
+			}
 		}
+		break;
+	case SCALA:
+	case JAVA:
+		if (read_msg.next_datatype() == INT16_T && read_msg.next_data_length() == 1 && read_msg.read_int16() == 1234) {
+			if (read_msg.next_datatype() == WSTRING && read_msg.next_data_length() == 4 && read_msg.read_wstring().compare("ABCD") == 0) {
+				log->info("[Session {}] [{}:{}] Received handshake", get_ID(), get_address().c_str(), get_port());
+				return true;
+			}
+		}
+		break;
+	case PYTHON:
+	case JULIA:
+		if (read_msg.next_datatype() == INT16_T && read_msg.next_data_length() == 1 && read_msg.read_int16() == 1234) {
+			if (read_msg.next_datatype() == STRING && read_msg.next_data_length() == 4 && read_msg.read_string().compare("ABCD") == 0) {
+				log->info("[Session {}] [{}:{}] Received handshake", get_ID(), get_address().c_str(), get_port());
+				return true;
+			}
+		}
+		break;
 	}
 
 	return false;
@@ -107,31 +142,6 @@ Message & Session::new_message()
 	write_msg.clear();
 
 	return write_msg;
-}
-
-void Session::write_string(const string & data)
-{
-	write_msg.add_string(data);
-}
-
-void Session::write_unsigned_char(const unsigned char & data)
-{
-	write_msg.add_unsigned_char(data);
-}
-
-void Session::write_uint16(const uint16_t & data)
-{
-	write_msg.add_uint16(data);
-}
-
-void Session::write_uint32(const uint32_t & data)
-{
-	write_msg.add_uint32(data);
-}
-
-void Session::write(const char * data, std::size_t length, datatype dt)
-{
-	write_msg.add(data, length, dt);
 }
 
 void Session::read_header()
@@ -159,15 +169,215 @@ void Session::read_body()
 
 void Session::flush()
 {
-//	log->info("{}", write_msg.to_string());
+	write_msg.update_body_length();
+	write_msg.update_datatype_count();
+	std::cout << write_msg.header() << " " << write_msg.length() << " " << write_msg.body_length << std::endl;
+	log->info("{}", write_msg.to_string());
 	auto self(shared_from_this());
 	asio::async_write(socket,
-			asio::buffer(write_msg.data, write_msg.length()),
+			asio::buffer(write_msg.header(), write_msg.length()),
 				[this, self](error_code ec, std::size_t /*length*/) {
+			std::cout << ec << " " << write_msg.header() << " " << write_msg.length() << " " << write_msg.body_length << std::endl;
 			if (!ec) write_msg.clear();
 			else remove_session();
 		});
 }
+
+uint8_t Session::read_uint8() {
+	int8_t v = 0;
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		v = read_msg.read_uint8();
+		break;
+	case SCALA:
+	case JAVA:
+		v = (int8_t) read_msg.read_int8();
+		break;
+	case PYTHON:
+	case JULIA:
+		v = (int8_t) read_msg.read_int8();
+		break;
+	}
+
+	return v;
+}
+
+uint16_t Session::read_uint16() {
+	int16_t v = 0;
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		v = read_msg.read_uint16();
+		break;
+	case SCALA:
+	case JAVA:
+		v = (int16_t) read_msg.read_int16();
+		break;
+	case PYTHON:
+	case JULIA:
+		v = (int16_t) read_msg.read_int16();
+		break;
+	}
+
+	return v;
+}
+
+uint32_t Session::read_uint32() {
+	int32_t v = 0;
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		v = read_msg.read_uint32();
+		break;
+	case SCALA:
+	case JAVA:
+		v = (int32_t) read_msg.read_int32();
+		break;
+	case PYTHON:
+	case JULIA:
+		v = (int32_t) read_msg.read_int32();
+		break;
+	}
+
+	return v;
+}
+
+uint64_t Session::read_uint64() {
+	int64_t v = 0;
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		v = read_msg.read_uint64();
+		break;
+	case SCALA:
+	case JAVA:
+		v = (int64_t) read_msg.read_int64();
+		break;
+	case PYTHON:
+	case JULIA:
+		v = (int64_t) read_msg.read_int64();
+		break;
+	}
+
+	return v;
+}
+
+string Session::read_string() {
+	string v = "";
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		v = read_msg.read_string();
+		break;
+	case SCALA:
+	case JAVA:
+		v = read_msg.read_wstring();
+		break;
+	case PYTHON:
+	case JULIA:
+		v = read_msg.read_string();
+		break;
+	}
+
+	return v;
+}
+
+void Session::add_uint8(const uint8_t & v) {
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		write_msg.add_uint8(v);
+		break;
+	case SCALA:
+	case JAVA:
+		write_msg.add_int8((int8_t) v);
+		break;
+	case PYTHON:
+	case JULIA:
+		write_msg.add_int8((int8_t) v);
+		break;
+	}
+}
+
+void Session::add_uint16(const uint16_t & v) {
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		write_msg.add_uint16(v);
+		break;
+	case SCALA:
+	case JAVA:
+		write_msg.add_int16((int16_t) v);
+		break;
+	case PYTHON:
+	case JULIA:
+		write_msg.add_int16((int16_t) v);
+		break;
+	}
+}
+
+void Session::add_uint32(const uint32_t & v) {
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		write_msg.add_uint32(v);
+		break;
+	case SCALA:
+	case JAVA:
+		write_msg.add_int32((int32_t) v);
+		break;
+	case PYTHON:
+	case JULIA:
+		write_msg.add_int32((int32_t) v);
+		break;
+	}
+}
+
+void Session::add_uint64(const uint64_t & v) {
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		write_msg.add_uint64(v);
+		break;
+	case SCALA:
+	case JAVA:
+		write_msg.add_int64((int64_t) v);
+		break;
+	case PYTHON:
+	case JULIA:
+		write_msg.add_int64((int64_t) v);
+		break;
+	}
+}
+
+void Session::add_string(string v) {
+
+	switch(client_language) {
+	case C:
+	case CPP:
+		write_msg.add_string(v);
+		break;
+	case SCALA:
+	case JAVA:
+		write_msg.add_wstring(v);
+		break;
+	case PYTHON:
+	case JULIA:
+		write_msg.add_string(v);
+		break;
+	}
+}
+
 
 //int Session::handle_message()
 //{
@@ -318,7 +528,7 @@ void DriverSession::start()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
-//	log->info("{}", read_msg.to_string());
+	log->info("{}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
@@ -328,6 +538,8 @@ int DriverSession::handle_message()
 //			shut_down();
 			break;
 		case HANDSHAKE:
+
+			log->info("[Sea {}", read_msg.read_pos);
 			if (check_handshake()) send_handshake();
 			read_header();
 			break;
@@ -351,7 +563,7 @@ int DriverSession::handle_message()
 			driver.print_workers();
 
 			write_msg.start(YIELD_WORKERS);
-			write_msg.add_string("Alchemist workers have been deallocated");
+			add_string("Alchemist workers have been deallocated");
 				flush();
 
 				read_header();
@@ -541,56 +753,53 @@ bool DriverSession::allocate_workers()
 {
 	write_msg.start(REQUEST_WORKERS);
 
-	if (read_msg.next_datatype() == UINT16_T && read_msg.next_data_length() == 1) {
+	uint16_t num_workers = read_uint16();
 
-		uint16_t num_workers = read_msg.read_uint16();
+	if (num_workers > 0) {
 
-		if (num_workers > 0) {
+		std::stringstream list_of_alchemist_workers;
+		char buffer[4];
 
-			std::stringstream list_of_alchemist_workers;
-			char buffer[4];
+		list_of_alchemist_workers << "[Session " << get_ID() << "] [" << get_address().c_str() << "] ";
 
-			list_of_alchemist_workers << "[Session " << get_ID() << "] [" << get_address().c_str() << "] ";
+		if (num_workers == 1)
+			list_of_alchemist_workers << "Allocating 1 worker:", get_ID(), get_address().c_str();
+		else
+			list_of_alchemist_workers << "Allocating " << num_workers << " workers:";
+		list_of_alchemist_workers << std::endl;
 
-			if (num_workers == 1)
-				list_of_alchemist_workers << "Allocating 1 worker:", get_ID(), get_address().c_str();
-			else
-				list_of_alchemist_workers << "Allocating " << num_workers << " workers:";
-			list_of_alchemist_workers << std::endl;
+		workers = driver.allocate_workers(DriverSession::shared_from_this(), num_workers);
 
-			workers = driver.allocate_workers(DriverSession::shared_from_this(), num_workers);
+		add_uint16(num_workers);
 
-			write_msg.add_uint16(num_workers);
+		for (auto it = workers.begin(); it != workers.end(); it++) {
+			sprintf(buffer, "%03d", it->first);
+			list_of_alchemist_workers << SPACE;
+			list_of_alchemist_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " ";
+			list_of_alchemist_workers << it->second.address << ":" << it->second.port << std::endl;
 
-			for (auto it = workers.begin(); it != workers.end(); it++) {
-				sprintf(buffer, "%03d", it->first);
-				list_of_alchemist_workers << SPACE;
-				list_of_alchemist_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " ";
-				list_of_alchemist_workers << it->second.address << ":" << it->second.port << std::endl;
-
-				write_msg.add_uint16(it->first);
-				write_msg.add_string(it->second.hostname);
-				write_msg.add_string(it->second.address);
-				write_msg.add_uint16(it->second.port);
-			}
-
-			auto layout_rr = driver.prepare_data_layout_table(num_workers, num_client_workers);
-
-			write_msg.add_uint16(num_client_workers);
-			for (int i = 0; i < num_client_workers; i++) {
-				for (int j = 0; j < num_workers; j++) {
-					write_msg.add_float(layout_rr[i][j][0]);
-					write_msg.add_float(layout_rr[i][j][1]);
-				}
-			}
-
-			log->info(list_of_alchemist_workers.str());
+			add_uint16(it->first);
+			add_string(it->second.hostname);
+			add_string(it->second.address);
+			add_uint16(it->second.port);
 		}
-		else {
-			write_msg.add_uint16(0);
-			write_msg.add_string("ERROR: Insufficient number of Alchemist workers available");
-			write_msg.add_string("       Try again later or request fewer workers");
-		}
+
+//			auto layout_rr = driver.prepare_data_layout_table(num_workers, num_client_workers);
+
+//			write_msg.add_uint16(num_client_workers);
+//			for (int i = 0; i < num_client_workers; i++) {
+//				for (int j = 0; j < num_workers; j++) {
+//					write_msg.add_float(layout_rr[i][j][0]);
+//					write_msg.add_float(layout_rr[i][j][1]);
+//				}
+//			}
+
+		log->info(list_of_alchemist_workers.str());
+	}
+	else {
+		add_uint16(0);
+		add_string("ERROR: Insufficient number of Alchemist workers available");
+		add_string("       Try again later or request fewer workers");
 	}
 
 	flush();
@@ -672,7 +881,6 @@ bool DriverSession::list_assigned_workers()
 
 	return true;
 }
-
 // =============================================================================================
 //                                         WorkerSession
 // =============================================================================================

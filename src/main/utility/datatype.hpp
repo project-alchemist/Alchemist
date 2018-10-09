@@ -5,10 +5,14 @@
 
 namespace alchemist {
 
+// Defined data types for C/C++ clients
 typedef enum _datatype : uint8_t {
 	NONE = 0,
 	CHAR,
+	SIGNED_CHAR,
 	UNSIGNED_CHAR,
+	CHARACTER,
+	WCHAR,
 	SHORT,
 	UNSIGNED_SHORT,
 	INT,
@@ -22,10 +26,7 @@ typedef enum _datatype : uint8_t {
 	DOUBLE,
 	LONG_DOUBLE,
 	BYTE,
-	WCHAR,
 	BOOL,
-	SIGNED_CHAR,
-	CHARACTER,
 	INTEGER,
 	REAL,
 	LOGICAL,
@@ -53,65 +54,67 @@ typedef enum _datatype : uint8_t {
 	SHORT_INT,
 	LONG_DOUBLE_INT,
 	STRING,
+	WSTRING,
 	COMMAND_CODE
 } datatype;
-
 
 inline const uint8_t get_datatype_length(const datatype & dt)
 {
 	switch (dt) {
 		case BYTE:
-			return 1;
+			return sizeof(unsigned char);
 		case CHAR:
-			return 1;
-		case UNSIGNED_CHAR:
-			return 1;
+			return sizeof(char);
 		case SIGNED_CHAR:
-			return 1;
+			return sizeof(signed char);
+		case UNSIGNED_CHAR:
+			return sizeof(unsigned char);
 		case CHARACTER:
-			return 1;
+			return sizeof(char);
+		case WCHAR:
+			return 2; //sizeof(wchar_t);
 		case BOOL:
-			return 1;
+			return sizeof(bool);
 		case LOGICAL:
-			return 1;
+			return sizeof(bool);
 		case SHORT:
-			return 2;
+			return sizeof(short);
 		case UNSIGNED_SHORT:
-			return 2;
+			return sizeof(unsigned short);
 		case LONG:
-			return 4;
+			return sizeof(long);
 		case UNSIGNED_LONG:
-			return 4;
+			return sizeof(unsigned long);
 		case INTEGER1:
-			return 1;
+			return sizeof(int8_t);
 		case INT8_T:
-			return 1;
+			return sizeof(int8_t);
 		case UINT8_T:
-			return 1;
+			return sizeof(int8_t);
 		case INTEGER2:
-			return 2;
+			return sizeof(int16_t);
 		case INT16_T:
-			return 2;
+			return sizeof(int16_t);
 		case UINT16_T:
-			return 2;
+			return sizeof(int16_t);
 		case INTEGER4:
-			return 4;
+			return sizeof(int32_t);
 		case INT32_T:
-			return 4;
+			return sizeof(int32_t);
 		case UINT32_T:
-			return 4;
+			return sizeof(int32_t);
 		case INTEGER8:
-			return 8;
+			return sizeof(int64_t);
 		case INT64_T:
-			return 8;
+			return sizeof(int64_t);
 		case UINT64_T:
-			return 8;
+			return sizeof(int64_t);
 		case FLOAT:
-			return 4;
+			return sizeof(float);
 		case DOUBLE:
-			return 8;
+			return sizeof(double);
 		case REAL:
-			return 8;
+			return sizeof(double);
 		default:
 			return 1;
 		}
@@ -130,6 +133,8 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "SIGNED CHAR";
 		case CHARACTER:
 			return "CHARACTER";
+		case WCHAR:
+			return "WCHAR";
 		case BOOL:
 			return "BOOL";
 		case LOGICAL:
@@ -174,6 +179,8 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "REAL";
 		case STRING:
 			return "STRING";
+		case WSTRING:
+			return "WSTRING";
 		default:
 			return "INVALID DATATYPE";
 		}

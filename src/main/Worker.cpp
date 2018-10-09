@@ -174,7 +174,7 @@ int Worker::send_test_string(WorkerSession_ptr session) {
 	sprintf (buffer, "This is a test string from Alchemist worker %d", ID);
 
 	string test_string(buffer);
-	session->write_string(test_string);
+	session->add_string(test_string);
 
 	return 0;
 }

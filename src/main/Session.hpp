@@ -18,6 +18,15 @@ using std::string;
 typedef uint16_t Session_ID;
 typedef std::deque<Message> Message_queue;
 
+typedef enum _client_language : uint8_t {
+	C = 0,
+	CPP,
+	SCALA,
+	JAVA,
+	PYTHON,
+	JULIA
+} client_language;
+
 class Server;
 
 class Session : public std::enable_shared_from_this<Session>
@@ -49,11 +58,6 @@ public:
 
 	void wait();
 
-	void write_string(const string & data);
-	void write_unsigned_char(const unsigned char & data);
-	void write_uint16(const uint16_t & data);
-	void write_uint32(const uint32_t & data);
-
 	void write(const char * data, std::size_t length, datatype dt);
 
 	void read_header();
@@ -68,7 +72,21 @@ public:
 
 	Message & new_message();
 
+	void add_uint8(const uint8_t & v);
+	void add_uint16(const uint16_t & v);
+	void add_uint32(const uint32_t & v);
+	void add_uint64(const uint64_t & v);
+	void add_string(string v);
+
+	uint8_t read_uint8();
+	uint16_t read_uint16();
+	uint32_t read_uint32();
+	uint64_t read_uint64();
+	string read_string();
+
 protected:
+	int8_t client_language;
+
 	bool admin_privilege;
 	bool ready;
 	Log_ptr log;

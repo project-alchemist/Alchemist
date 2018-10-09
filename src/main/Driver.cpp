@@ -93,6 +93,11 @@ void Driver::print_welcome_message()
 	#else
 	log->info(message.c_str(), get_Alchemist_version(), hostname, address, port);
 	#endif
+
+	int16_t i = 1;
+	int8_t *ptr;
+	ptr  = (int8_t*) &i;
+	(*ptr) ? std::cout << "little endian" << std::endl : std::cout << "big endian" << std::endl;
 }
 
 void Driver::print_ready_message()
@@ -530,7 +535,7 @@ int Driver::receive_test_string(const DriverSession_ptr session, const char * da
 
 int Driver::send_test_string(DriverSession_ptr session) {
 
-	session->write_string("This is a test string from Alchemist driver");
+	session->add_string("This is a test string from Alchemist driver");
 
 	return 0;
 }
