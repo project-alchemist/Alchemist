@@ -8,15 +8,15 @@ echo $ALCHEMIST_EXE
 
 CURR_DIR=$PWD
 
-if [ "$SYSTEM" == "MacOS" ]
+if [ "$SYSTEM" = "MacOS" ] || [ "$SYSTEM" = "Linux" ]
 then
 	mpiexec -n 4 $ALCHEMIST_EXE
 	
-elif [ "$SYSTEM" == "Cori" ]
+elif [ "$SYSTEM" = "Cori" ]
 then
 	srun -n 5 $ALCHEMIST_EXE
 	
-elif [ "$SYSTEM" == "<your system here>" ]
+elif [ "$SYSTEM" = "<your system here>" ]
 then
 	srun -n 5 $ALCHEMIST_EXE
 fi
