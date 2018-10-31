@@ -60,12 +60,12 @@ int DriverSession::handle_message()
 				case YIELD_WORKERS:
 	//				driver.print_workers();
 
+					deallocate_workers();
 					write_msg.start(client_ID, ID, YIELD_WORKERS);
 					write_msg.add_string("Alchemist workers have been deallocated");
 						flush();
 
 						read_header();
-		//			deallocate_workers();
 					break;
 				case SEND_ASSIGNED_WORKERS_INFO:
 		//			send_assigned_workers_info();
@@ -401,21 +401,20 @@ bool DriverSession::deallocate_workers()
 {
 	write_msg.start(client_ID, ID, YIELD_WORKERS);
 
-	auto num_workers = workers.size();
-
-	if (num_workers == 1)
-		log->info("[Session {}] [{}] Deallocating 1 worker", get_ID(), get_address().c_str());
-	else
-		log->info("[Session {}] [{}] Deallocating {} workers", get_ID(), get_address().c_str(), num_workers);
+//	auto num_workers = workers.size();
+//
+//	if (num_workers == 1)
+//		log->info("[Session {}] [{}] Deallocating 1 worker", get_ID(), get_address().c_str());
+//	else
+//		log->info("[Session {}] [{}] Deallocating {} workers", get_ID(), get_address().c_str(), num_workers);
 
 //	driver.deallocate_workers(DriverSession::shared_from_this());
 
-	workers.clear();
+
+	group_driver.deallocate_workers();
 
 //	add_string("Alchemist workers have been deallocated");
 //	flush();
-
-	read_header();
 
 	return true;
 }
@@ -424,11 +423,10 @@ bool DriverSession::list_all_workers()
 {
 	log->info("[Session {}] [{}] Sending list of all workers", get_ID(), get_address().c_str());
 
-//	write_msg.start(LIST_ALL_WORKERS);
-//	add_string(driver.list_workers());
-//	flush();
-
-	read_header();
+	write_msg.start(client_ID, ID, LIST_ALL_WORKERS);
+	write_msg.add_uint16(group_driver.get_num_workers());
+	write_msg.add_string(group_driver.list_workers());
+	flush();
 
 	return true;
 }
@@ -441,8 +439,6 @@ bool DriverSession::list_active_workers()
 //	add_string(driver.list_active_workers());
 //	flush();
 
-	read_header();
-
 	return true;
 }
 
@@ -454,8 +450,6 @@ bool DriverSession::list_inactive_workers()
 //	add_string(driver.list_inactive_workers());
 //	flush();
 
-	read_header();
-
 	return true;
 }
 
@@ -466,8 +460,6 @@ bool DriverSession::list_assigned_workers()
 //	write_msg.start(LIST_INACTIVE_WORKERS);
 //	add_string(driver.list_allocated_workers(DriverSession::shared_from_this()));
 //	flush();
-
-	read_header();
 
 	return true;
 }

@@ -37,11 +37,11 @@ public:
 	void determine_row_assignments(Matrix_ID & matrix_ID);
 
 
-
+	uint16_t get_num_workers();
 
 
 	map<Worker_ID, WorkerInfo> allocate_workers(const Group_ID & group_ID, const uint16_t & num_requested_workers);
-	void deallocate_workers(Session_ID session_ID);
+	void deallocate_workers(Group_ID group_ID);
 
 	int load_library(string library_name, string library_path);
 
@@ -64,6 +64,7 @@ private:
 
 	map<Group_ID, GroupDriver_ptr> groups;
 	map<Worker_ID, WorkerInfo> workers;
+
 
 	map<Worker_ID, Group_ID> allocated_workers;
 	vector<Worker_ID> unallocated_workers;

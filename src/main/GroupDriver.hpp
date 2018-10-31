@@ -37,6 +37,9 @@ public:
 	map<Worker_ID, WorkerInfo> allocate_workers(const uint16_t & num_requested_workers);
 	void deallocate_workers();
 
+	string list_workers();
+	uint16_t get_num_workers();
+
 	string list_sessions();
 	int load_library(string library_name, string library_path);
 	Matrix_ID new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols);

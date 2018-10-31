@@ -399,6 +399,21 @@ vector<uint16_t> & GroupDriver::get_row_assignments(Matrix_ID & matrix_ID)
 	return matrices[matrix_ID].row_assignments;
 }
 
+void GroupDriver::deallocate_workers()
+{
+	driver.deallocate_workers(ID);
+}
+
+uint16_t GroupDriver::get_num_workers()
+{
+	return driver.get_num_workers();
+}
+
+string GroupDriver::list_workers()
+{
+	return driver.list_workers();
+}
+
 void GroupDriver::determine_row_assignments(Matrix_ID & matrix_ID)
 {
 	MatrixInfo & matrix = matrices[matrix_ID];
