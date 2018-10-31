@@ -18,7 +18,7 @@ GroupWorker::GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, io_context & 
 			Server(_io_context, endpoint, _log), library(nullptr), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker_ID(_worker_ID),
 			next_session_ID(0), accept_connections(false)
 {
-	char buffer[12];
+	char buffer[13];
 	sprintf(buffer, "worker-%03d", worker_ID);
 
 	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v");

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o errexit
 
 source ./config.sh
 
@@ -19,7 +20,7 @@ echo " "
 echo "Creating Alchemist executable:"
 echo " "
 cd ./build/$SYSTEM/
-make
+nice make -j8
 cd ../..
 echo " "
 echo $LINE
