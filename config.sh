@@ -3,7 +3,7 @@
 # Configuration file for building Alchemist
 
 if [ "$SYSTEM" = "" ]; then
-  export SYSTEM="Linux"
+  export SYSTEM="MacOS"
 fi
 
 if [ "$SYSTEM" = "MacOS" ]; then

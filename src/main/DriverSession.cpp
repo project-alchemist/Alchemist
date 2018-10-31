@@ -123,6 +123,7 @@ void DriverSession::remove_session()
 void DriverSession::send_matrix_info(Matrix_ID matrix_ID)
 {
 	write_msg.start(client_ID, ID, MATRIX_INFO);
+	log->info("Sending back info for matrix {}", matrix_ID);
 	write_msg.add_uint16(matrix_ID);
 
 	group_driver.determine_row_assignments(matrix_ID);

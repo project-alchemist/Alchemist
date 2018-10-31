@@ -28,7 +28,7 @@ class Message
 {
 public:
 	enum { header_length = 9 };
-	enum { max_body_length = 1065536 };
+	enum { max_body_length = 100000000 };
 
 	bool big_endian;
 
@@ -1437,7 +1437,6 @@ public:
 		data_length = be32toh(data_length);
 
 		char cc[data_length+1];
-		std::cout << data_length << std::endl;
 		memcpy(cc, &data[read_pos + sizeof(datatype) + 4], data_length);
 		cc[data_length] = '\0';
 		read_pos += sizeof(datatype) + 4 + data_length;

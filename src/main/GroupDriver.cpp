@@ -5,7 +5,7 @@ namespace alchemist {
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver): ID(_ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), next_matrix_ID(1) { }
+GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver): ID(_ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), library(nullptr), next_matrix_ID(0) { }
 
 GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver, Log_ptr & _log): ID(_ID), driver(_driver), group(MPI_COMM_NULL),
 		log(_log), cl(SCALA), library(nullptr), next_matrix_ID(0) { }
