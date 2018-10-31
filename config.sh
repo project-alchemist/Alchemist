@@ -13,7 +13,7 @@ then
 #	export ARPACK_PATH=$HOME/Software/arpack
 
     export ALCHEMIST_PATH=/usr/local/Alchemist
-	
+	export SPDLOG_PATH=/usr/local/spdlog
 	export ELEMENTAL_PATH=/usr/local/elemental
 	export EIGEN3_PATH=/usr/local/eigen
 	export ARPACK_PATH=/usr/local/arpack
