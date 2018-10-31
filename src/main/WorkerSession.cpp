@@ -76,10 +76,10 @@ bool WorkerSession::send_matrix_blocks()
 	uint64_t row_start, row_end, col_start, col_end;
 	double temp;
 
-	Matrix_ID ID = read_msg.read_uint16();
+	Matrix_ID matrix_ID = read_msg.read_uint16();
 
 	write_msg.start(client_ID, ID, REQUEST_MATRIX_BLOCKS);
-	write_msg.add_uint16(ID);
+	write_msg.add_uint16(matrix_ID);
 
 	while (!read_msg.eom()) {
 
@@ -95,7 +95,7 @@ bool WorkerSession::send_matrix_blocks()
 
 		for (auto i = row_start; i <= row_end; i++)
 			for (auto j = col_start; j <= col_end; j++) {
-				group_worker.get_value(ID, i, j, temp);
+				group_worker.get_value(matrix_ID, i, j, temp);
 				write_msg.add_double(temp);
 			}
 

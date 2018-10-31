@@ -116,7 +116,7 @@ void Driver::print_ready_message()
 //	return allocated_workers[session_ID];
 //}
 
-void Driver::deallocate_workers(Session_ID session_ID)
+void Driver::deallocate_workers(Group_ID group_ID)
 {
 //	for (Worker_ID worker_ID: allocated_workers[session_ID]) {
 //		active_workers.erase(worker_ID);
@@ -387,7 +387,7 @@ string Driver::list_workers()
 
 		for (Worker_ID id = 1; id <= num_workers; ++id) {
 			sprintf(buffer, "%03d", id);
-			list_of_workers << SPACE;
+//			list_of_workers << SPACE;
 			list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " at ";
 			list_of_workers << workers[id].address << ":" << workers[id].port << " - ";
 			if (workers[id].active) list_of_workers << "active";
@@ -399,6 +399,9 @@ string Driver::list_workers()
 	return list_of_workers.str();
 }
 
+uint16_t Driver::get_num_workers() {
+	return num_workers;
+}
 
 int Driver::shut_down()
 {
