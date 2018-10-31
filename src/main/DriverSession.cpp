@@ -26,7 +26,7 @@ void DriverSession::start()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
-	log->info("{}", read_msg.to_string());
+//	log->info("{}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;

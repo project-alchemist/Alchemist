@@ -23,9 +23,6 @@ GroupWorker::GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, io_context & 
 
 	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v");
 	Server::set_log(log);
-
-
-	log->info("D1111 {}", worker_ID);
 }
 
 GroupWorker::~GroupWorker() { }
@@ -35,13 +32,10 @@ void GroupWorker::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 
 	int rank, size;
 
-	log->info("qqqq 1");
 	MPI_Comm_create_group(world, temp_group, 0, &group);
 
 	MPI_Comm_rank(group, &rank);
 	MPI_Comm_size(group, &size);
-
-	log->info("qqqq 2 {}/{}", rank, size);
 
 }
 
@@ -55,8 +49,6 @@ void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 
 	MPI_Comm_rank(group_peers, &rank);
 	MPI_Comm_size(group_peers, &size);
-
-	log->info("yyyyy {}/{}", rank, size);
 }
 
 void GroupWorker::say_something()
@@ -154,7 +146,6 @@ int GroupWorker::handle_command(alchemist_command c)
 		case ACCEPT_CONNECTION:
 			Group_ID ID;
 			MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-			log->info("{} {}", group_ID, ID);
 			accept_connection();
 			break;
 		case NEW_MATRIX:

@@ -184,7 +184,7 @@ void Session::flush()
 {
 	write_msg.update_body_length();
 	write_msg.update_datatype_count();
-	log->info("{}", write_msg.to_string());
+//	log->info("{}", write_msg.to_string());
 	auto self(shared_from_this());
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),
