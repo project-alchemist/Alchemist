@@ -14,25 +14,35 @@
 #include <codecvt>
 #include <locale>
 #include <sstream>
+#include "utility/endian.hpp"
+#include "utility/client_language.hpp"
 #include "utility/command.hpp"
 #include "utility/datatype.hpp"
 
 namespace alchemist {
 
+using std::string;
+using std::stringstream;
+
 class Message
 {
 public:
-	enum { header_length = 5 };
+	enum { header_length = 9 };
 	enum { max_body_length = 1065536 };
 
 	bool big_endian;
 
-	Message() : cc(WAIT), body_length(0), read_pos(header_length), current_datatype(NONE), current_datatype_count(0),
-			current_datatype_count_max(0), current_datatype_count_pos(header_length+1), write_pos(header_length) {
+	Message() : cc(WAIT), client_ID(0), session_ID(0), body_length(0), cl(C), read_pos(header_length), current_datatype(NONE),
+			current_datatype_count(0), current_datatype_count_max(0), current_datatype_count_pos(header_length+1), write_pos(header_length) {
 		big_endian = is_big_endian();
 	}
 
+	uint16_t client_ID;
+	uint16_t session_ID;
 	client_command cc;
+
+	client_language cl;
+
 	int32_t body_length;
 	int32_t read_pos;
 
@@ -72,7 +82,15 @@ public:
 		return &data[0];
 	}
 
-	const char * body() const
+	void copy_data(const char * _data, const uint32_t _data_length)
+	{
+		for (uint32_t i = 0; i < _data_length; i++) {
+			data[i] = _data[i];
+		}
+		body_length = _data_length - header_length;
+	}
+
+ 	const char * body() const
 	{
 		return &data[header_length];
 	}
@@ -92,9 +110,13 @@ public:
 
 	bool decode_header()
 	{
-		memcpy(&cc, &data[0], sizeof(client_command));
+		memcpy(&client_ID, &data[0], 2);
+		client_ID = be16toh(client_ID);
+		memcpy(&session_ID, &data[2], 2);
+		session_ID = be16toh(session_ID);
+		memcpy(&cc, &data[4], sizeof(client_command));
 
-		memcpy(&body_length, &data[sizeof(client_command)], 4);
+		memcpy(&body_length, &data[4+sizeof(client_command)], 4);
 		body_length = be32toh(body_length);
 
 		if (body_length > max_body_length) {
@@ -105,8 +127,15 @@ public:
 		return true;
 	}
 
+	void set_client_language(const client_language & _cl)
+	{
+		cl = _cl;
+	}
+
 	void clear()
 	{
+		client_ID = 0;
+		session_ID = 0;
 		cc = WAIT;
 		body_length = 0;
 		read_pos = header_length;
@@ -118,18 +147,50 @@ public:
 		write_pos = header_length;
 	}
 
-	void start(const client_command & cc)
+	void start(const uint16_t & _client_id, const uint16_t & _session_id, const client_command & cc)
 	{
 		clear();
+		add_client_id(_client_id);
+		add_session_id(_session_id);
 		add_client_command(cc);
+	}
+
+	void add_client_id(const uint16_t _client_id)
+	{
+		uint16_t temp_client_id = htobe16(_client_id);
+		memcpy(&data[0], &temp_client_id, 2);
+	}
+
+	void add_session_id(const uint16_t _session_id)
+	{
+		uint16_t temp_session_id = htobe16(_session_id);
+		memcpy(&data[2], &temp_session_id, 2);
 	}
 
 	void add_client_command(const client_command & cc)
 	{
-		memcpy(data, &cc, 1);
+		memcpy(&data[4], &cc, 1);
 	}
 
-	void add_string(const std::string & _data)
+	void add_string(const string & _data)
+	{
+		switch(cl) {
+		case C:
+		case CPP:
+			add_string_(_data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_wstring(_data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_string_(_data);
+			break;
+		}
+	}
+
+	void add_string_(const string & _data)
 	{
 		current_datatype = STRING;
 
@@ -149,15 +210,13 @@ public:
 		current_datatype_count += string_length;
 	}
 
-	void add_wstring(const std::string & _data)
+	void add_wstring(const string & _data)
 	{
 		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter_1;
 		std::wstring _data_wide = converter_1.from_bytes(_data);
 
 		std::wstring_convert<std::codecvt_utf16<wchar_t>> converter_2;
-		std::string data_u16 = converter_2.to_bytes(_data_wide);
-
-//		std::cout << _data << " " << _data.length() << " " << data_u16 << " " << data_u16.length() << std::endl;
+		string data_u16 = converter_2.to_bytes(_data_wide);
 
 		current_datatype = WSTRING;
 
@@ -229,6 +288,24 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_unsigned_char(const unsigned char & _data)
+	{
+		switch(cl) {
+		case C:
+		case CPP:
+			add_unsigned_char_(_data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_char((char) _data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_char((char) _data);
+			break;
+		}
+	}
+
 	void add_unsigned_char(const unsigned char * _data, uint32_t length)
 	{
 		check_datatype(UNSIGNED_CHAR);
@@ -244,7 +321,7 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_unsigned_char(const unsigned char _data)
+	void add_unsigned_char_(const unsigned char _data)
 	{
 		check_datatype(UNSIGNED_CHAR);
 
@@ -309,6 +386,24 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_uint8(const uint8_t & _data) {
+
+		switch(cl) {
+		case C:
+		case CPP:
+			add_uint8_(_data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_int8((int8_t) _data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_int8((int8_t) _data);
+			break;
+		}
+	}
+
 	void add_uint8(const uint8_t * _data, uint32_t length)
 	{
 		check_datatype(UINT8_T);
@@ -324,7 +419,7 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_uint8(const uint8_t _data)
+	void add_uint8_(const uint8_t _data)
 	{
 		check_datatype(UINT8_T);
 
@@ -362,6 +457,24 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_uint16(const uint16_t & _data) {
+
+		switch(cl) {
+		case C:
+		case CPP:
+			add_uint16_(_data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_int16((int16_t) _data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_int16((int16_t) _data);
+			break;
+		}
+	}
+
 	void add_uint16(const uint16_t * _data, uint32_t length)
 	{
 		check_datatype(UINT16_T);
@@ -378,7 +491,7 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_uint16(const uint16_t _data)
+	void add_uint16_(const uint16_t _data)
 	{
 		check_datatype(UINT16_T);
 
@@ -417,6 +530,24 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_uint32(const uint32_t & _data) {
+
+		switch(cl) {
+		case C:
+		case CPP:
+			add_uint32_(_data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_int32((int32_t) _data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_int32((int32_t) _data);
+			break;
+		}
+	}
+
 	void add_uint32(const uint32_t * _data, uint32_t length)
 	{
 		check_datatype(UINT32_T);
@@ -433,7 +564,7 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_uint32(const uint32_t _data)
+	void add_uint32_(const uint32_t & _data)
 	{
 		check_datatype(UINT32_T);
 
@@ -473,6 +604,24 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_uint64(const uint64_t & _data) {
+
+		switch(cl) {
+		case C:
+		case CPP:
+			add_uint64_(_data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_int64((int64_t) _data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_int64((int64_t) _data);
+			break;
+		}
+	}
+
 	void add_uint64(const uint64_t * _data, uint32_t length)
 	{
 		check_datatype(UINT64_T);
@@ -489,7 +638,7 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_uint64(const uint64_t _data)
+	void add_uint64_(const uint64_t & _data)
 	{
 		check_datatype(UINT64_T);
 
@@ -561,14 +710,13 @@ public:
 	{
 		body_length = write_pos - header_length;
 		int32_t _body_length = htobe32(body_length);
-		memcpy(data + sizeof(client_command), &_body_length, 4);
+		memcpy(data + 4 + sizeof(client_command), &_body_length, 4);
 	}
 
 	void update_datatype_count()
 	{
 		int32_t _current_datatype_count = htobe32(current_datatype_count);
 		memcpy(data + current_datatype_count_pos, &_current_datatype_count, 4);
-		std::cout << "jj " << current_datatype_count << " " << current_datatype_count_pos << std::endl;
  	}
 
 	void check_datatype(const datatype new_datatype)
@@ -671,6 +819,45 @@ public:
 		return x;
 	}
 
+	const signed char read_signed_char()
+	{
+		if (current_datatype != SIGNED_CHAR) {
+			current_datatype = SIGNED_CHAR;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
+
+		signed char x;
+
+		memcpy(&x, &data[read_pos], 1);
+		read_pos += 1;
+
+		return x;
+	}
+
+	unsigned char read_unsigned_char()
+	{
+		unsigned char x = 0;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			x = read_unsigned_char_();
+			break;
+		case SCALA:
+		case JAVA:
+			x = (unsigned char) read_signed_char();
+			break;
+		case PYTHON:
+		case JULIA:
+			x = (unsigned char) read_signed_char();
+			break;
+		}
+
+		return x;
+	}
+
 	const unsigned char read_unsigned_char(const uint32_t & i)
 	{
 		unsigned char x;
@@ -679,7 +866,7 @@ public:
 		return x;
 	}
 
-	const unsigned char read_unsigned_char()
+	const unsigned char read_unsigned_char_()
 	{
 		if (current_datatype != UNSIGNED_CHAR) {
 			current_datatype = UNSIGNED_CHAR;
@@ -851,6 +1038,28 @@ public:
 		return x;
 	}
 
+	const uint8_t read_uint8()
+	{
+		uint8_t x = 0;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			x = read_uint8_();
+			break;
+		case SCALA:
+		case JAVA:
+			x = (uint8_t) read_int8();
+			break;
+		case PYTHON:
+		case JULIA:
+			x = (uint8_t) read_int8();
+			break;
+		}
+
+		return x;
+	}
+
 	const uint8_t read_uint8(const uint32_t & i)
 	{
 		uint8_t x;
@@ -859,7 +1068,7 @@ public:
 		return x;
 	}
 
-	const uint8_t read_uint8()
+	const uint8_t read_uint8_()
 	{
 		if (current_datatype != UINT8_T) {
 			current_datatype = UINT8_T;
@@ -903,6 +1112,28 @@ public:
 		return x;
 	}
 
+	const uint16_t read_uint16()
+	{
+		uint16_t x = 0;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			x = read_uint16_();
+			break;
+		case SCALA:
+		case JAVA:
+			x = (uint16_t) read_int16();
+			break;
+		case PYTHON:
+		case JULIA:
+			x = (uint16_t) read_int16();
+			break;
+		}
+
+		return x;
+	}
+
 	const uint16_t read_uint16(const uint32_t & i)
 	{
 		uint16_t x;
@@ -912,7 +1143,7 @@ public:
 		return x;
 	}
 
-	const uint16_t read_uint16()
+	const uint16_t read_uint16_()
 	{
 		if (current_datatype != UINT16_T) {
 			current_datatype = UINT16_T;
@@ -971,6 +1202,28 @@ public:
 		return x;
 	}
 
+	const uint32_t read_uint32()
+	{
+		uint32_t x = 0;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			x = read_uint32_();
+			break;
+		case SCALA:
+		case JAVA:
+			x = (uint32_t) read_int32();
+			break;
+		case PYTHON:
+		case JULIA:
+			x = (uint32_t) read_int32();
+			break;
+		}
+
+		return x;
+	}
+
 	const uint32_t read_uint32(const uint32_t & i)
 	{
 		uint32_t x;
@@ -980,7 +1233,7 @@ public:
 		return x;
 	}
 
-	const uint32_t read_uint32()
+	const uint32_t read_uint32_()
 	{
 		if (current_datatype != UINT32_T) {
 			current_datatype = UINT32_T;
@@ -1025,6 +1278,28 @@ public:
 		return x;
 	}
 
+	const uint64_t read_uint64()
+	{
+		uint64_t x = 0;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			x = read_uint64_();
+			break;
+		case SCALA:
+		case JAVA:
+			x = (uint64_t) read_int64();
+			break;
+		case PYTHON:
+		case JULIA:
+			x = (uint64_t) read_int64();
+			break;
+		}
+
+		return x;
+	}
+
 	const uint64_t read_uint64(const uint32_t & i)
 	{
 		uint64_t x;
@@ -1034,7 +1309,7 @@ public:
 		return x;
 	}
 
-	const uint64_t read_uint64()
+	const uint64_t read_uint64_()
 	{
 		if (current_datatype != UINT64_T) {
 			current_datatype = UINT64_T;
@@ -1130,34 +1405,55 @@ public:
 		return read_double(i);
 	}
 
-	const std::string read_string()
+	const string read_string()
+	{
+		string v = "";
+
+		switch(cl) {
+		case C:
+		case CPP:
+			v = read_string_();
+			break;
+		case SCALA:
+		case JAVA:
+			v = read_wstring();
+			break;
+		case PYTHON:
+		case JULIA:
+			v = read_string_();
+			break;
+		}
+
+		return v;
+	}
+
+	const string read_string_()
 	{
 		current_datatype = STRING;
 
 		uint32_t data_length;
 
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
+		memcpy(&data_length, &data[read_pos + sizeof(datatype)], 4);
 		data_length = be32toh(data_length);
-		read_pos += 4;
 
 		char cc[data_length+1];
-		memcpy(cc, &data[read_pos], data_length);
+		std::cout << data_length << std::endl;
+		memcpy(cc, &data[read_pos + sizeof(datatype) + 4], data_length);
 		cc[data_length] = '\0';
-		read_pos += data_length;
+		read_pos += sizeof(datatype) + 4 + data_length;
 
-		return std::string(cc);
+		return string(cc);
 	}
 
-	const std::string read_string(const uint32_t & i, const uint32_t & length)
+	const string read_string(const uint32_t & i, const uint32_t & length)
 	{
 		char cc[length];
 		memcpy(cc, &data[i], length);
 
-		return std::string(cc);
+		return string(cc);
 	}
 
-	const std::string read_wstring()
+	const string read_wstring()
 	{
 		current_datatype = WSTRING;
 		uint32_t data_length;
@@ -1165,21 +1461,19 @@ public:
 		std::ostringstream stm;
 		const std::locale & loc = std::locale();
 
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
+		memcpy(&data_length, &data[read_pos + sizeof(datatype)], 4);
 		data_length = be32toh(data_length);
-		read_pos += 4;
 
 		for (uint32_t j = 0; j < data_length; j++) {
-			read_atom(read_pos + 2*j, &x, 2);
+			read_atom(read_pos + sizeof(datatype) + 4 + 2*j, &x, 2);
 			stm << std::use_facet< std::ctype<wchar_t> >(loc).narrow(be16toh(x), '?');
 		}
-		read_pos += 2*data_length;
+		read_pos += sizeof(datatype) + 4 + 2*data_length;
 
 		return stm.str();
 	}
 
-	const std::string read_wstring(const uint32_t & i, const uint32_t & length)
+	const string read_wstring(const uint32_t & i, const uint32_t & length, const bool update_read_pos = true)
 	{
 		wchar_t x;
 		std::ostringstream stm;
@@ -1193,7 +1487,7 @@ public:
 		return stm.str();
 	}
 
-	const void read_next(std::stringstream & ss, uint32_t i, const datatype & dt)
+	const void read_next(stringstream & ss, uint32_t i, const datatype & dt)
 	{
 		switch (dt) {
 			case BYTE:
@@ -1287,26 +1581,38 @@ public:
 			}
 	}
 
-	const std::string to_string()
-	{
-		std::stringstream ss;
+	const bool eom() {
+		return (body_length == read_pos - header_length);
+	}
 
+	const string to_string()
+	{
+		stringstream ss;
+
+		uint16_t _client_ID, _session_ID;
 		client_command _cc;
-		int32_t _body_length;
-		memcpy(&_cc, &data[0], sizeof(client_command));
-		memcpy(&_body_length, &data[sizeof(client_command)], 4);
-		_body_length = be32toh(_body_length);
-		std::string space = "                                              ";
+		uint32_t _body_length;
+
+		int32_t i = 0;
+
+		_client_ID = read_uint16(i); i += 2;
+		_session_ID = read_uint16(i); i += 2;
+		_cc = (client_command) read_uint8(i); i += sizeof(client_command);
+		_body_length = read_uint32(i); i += 4;
+
+		string space = "                                              ";
 
 		ss << std::endl;
 		ss << space << "==============================================" << std::endl;
+		ss << space << "Client ID:            " << _client_ID << std::endl;
+		ss << space << "Session ID:           " << _session_ID << std::endl;
 		ss << space << "Command code:         " << _cc << " (" << get_command_name(_cc) << ") " << std::endl;
 		ss << space << "Message body length:  " << _body_length << std::endl;
 		ss << space << "----------------------------------------------" << std::endl;
 		ss << std::endl;
 
 		uint16_t datatype_length;
-		int32_t data_length;
+		uint32_t data_length;
 		datatype dt;
 
 		for (int32_t i = 0; i < _body_length; ) {

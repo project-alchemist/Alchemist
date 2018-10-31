@@ -2,27 +2,20 @@
 #define ALCHEMIST__WORKERSESSION_HPP
 
 
-#include "Alchemist.hpp"
-#include "Message.hpp"
-//#include "data_stream.hpp"
 #include "Session.hpp"
-#include "Worker.hpp"
-#include "utility/logging.hpp"
+#include "GroupWorker.hpp"
 
 
 namespace alchemist {
 
-typedef uint16_t Session_ID;
-typedef std::deque<Message> Message_queue;
-
-class Worker;
+class GroupWorker;
 
 class WorkerSession : public Session
 {
 public:
-	WorkerSession(tcp::socket, Worker &);
-	WorkerSession(tcp::socket, Worker &, uint16_t);
-	WorkerSession(tcp::socket, Worker &, uint16_t, Log_ptr &);
+	WorkerSession(tcp::socket, GroupWorker &);
+	WorkerSession(tcp::socket, GroupWorker &, Session_ID _ID, Group_ID _group_ID);
+	WorkerSession(tcp::socket, GroupWorker &, Session_ID _ID, Group_ID _group_ID, Log_ptr &);
 
 	int handle_message();
 
@@ -31,7 +24,13 @@ public:
 	bool send_response_string();
 	bool send_test_string();
 
-	bool receive_data();
+	bool send_matrix_blocks();
+	bool receive_matrix_blocks();
+
+	// -------------------------------------   Matrix Management   -----------------------------------
+
+	//	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);
+
 
 	void remove_session();
 
@@ -41,7 +40,19 @@ public:
 	}
 
 private:
-	Worker & worker;
+
+	GroupWorker & group_worker;
+
+
+	// ---------------------------------------   Information   ---------------------------------------
+
+
+
+	// -----------------------------------------   Testing   -----------------------------------------
+
+//	int receive_test_string(const char *, const uint32_t);
+//	int send_test_string();
+
 };
 
 typedef std::shared_ptr<WorkerSession> WorkerSession_ptr;

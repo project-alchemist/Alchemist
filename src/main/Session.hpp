@@ -2,40 +2,25 @@
 #define ALCHEMIST__SESSION_HPP
 
 
-#include "Alchemist.hpp"
 #include "Message.hpp"
-//#include "data_stream.hpp"
-#include "Server.hpp"
 #include "LibraryManager.hpp"
-#include "utility/logging.hpp"
 
 
 namespace alchemist {
-
-using asio::ip::tcp;
-using std::string;
-
-typedef uint16_t Session_ID;
-typedef std::deque<Message> Message_queue;
-
-typedef enum _client_language : uint8_t {
-	C = 0,
-	CPP,
-	SCALA,
-	JAVA,
-	PYTHON,
-	JULIA
-} client_language;
 
 class Server;
 
 class Session : public std::enable_shared_from_this<Session>
 {
 public:
-	Session(tcp::socket, Server &);
-	Session(tcp::socket, Server &, uint16_t);
-	Session(tcp::socket, Server &, uint16_t, Log_ptr &);
+	Session(tcp::socket);
+	Session(tcp::socket, Session_ID _ID, Client_ID _client_ID);
+	Session(tcp::socket, Session_ID _ID, Client_ID _client_ID, Log_ptr &);
 	virtual ~Session() { };
+
+	vector<Worker_ID>  allocated_workers;
+	vector<Library_ID> loaded_libraries;
+	vector<Task_ID> tasks;
 
 	virtual void start() = 0;
 	virtual void remove_session() = 0;
@@ -50,8 +35,9 @@ public:
 	uint16_t get_port() const;
 	bool get_admin_privilege() const;
 
-	bool send_handshake();
 	bool check_handshake();
+	bool valid_handshake();
+	bool invalid_handshake();
 
 	virtual bool send_response_string() = 0;
 	bool send_test_string();
@@ -64,6 +50,12 @@ public:
 	void read_body();
 	void flush();
 
+	string preamble();
+	string client_preamble();
+	string session_preamble();
+
+	void set_client_language(client_language _cl);
+
 //	void assign_workers();
 //	bool list_all_workers();
 //	bool list_active_workers();
@@ -72,32 +64,22 @@ public:
 
 	Message & new_message();
 
-	void add_uint8(const uint8_t & v);
-	void add_uint16(const uint16_t & v);
-	void add_uint32(const uint32_t & v);
-	void add_uint64(const uint64_t & v);
-	void add_string(string v);
-
-	uint8_t read_uint8();
-	uint16_t read_uint16();
-	uint32_t read_uint32();
-	uint64_t read_uint64();
-	string read_string();
-
+	Message read_msg;
+	Message write_msg;
 protected:
-	int8_t client_language;
+	Client_ID client_ID;
+	Session_ID ID;
 
 	bool admin_privilege;
 	bool ready;
 	Log_ptr log;
 
-	tcp::socket socket;
-	Server & server;
-	Message read_msg;
-	Message write_msg;
-	Message_queue write_msgs;
+	client_language cl;
 
-	Session_ID ID;
+	tcp::socket socket;
+
+//	Message_queue write_msgs;
+
 	string address = "";
 	uint16_t port = 0;
 };

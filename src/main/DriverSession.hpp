@@ -2,31 +2,25 @@
 #define ALCHEMIST__DRIVERSESSION_HPP
 
 
-#include "Alchemist.hpp"
-#include "Message.hpp"
-//#include "data_stream.hpp"
 #include "Session.hpp"
-#include "Driver.hpp"
+#include "GroupDriver.hpp"
 
 
 namespace alchemist {
 
-using std::string;
-using std::vector;
-
-typedef uint16_t Session_ID;
-typedef std::deque<Message> Message_queue;
-
-class Driver;
+class GroupDriver;
 
 class DriverSession : public Session
 {
 public:
-	DriverSession(tcp::socket, Driver &);
-	DriverSession(tcp::socket, Driver &, uint16_t);
-	DriverSession(tcp::socket, Driver &, uint16_t, Log_ptr &);
+	DriverSession(tcp::socket, GroupDriver &);
+	DriverSession(tcp::socket, GroupDriver &, Client_ID _client_ID);
+	DriverSession(tcp::socket, GroupDriver &, Client_ID _client_ID, Log_ptr &);
 
-	std::map<Worker_ID, WorkerInfo> workers;
+	map<Worker_ID, WorkerInfo> workers;
+
+	vector<Worker_ID>  allocated_workers;
+	vector<Library_ID> loaded_libraries;
 
 	void start();
 
@@ -36,6 +30,7 @@ public:
 	void remove_session();
 
 	bool receive_client_info();
+	void request_matrix();
 
 	bool allocate_workers();
 	bool deallocate_workers();
@@ -62,10 +57,11 @@ public:
 	{
 		return std::static_pointer_cast<DriverSession>(Session::shared_from_this());
 	}
-private:
-	Driver & driver;
 
-	uint16_t num_client_workers;
+private:
+	GroupDriver & group_driver;
+
+	uint16_t num_group_workers;
 	string log_dir;
 };
 

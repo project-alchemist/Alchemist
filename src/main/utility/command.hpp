@@ -25,7 +25,8 @@ typedef enum _client_command : uint8_t {
 	UNLOAD_LIBRARY,
 	MATRIX_INFO,
 	MATRIX_LAYOUT,
-	MATRIX_BLOCK,
+	SEND_MATRIX_BLOCKS,
+	REQUEST_MATRIX_BLOCKS,
 	SHUT_DOWN
 } client_command;
 
@@ -34,10 +35,14 @@ typedef enum _alchemist_command : uint8_t {
 	START,
 	SEND_INFO,
 	ACCEPT_CONNECTION,
-	PRINT_SOMETHING,
+	SAY_SOMETHING,
+	NEW_SESSION,
+	END_SESSION,
 	NEW_MATRIX,
 	CLIENT_MATRIX_LAYOUT,
-	PRINT_DATA
+	PRINT_DATA,
+	WORKER_LOAD_LIBRARY,
+	WORKER_RUN_TASK
 } alchemist_command;
 
 inline const std::string get_command_name(const client_command & c)
@@ -79,8 +84,10 @@ inline const std::string get_command_name(const client_command & c)
 			return "MATRIX INFO";
 		case MATRIX_LAYOUT:
 			return "MATRIX LAYOUT";
-		case MATRIX_BLOCK:
-			return "MATRIX BLOCK";
+		case SEND_MATRIX_BLOCKS:
+			return "SEND MATRIX BLOCKS";
+		case REQUEST_MATRIX_BLOCKS:
+			return "REQUEST MATRIX BLOCKS";
 		default:
 			return "INVALID COMMAND";
 		}
@@ -95,12 +102,20 @@ inline const std::string get_command_name(const alchemist_command & c)
 			return "SEND_INFO";
 		case ACCEPT_CONNECTION:
 			return "ACCEPT CONNECTION";
-		case PRINT_SOMETHING:
-			return "PRINT SOMETHING";
+		case SAY_SOMETHING:
+			return "SAY SOMETHING";
+		case NEW_SESSION:
+			return "NEW SESSION";
+		case END_SESSION:
+			return "END SESSION";
 		case NEW_MATRIX:
 			return "NEW MATRIX";
 		case CLIENT_MATRIX_LAYOUT:
 			return "CLIENT MATRIX LAYOUT";
+		case WORKER_LOAD_LIBRARY:
+			return "WORKER LOAD LIBRARY";
+		case WORKER_RUN_TASK:
+			return "WORKER RUN TASK";
 		case PRINT_DATA:
 			return "PRINT DATA";
 		default:
@@ -108,6 +123,6 @@ inline const std::string get_command_name(const alchemist_command & c)
 		}
 }
 
-}				// UNLOAD_LIBRARY
+}			// namespace alchemist
 
 #endif

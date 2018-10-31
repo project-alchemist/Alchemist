@@ -33,12 +33,7 @@ struct LibraryInfo {
 class Executor : public std::enable_shared_from_this<Executor>
 {
 public:
-	MPI_Comm & world;
-	MPI_Comm & peers;
-
 	std::map<std::string, LibraryInfo> libraries;
-
-	Executor(MPI_Comm & _world, MPI_Comm & _peers) : world(_world), peers(_peers) {}
 
 	virtual ~Executor() {}
 

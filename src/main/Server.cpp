@@ -3,15 +3,37 @@
 namespace alchemist {
 
 Server::Server(io_context & _io_context, const tcp::endpoint & endpoint) :
-		ic(_io_context), acceptor(_io_context, endpoint), next_session_ID(1), next_job_ID(1), log(nullptr)
+		ic(_io_context), acceptor(_io_context, endpoint), log(nullptr)
 {
 	char _hostname[256];
 	gethostname(_hostname, sizeof(_hostname));
-
 	hostname = string(_hostname);
 
+//	address = acceptor.local_endpoint().address().to_string();
 	address = endpoint.address().to_string();
 	port = endpoint.port();
+
+
+//	int world_rank, world_size;
+//	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+//	MPI_Comm_size(world, &world_size);
+}
+
+Server::Server(io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
+		ic(_io_context), acceptor(_io_context, endpoint), log(_log)
+{
+	char _hostname[256];
+	gethostname(_hostname, sizeof(_hostname));
+	hostname = string(_hostname);
+
+//	address = acceptor.local_endpoint().address().to_string();
+	address = endpoint.address().to_string();
+	port = endpoint.port();
+
+
+//	int world_rank, world_size;
+//	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+//	MPI_Comm_size(world, &world_size);
 }
 
 void Server::set_log(Log_ptr _log)
@@ -33,9 +55,8 @@ void Server::set_log(Log_ptr _log)
 //	//	log->info("Waiting on next command");
 //}
 
-void Server::print_IP()
+void Server::print_IP()			// Outdated
 {
-	// Outdated
 	int sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;

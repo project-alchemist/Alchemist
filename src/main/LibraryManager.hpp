@@ -7,11 +7,8 @@
 #include <string>
 #include <unistd.h>
 #include "Alchemist.hpp"
-#include "utility/logging.hpp"
 
 namespace alchemist {
-
-using std::string;
 
 typedef std::shared_ptr<Library> Library_ptr;
 

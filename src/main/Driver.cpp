@@ -2,40 +2,26 @@
 
 namespace alchemist {
 
-const string get_Alchemist_version()
-{
-	std::stringstream ss;
-	ss << ALCHEMIST_VERSION_MAJOR << "." << ALCHEMIST_VERSION_MINOR;
-	return ss.str();
-}
-
-#ifndef ASIO_STANDALONE
-const string get_Boost_version()
-{
-	std::stringstream ss;
-	ss << BOOST_VERSION / 100000 << "." << BOOST_VERSION / 100 % 1000 << "." << BOOST_VERSION % 100;
-	return ss.str();
-}
-#endif
-
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const unsigned int port) :
-		Driver(_world, _peers, _io_context, tcp::endpoint(tcp::v4(), port)) { }
+Driver::Driver(io_context & _io_context, const unsigned int port) :
+				Driver(_io_context, tcp::endpoint(tcp::v4(), port)) { }
 
-Driver::Driver(MPI_Comm & _world, MPI_Comm & _peers, io_context & _io_context, const tcp::endpoint & endpoint) :
-		world(_world), peers(_peers), Server(_io_context, endpoint), next_matrix_ID(0)
+Driver::Driver(io_context & _io_context, const tcp::endpoint & endpoint) :
+				Server(_io_context, endpoint), next_matrix_ID(0), next_group_ID(0)
 {
 	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]     %v");
 	Server::set_log(log);
 
 	lm = new LibraryManager(log);
 
+	world = MPI_COMM_WORLD;
+
 	int world_size;
 	MPI_Comm_size(world, &world_size);
 
-	num_workers = world_size - 1;
+	num_workers = (uint16_t) world_size - 1;
 
 	print_welcome_message();
 
@@ -60,11 +46,6 @@ int Driver::start()
 	accept_connection();
 
 	return 0;
-}
-
-void Driver::go()
-{
-	accept_connection();
 }
 
 // ===============================================================================================
@@ -94,10 +75,10 @@ void Driver::print_welcome_message()
 	log->info(message.c_str(), get_Alchemist_version(), hostname, address, port);
 	#endif
 
-	int16_t i = 1;
-	int8_t *ptr;
-	ptr  = (int8_t*) &i;
-	(*ptr) ? std::cout << "little endian" << std::endl : std::cout << "big endian" << std::endl;
+//	int16_t i = 1;
+//	int8_t *ptr;
+//	ptr  = (int8_t*) &i;
+//	(*ptr) ? std::cout << "little endian" << std::endl : std::cout << "big endian" << std::endl;
 }
 
 void Driver::print_ready_message()
@@ -110,40 +91,39 @@ void Driver::print_ready_message()
 	log->info(message.c_str());
 }
 
-std::map<Worker_ID, WorkerInfo> Driver::allocate_workers(DriverSession_ptr s, uint16_t num_workers)
+//vector<Worker_ID> & Driver::allocate_workers(Session_ID session_ID, uint16_t num_workers)
+//{
+////	log->info("{} Allocating {} workers", sessions[session_ID].ptr->session_preamble(), num_workers);
+//
+//	vector<Worker_ID> allocated_workers(num_workers);
+//
+//	if (inactive_workers.size() >= num_workers) {
+//		auto it = inactive_workers.begin();
+//
+//		Worker_ID worker_ID;
+//
+//		for (uint16_t i = 0; i < num_workers; i++) {
+//			worker_ID = inactive_workers[i];
+//			active_workers.insert(std::make_pair(worker_ID, session_ID));
+//			workers[worker_ID].active = true;
+////			allocated_workers[session_ID].push_back(worker_ID);
+//		}
+//		inactive_workers.erase(inactive_workers.begin(), inactive_workers.begin() + num_workers);
+//	}
+//
+//	open_workers();
+//
+//	return allocated_workers[session_ID];
+//}
+
+void Driver::deallocate_workers(Session_ID session_ID)
 {
-	Session_ID session_ID = s->get_ID();
-
-	log->info("Allocating {} workers to Session {}", num_workers, session_ID);
-
-	if (inactive_workers.size() >= num_workers) {
-		auto it = inactive_workers.begin();
-
-		for (uint16_t i = 0; i < num_workers; i++) {
-			uint16_t id = inactive_workers[i];
-			active_workers.insert(std::make_pair(id, session_ID));
-			workers[id].active = true;
-			allocated_workers[session_ID].insert(std::make_pair(id, workers[id]));
-		}
-		inactive_workers.erase(inactive_workers.begin(), inactive_workers.begin() + num_workers);
-	}
-
-	open_workers();
-
-	return allocated_workers[session_ID];
-}
-
-void Driver::deallocate_workers(DriverSession_ptr s)
-{
-	Session_ID session_ID = s->get_ID();
-
-	for (auto it = allocated_workers[session_ID].begin() ; it != allocated_workers[session_ID].end(); it++) {
-		uint16_t id = it->first;
-		active_workers.erase(id);
-		workers[id].active = false;
-		inactive_workers.push_back(id);
-	}
-	allocated_workers[session_ID].clear();
+//	for (Worker_ID worker_ID: allocated_workers[session_ID]) {
+//		active_workers.erase(worker_ID);
+//		workers[worker_ID].active = false;
+//		inactive_workers.push_back(worker_ID);
+//	}
+//	allocated_workers[session_ID].clear();
 }
 
 string Driver::list_inactive_workers()
@@ -151,23 +131,23 @@ string Driver::list_inactive_workers()
 	std::stringstream list_of_workers;
 	list_of_workers << "List of inactive workers:" << std::endl;
 
-	if (inactive_workers.size() == 0) {
-		list_of_workers << SPACE;
-		list_of_workers << "    No inactive workers" << std::endl;
-	}
-	else {
-		char buffer[4];
-
-		for (Worker_ID id = 1; id <= num_workers; ++id) {
-			if (!workers[id].active)
-			{
-				sprintf(buffer, "%03d", id);
-				list_of_workers << SPACE;
-				list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " ";
-				list_of_workers << workers[id].address << ":" << workers[id].port << std::endl;
-			}
-		}
-	}
+//	if (inactive_workers.size() == 0) {
+//		list_of_workers << SPACE;
+//		list_of_workers << "    No inactive workers" << std::endl;
+//	}
+//	else {
+//		char buffer[4];
+//
+//		for (Worker_ID id = 1; id <= num_workers; ++id) {
+//			if (!workers[id].active)
+//			{
+//				sprintf(buffer, "%03d", id);
+//				list_of_workers << SPACE;
+//				list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " ";
+//				list_of_workers << workers[id].address << ":" << workers[id].port << std::endl;
+//			}
+//		}
+//	}
 
 	return list_of_workers.str();
 }
@@ -177,215 +157,52 @@ string Driver::list_active_workers()
 	std::stringstream list_of_workers;
 	list_of_workers << "List of active workers:" << std::endl;
 
-	if (active_workers.size() == 0) {
-		list_of_workers << SPACE;
-		list_of_workers << "    No active workers" << std::endl;
-	}
-	else {
-		char buffer[4];
-
-		for (Worker_ID id = 1; id <= num_workers; ++id) {
-			if (workers[id].active)
-			{
-				sprintf(buffer, "%03d", id);
-				list_of_workers << SPACE;
-				list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " ";
-				list_of_workers << workers[id].address << ":" << workers[id].port << std::endl;
-			}
-		}
-	}
+//	if (active_workers.size() == 0) {
+//		list_of_workers << SPACE;
+//		list_of_workers << "    No active workers" << std::endl;
+//	}
+//	else {
+//		char buffer[4];
+//
+//		for (Worker_ID id = 1; id <= num_workers; ++id) {
+//			if (workers[id].active)
+//			{
+//				sprintf(buffer, "%03d", id);
+//				list_of_workers << SPACE;
+//				list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " ";
+//				list_of_workers << workers[id].address << ":" << workers[id].port << std::endl;
+//			}
+//		}
+//	}
 
 	return list_of_workers.str();
 }
 
-string Driver::list_allocated_workers(DriverSession_ptr s)
+string Driver::list_allocated_workers(Client_ID client_ID)
 {
-	Session_ID session_ID = s->get_ID();
 	std::stringstream list_of_workers;
 	list_of_workers << "List of assigned workers:" << std::endl;
 
-	if (allocated_workers[session_ID].size() == 0) {
-		list_of_workers << SPACE;
-		list_of_workers << "    No assigned workers" << std::endl;
-	}
-	else {
-		char buffer[4];
-
-		for (auto const& worker: allocated_workers[session_ID]) {
-			sprintf(buffer, "%03d", worker.first);
-			list_of_workers << SPACE;
-			list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[worker.first].hostname << " ";
-			list_of_workers << workers[worker.first].address << ":" << workers[worker.first].port << std::endl;
-		}
-	}
+//	if (allocated_workers[session_ID].size() == 0) {
+//		list_of_workers << SPACE;
+//		list_of_workers << "    No assigned workers" << std::endl;
+//	}
+//	else {
+//		char buffer[4];
+//
+//		for (Worker_ID worker_ID: allocated_workers[session_ID]) {
+//			sprintf(buffer, "%03d", worker_ID);
+//			list_of_workers << SPACE;
+//			list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[worker_ID].hostname << " ";
+//			list_of_workers << workers[worker_ID].address << ":" << workers[worker_ID].port << std::endl;
+//		}
+//	}
 
 	return list_of_workers.str();
-}
-
-string Driver::list_sessions()
-{
-	std::stringstream list_of_sessions;
-	list_of_sessions << "List of current sessions:" << std::endl;
-	log->info("List of current sessions:");
-
-	if (workers.size() == 0)
-		list_of_sessions << "    No active sessions" << std::endl;
-
-	return list_of_sessions.str();
-
-//	for(auto it = sessions.begin(); it != sessions.end(); ++it)
-//		log->info("        Session {}: {}:{}, assigned to Session {}", it->first, workers[it->first].hostname, workers[it->first].port, it->second);
-}
-
-string Driver::make_daytime_string()
-{
-	std::time_t now = std::time(0);
-	return std::ctime(&now);
 }
 
 // -----------------------------------------   Workers   -----------------------------------------
 
-int Driver::load_library(string library_name, string library_path)
-{
-	return lm->load_library(world, library_name, library_path);
-}
-
-Matrix_ID Driver::new_matrix(unsigned char type, unsigned char layout, uint32_t num_rows, uint32_t num_cols)
-{
-	alchemist_command command = NEW_MATRIX;
-
-	log->info("Sending command {} to workers", get_command_name(command));
-
-	next_matrix_ID++;
-
-	MPI_Request req;
-	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
-	MPI_Wait(&req, &status);
-
-	MPI_Bcast(&next_matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, world);
-	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, world);
-	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, world);
-
-	MPI_Barrier(world);
-
-	matrices.insert(std::make_pair(next_matrix_ID, MatrixInfo(next_matrix_ID, num_rows, num_cols)));
-
-	return next_matrix_ID;
-}
-
-vector<uint16_t> & Driver::get_row_assignments(Matrix_ID & matrix_ID)
-{
-	return matrices[matrix_ID].row_assignments;
-}
-
-void Driver::determine_row_assignments(Matrix_ID & matrix_ID)
-{
-	int i = 5;
-
-	MatrixInfo & matrix = matrices[matrix_ID];
-	uint32_t worker_num_rows;
-	uint32_t * row_indices;
-
-	std::clock_t start;
-
-	alchemist_command command = CLIENT_MATRIX_LAYOUT;
-
-	MPI_Request req;
-	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
-	MPI_Wait(&req, &status);
-
-	MPI_Bcast(&matrix.ID, 1, MPI_UNSIGNED_SHORT, 0, world);
-
-	for (Worker_ID id = 1; id <= num_workers; id++) {
-		start = std::clock();
-		MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, world, &status);
-		log->info("DURATION 1: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
-
-		start = std::clock();
-		row_indices = new uint32_t[worker_num_rows];
-//		MPI_Recv(row_indices, worker_num_rows, MPI_UNSIGNED_LONG, id, 0, world, &status);		// For some reason this doesn't work
-
-		log->info("DURATION 2: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
-
-		start = std::clock();
-		for (uint32_t i = 0; i < worker_num_rows; i++) {
-			MPI_Recv(&row_indices[i], 1, MPI_UNSIGNED_LONG, id, 0, world, &status);
-			matrix.row_assignments[row_indices[i]] = id-1;
-		}
-		log->info("DURATION 3: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
-
-		delete [] row_indices;
-	}
-
-	MPI_Barrier(world);
-
-	std::stringstream ss;
-
-	ss << std::endl << "Row | Worker " << std::endl;
-	for (uint32_t row = 0; row < matrix.num_rows; row++) {
-		ss << row << " | " << matrix.row_assignments[row] << std::endl;
-	}
-
-	log->info(ss.str());
-}
-
-vector<vector<vector<float> > > Driver::prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers)
-{
-	auto data_ratio = float(num_alchemist_workers)/float(num_client_workers);
-
-	vector<vector<vector<float> > > layout_rr = vector<vector<vector<float> > >(num_client_workers, vector<vector<float> >(num_alchemist_workers, vector<float>(2)));
-
-	for (int i = 0; i < num_client_workers; i++)
-		for (int j = 0; j < num_alchemist_workers; j++) {
-			layout_rr[i][j][0] = 0.0;
-			layout_rr[i][j][1] = 0.0;
-		}
-
-	int j = 0;
-	float diff, col_sum;
-
-	for (int i = 0; i < num_client_workers; i++) {
-		auto dr = data_ratio;
-		for (; j < num_alchemist_workers; j++) {
-			col_sum = 0.0;
-			for (int k = 0; k < i; k++)
-				col_sum += layout_rr[k][j][1];
-
-			if (i > 0) diff = 1.0 - col_sum;
-			else diff = 1.0;
-
-			if (dr >= diff) {
-				layout_rr[i][j][1] = layout_rr[i][j][0] + diff;
-				dr -= diff;
-			}
-			else {
-				layout_rr[i][j][1] = layout_rr[i][j][0] + dr;
-				break;
-			}
-		}
-	}
-
-	for (int i = 0; i < num_client_workers; i++)
-		for (int j = 0; j < num_alchemist_workers; j++) {
-			layout_rr[i][j][0] /= data_ratio;
-			layout_rr[i][j][1] /= data_ratio;
-			if (j > 0) {
-				layout_rr[i][j][0] += layout_rr[i][j-1][1];
-				layout_rr[i][j][1] += layout_rr[i][j-1][1];
-				if (layout_rr[i][j][1] >= 0.99) break;
-			}
-		}
-
-//	for (int i = 0; i < num_client_workers; i++) {
-//			for (int j = 0; j < num_alchemist_workers; j++)
-//				std::cout << layout_rr[i][j][0] << "," << layout_rr[i][j][1] << " ";
-//		std::cout << std::endl;
-//	}
-
-	return layout_rr;
-}
 
 int Driver::start_workers()
 {
@@ -395,6 +212,11 @@ int Driver::start_workers()
 
 	MPI_Request req;
 	MPI_Status status;
+//	for (int temp_worker_ID = 1; temp_worker_ID <= num_workers; temp_worker_ID++) {
+//		log->info("sfsfs {}", temp_worker_ID);
+//		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_worker_ID, 0, world, &req);
+//		MPI_Wait(&req, &status);
+//	}
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
 	MPI_Wait(&req, &status);
 
@@ -409,8 +231,13 @@ int Driver::register_workers()
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
+	Worker_ID temp_worker_ID;
 	MPI_Request req;
 	MPI_Status status;
+//	for (int temp_worker_ID = 1; temp_worker_ID <= num_workers; temp_worker_ID++) {
+//		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_worker_ID, 0, world, &req);
+//		MPI_Wait(&req, &status);
+//	}
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
 	MPI_Wait(&req, &status);
 
@@ -421,7 +248,7 @@ int Driver::register_workers()
 		char hostname[hostname_length];
 		MPI_Recv(hostname, hostname_length, MPI_CHAR, id, 0, world, &status);
 		MPI_Recv(&address_length, 1, MPI_UNSIGNED_SHORT, id, 0, world, &status);
-		char address[hostname_length];
+		char address[address_length];
 		MPI_Recv(address, address_length, MPI_CHAR, id, 0, world, &status);
 		MPI_Recv(&port, 1, MPI_UNSIGNED_SHORT, id, 0, world, &status);
 
@@ -430,8 +257,10 @@ int Driver::register_workers()
 		workers[id].address = string(address);
 		workers[id].port = port;
 
-		inactive_workers.push_back(id);
+		unallocated_workers.push_back(id);
 	}
+
+	MPI_Barrier(world);
 
 	if (num_workers == 0)
 		log->info("No workers ready");
@@ -445,16 +274,84 @@ int Driver::register_workers()
 	return 0;
 }
 
-void Driver::open_workers()
+map<Worker_ID, WorkerInfo> Driver::allocate_workers(const Group_ID & group_ID, const uint16_t & num_requested_workers)
+{
+	map<Worker_ID, WorkerInfo> allocated_group;
+
+	if (unallocated_workers.size() >= num_requested_workers) {
+
+		Worker_ID worker_ID;
+
+		for (uint16_t i = 0; i < num_requested_workers; i++) {
+			worker_ID = unallocated_workers[i];
+			allocated_workers.insert(std::make_pair(worker_ID, group_ID));
+			workers[worker_ID].active = true;
+			allocated_group.insert(std::make_pair(worker_ID, workers[worker_ID]));
+		}
+		unallocated_workers.erase(unallocated_workers.begin(), unallocated_workers.begin() + num_requested_workers);
+	}
+
+	open_workers(group_ID, allocated_group);
+
+	log->info(list_workers());
+
+	return allocated_group;
+}
+
+void Driver::open_workers(const Group_ID & group_ID, map<Worker_ID, WorkerInfo> & allocated_group)
 {
 	alchemist_command command = ACCEPT_CONNECTION;
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
+	Worker_ID temp_worker_ID;
 	MPI_Request req;
 	MPI_Status status;
+//	for (auto it = allocated_group.begin(); it != allocated_group.end(); it++) {
+//	for (int i = 1; i <= num_workers; i++) {
+//		temp_worker_ID = i;
+//		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_worker_ID, 0, world, &req);
+//		MPI_Wait(&req, &status);
+//	}
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
 	MPI_Wait(&req, &status);
+
+	uint16_t group_size = allocated_group.size();
+	uint16_t worker_ID, peer_ID;
+
+	int group_IDs[group_size+1];
+	group_IDs[0] = 0;
+
+	int i = 0;
+	for (int j = 1; j <= num_workers; j++) {
+		worker_ID = j;
+//  for (auto it = allocated_group.begin(); it != allocated_group.end(); it++) {
+		if (allocated_group.find(worker_ID) == allocated_group.end() ) {
+			Group_ID null_group_ID = 0;
+			MPI_Send(&null_group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+		}
+		else {
+			group_IDs[i+1] = worker_ID;
+
+			MPI_Send(&group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+
+			for (auto it1 = allocated_group.begin(); it1 != allocated_group.end(); it1++) {
+				peer_ID = it1->first;
+				MPI_Send(&peer_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+			}
+			i++;
+		}
+	}
+
+	MPI_Group world_group;
+	MPI_Group temp_group;
+
+	MPI_Comm_group(world, &world_group);
+
+	MPI_Group_incl(world_group, (int) (group_size+1), group_IDs, &temp_group);
+	groups[group_ID]->set_group_comm(world, temp_group);
+	groups[group_ID]->say_something();
 }
 
 void Driver::idle_workers()
@@ -463,20 +360,13 @@ void Driver::idle_workers()
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
+	Worker_ID temp_worker_ID;
 	MPI_Request req;
 	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
-	MPI_Wait(&req, &status);
-}
-
-void Driver::print_workers()
-{
-	alchemist_command command = PRINT_SOMETHING;
-
-	log->info("Sending command {} to workers", get_command_name(command));
-
-	MPI_Request req;
-	MPI_Status status;
+//	for (int temp_worker_ID = 1; temp_worker_ID <= num_workers; temp_worker_ID++) {
+//		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_worker_ID, 0, world, &req);
+//		MPI_Wait(&req, &status);
+//	}
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
 	MPI_Wait(&req, &status);
 }
@@ -498,7 +388,7 @@ string Driver::list_workers()
 		for (Worker_ID id = 1; id <= num_workers; ++id) {
 			sprintf(buffer, "%03d", id);
 			list_of_workers << SPACE;
-			list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " ";
+			list_of_workers << "    Worker-" << string(buffer) << " running on " << workers[id].hostname << " at ";
 			list_of_workers << workers[id].address << ":" << workers[id].port << " - ";
 			if (workers[id].active) list_of_workers << "active";
 			else list_of_workers << "idle";
@@ -509,36 +399,6 @@ string Driver::list_workers()
 	return list_of_workers.str();
 }
 
-// ----------------------------------------   File I/O   ----------------------------------------
-
-int Driver::read_HDF5() {
-
-	log->info("Driver::read_HDF5 not yet implemented");
-
-
-
-	return 0;
-}
-
-// ===============================================================================================
-// ====================================   COMMAND FUNCTIONS   ====================================
-
-int Driver::receive_test_string(const DriverSession_ptr session, const char * data, const uint32_t length) {
-
-	string test_string(data, length);
-
-	log->info("[Session {}] [{}] Received test string from client", session->get_ID(), session->get_address());
-	log->info(test_string);
-
-	return 0;
-}
-
-int Driver::send_test_string(DriverSession_ptr session) {
-
-	session->add_string("This is a test string from Alchemist driver");
-
-	return 0;
-}
 
 int Driver::shut_down()
 {
@@ -596,60 +456,44 @@ int Driver::run_task() {
 // ---------------------------------------   Information   ---------------------------------------
 
 
-// ----------------------------------------   Parameters   ---------------------------------------
-
-
-int Driver::process_input_parameters(Parameters & input_parameters) {
-
-
-	return 0;
-}
-
-
-int Driver::process_output_parameters(Parameters & output_parameters) {
-
-
-
-	return 0;
-}
-
 // -----------------------------------------   Library   -----------------------------------------
 
 void Driver::print_num_sessions()
 {
-	if (sessions.size() == 0)
-		log->info("No active sessions");
-	else if (sessions.size() == 1)
-		log->info("1 active session");
-	else
-		log->info("{} active sessions", sessions.size());
+//	if (sessions.size() == 0)
+//		log->info("No active sessions");
+//	else if (sessions.size() == 1)
+//		log->info("1 active session");
+//	else
+//		log->info("{} active sessions", sessions.size());
 }
 
-void Driver::add_session(DriverSession_ptr session)
-{
-	Session_ID session_ID = session->get_ID();
-
-	sessions[session_ID] = session;
-
-	log->info("[Session {}] [{}:{}] Connection established", session->get_ID(), session->get_address().c_str(), session->get_port());
-	print_num_sessions();
-}
-
-void Driver::remove_session(DriverSession_ptr session)
-{
-	Session_ID session_ID = session->get_ID();
-
-	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
-	sessions.erase(session_ID);
-
-	print_num_sessions();
-}
+//void Driver::add_session(DriverSession_ptr session)
+//{
+//	Session_ID session_ID = session->get_ID();
+//
+//	sessions[session_ID] = session;
+//
+//	log->info("[Session {}] [{}:{}] Connection established", session->get_ID(), session->get_address().c_str(), session->get_port());
+//	print_num_sessions();
+//}
+//
+//void Driver::remove_session(Session_ID session_ID)
+//{
+//	Session_ID session_ID = session->get_ID();
+//
+//	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
+//	sessions.erase(session_ID);
+//
+//	print_num_sessions();
+//}
 
 int Driver::get_num_sessions()
 {
 
 
-	return sessions.size();
+//	return sessions.size();
+	return 0;
 }
 
 // -----------------------------------------   Testing   -----------------------------------------
@@ -659,63 +503,30 @@ int Driver::get_num_sessions()
 // ----------------------------------------   Matrices   -----------------------------------------
 
 
-//MatrixHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
-//
-//	MatrixHandle handle{next_matrix_ID++};
-//
-//	return handle;
-//}
-
-
-int Driver::receive_new_matrix() {
-
-
-	return 0;
-}
-
-
-int Driver::get_matrix_dimensions() {
-
-
-	return 0;
-}
-
-
-int Driver::get_transpose() {
-
-
-	return 0;
-}
-
-
-int Driver::matrix_multiply() {
-
-
-	return 0;
-}
-
-
-int Driver::get_matrix_rows() {
-
-
-
-	return 0;
-}
-
-
-
-void Driver::accept_connection()
+void Driver::new_group(tcp::socket socket)
 {
-	log->info("Accepting connections ...");
+	log->info("NEW GROUP");
+	next_group_ID++;
+	auto group_ptr = std::make_shared<GroupDriver>(next_group_ID, *this, log);
+	groups.insert(std::make_pair(next_group_ID, group_ptr));
+	groups[next_group_ID]->start(std::move(socket));
+}
+
+int Driver::accept_connection()
+{
+	if (groups.size() == 0) log->info("Accepting connections ...");
 	acceptor.async_accept(
 		[this](error_code ec, tcp::socket socket)
 		{
-			if (!ec) std::make_shared<DriverSession>(std::move(socket), *this, next_session_ID++, log)->start();
+//			if (!ec) std::make_shared<DriverSession>(std::move(socket), *this, next_session_ID++, log)->start();
+			if (!ec) new_group(std::move(socket));
 
 			accept_connection();
 		});
 
 	ic.run();
+
+	return 0;
 }
 
 // ===============================================================================================

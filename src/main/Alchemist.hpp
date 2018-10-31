@@ -10,6 +10,7 @@
 #include <thread>
 #include <utility>
 #include <ctime>
+#include <string>
 #ifdef ASIO_STANDALONE
 #include <asio.hpp>
 #else
@@ -17,10 +18,14 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #endif
+#include <eigen3/Eigen/Dense>
+#include "arpackpp/arrssym.h"
 #include "mpi.h"
 #include "Library.hpp"
+#include "DistMatrix.hpp"
 #include "Parameters.hpp"
-#include "utility/endian.hpp"
+#include "utility/client_language.hpp"
+#include "utility/command.hpp"
 #include "utility/logging.hpp"
 
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
@@ -51,18 +56,47 @@ typedef asio::io_context io_context;
 
 namespace alchemist {
 
+using std::array;
 using std::vector;
+using std::map;
+using std::string;
+using asio::ip::tcp;
+
+const string get_Alchemist_version();
+const string get_Boost_version();
 
 typedef El::Matrix<double> Matrix;
-typedef El::AbstractDistMatrix<double> DistMatrix;
-
-const std::string get_Alchemist_version();
-const std::string get_Boost_version();
+typedef std::shared_ptr<DistMatrix> DistMatrix_ptr;
 
 typedef uint16_t Worker_ID;
+typedef uint16_t Client_ID;
+typedef uint16_t Group_ID;
 typedef uint16_t Session_ID;
-typedef uint16_t Job_ID;
 typedef uint16_t Matrix_ID;
+typedef uint16_t Library_ID;
+typedef uint16_t Task_ID;
+
+inline const string get_Alchemist_version()
+{
+	std::stringstream ss;
+	ss << ALCHEMIST_VERSION_MAJOR << "." << ALCHEMIST_VERSION_MINOR;
+	return ss.str();
+}
+
+#ifndef ASIO_STANDALONE
+const string get_Boost_version()
+{
+	std::stringstream ss;
+	ss << BOOST_VERSION / 100000 << "." << BOOST_VERSION / 100 % 1000 << "." << BOOST_VERSION % 100;
+	return ss.str();
+}
+#endif
+
+//const string make_daytime_string()
+//{
+//	std::time_t now = std::time(0);
+//	return std::ctime(&now);
+//}
 
 struct WorkerInfo {
 	WorkerInfo():
@@ -77,14 +111,14 @@ struct WorkerInfo {
 
 struct MatrixInfo {
 	Matrix_ID ID;
-	uint32_t num_rows;
-	uint32_t num_cols;
+	uint64_t num_rows;
+	uint64_t num_cols;
 
 	vector<Worker_ID> row_assignments;
 
 	explicit MatrixInfo() : ID(0), num_rows(0), num_cols(0) { }
 
-	MatrixInfo(Matrix_ID _ID, uint32_t _num_rows, uint32_t _num_cols) :
+	MatrixInfo(Matrix_ID _ID, uint64_t _num_rows, uint64_t _num_cols) :
 		ID(_ID), num_rows(_num_rows), num_cols(_num_cols) {
 		row_assignments.resize(num_rows);
 	}

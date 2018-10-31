@@ -1,34 +1,20 @@
 #ifndef ALCHEMIST__SERVER_HPP
 #define ALCHEMIST__SERVER_HPP
 
-#include <ctime>
-#include <iostream>
-#include <string>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include "Session.hpp"
-#include "utility/logging.hpp"
+#include "Alchemist.hpp"
+#include "Message.hpp"
 
 namespace alchemist {
-
-class Session;
-
-typedef std::shared_ptr<Session> Session_ptr;
-typedef std::deque<Message> Message_queue;
-
-using asio::ip::tcp;
-using std::string;
-
 
 class Server// : public std::enable_shared_from_this<Server>
 {
 public:
-
-
-	Server();
 	Server(io_context & _io_context, const tcp::endpoint & endpoint);
+	Server(io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log);
 	virtual ~Server() { }
 
 //	void deliver(const Session_ptr session, Message & msg);
@@ -44,24 +30,21 @@ public:
 //	virtual std::map<Worker_ID, WorkerInfo> assign_workers(Session_ptr, uint16_t) = 0;
 
 protected:
+
 	string hostname;
 	string address;
 	uint16_t port;
-
-	Job_ID next_job_ID;
-	Session_ID next_session_ID;
 
 	io_context & ic;
 	Log_ptr log;
 
 	enum { max_recent_msgs = 100 };
-	Message_queue recent_msgs;
 
 	tcp::acceptor acceptor;
 
 	void set_log(Log_ptr _log);
 
-	virtual void accept_connection() = 0;
+	virtual int accept_connection() = 0;
 
 	void print_IP();
 };
