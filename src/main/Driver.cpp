@@ -351,7 +351,7 @@ void Driver::open_workers(const Group_ID & group_ID, map<Worker_ID, WorkerInfo> 
 
 	MPI_Group_incl(world_group, (int) (group_size+1), group_IDs, &temp_group);
 	groups[group_ID]->set_group_comm(world, temp_group);
-	groups[group_ID]->say_something();
+//	groups[group_ID]->say_something();
 }
 
 void Driver::idle_workers()

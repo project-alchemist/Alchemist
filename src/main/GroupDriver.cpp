@@ -14,7 +14,7 @@ GroupDriver::~GroupDriver() { }
 
 void GroupDriver::start(tcp::socket socket)
 {
-	log->info("DEBUG: GroupDriver : Start");
+//	log->info("DEBUG: GroupDriver : Start");
 
 	session = std::make_shared<DriverSession>(std::move(socket), *this, ID, log);
 	session->start();

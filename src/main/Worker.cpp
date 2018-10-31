@@ -73,13 +73,12 @@ int Worker::wait_for_command()
 			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 		}
 
-		log->info("mnvn      --------------  vnvn {}", ID);
 		threads.push_back(std::thread(&Worker::handle_command, this, c));
 
 		flag = 0;
 		c = IDLE;
 
-		log->info("Number of threads: {}", threads.size());
+//		log->info("Number of threads: {}", threads.size());
 	}
 
 	for (auto & t: threads) t.join();
@@ -89,7 +88,7 @@ int Worker::wait_for_command()
 
 int Worker::handle_command(alchemist_command c)
 {
-	log->info("DEBUG: Worker: handle_command {}", c);
+//	log->info("DEBUG: Worker: handle_command {}", c);
 
 	switch (c) {
 		case IDLE:
