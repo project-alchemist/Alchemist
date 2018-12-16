@@ -21,27 +21,34 @@ public:
 
 	int start();
 
-	string list_workers();
-	string list_inactive_workers();
+	// -----------------------------------------   Workers   -----------------------------------------
+
+	uint16_t allocate_workers(const Group_ID group_ID, const uint16_t & num_requested_workers);
+	vector<Worker_ID> deallocate_workers(const Group_ID group_ID, const vector<Worker_ID> & selected_workers);
+
+	string list_all_workers();
+	string list_all_workers(const string & preamble);
 	string list_active_workers();
-	string list_allocated_workers(Group_ID group_ID);
+	string list_active_workers(const string & preamble);
+	string list_inactive_workers();
+	string list_inactive_workers(const string & preamble);
+	string list_allocated_workers(const Group_ID group_ID);
+	string list_allocated_workers(const Group_ID group_ID, const string & preamble);
+
+	void print_workers();
+	void idle_workers();
+
+
 	string list_sessions();
 
 //	void add_session(DriverSession_ptr session);
 //	void remove_session(DriverSession_ptr session);
 
-	void idle_workers();
-	void print_workers();
 
 	vector<uint16_t> & get_row_assignments(Matrix_ID & matrix_ID);
 	void determine_row_assignments(Matrix_ID & matrix_ID);
 
-
 	uint16_t get_num_workers();
-
-
-	map<Worker_ID, WorkerInfo> allocate_workers(const Group_ID & group_ID, const uint16_t & num_requested_workers);
-	void deallocate_workers(Group_ID group_ID);
 
 	int load_library(string library_name, string library_path);
 
@@ -53,21 +60,17 @@ public:
 private:
 	MPI_Comm world;
 
-	Group_ID next_group_ID;
+	std::mutex worker_mutex;			// For safe access during worker allocation
 
-	uint16_t num_workers;
-	LibraryManager * lm;
+	Group_ID next_group_ID;
 
 	void print_num_sessions();
 //	void handshake(const Session_ptr session, Message & msg);
 	int get_num_sessions();
 
 	map<Group_ID, GroupDriver_ptr> groups;
-	map<Worker_ID, WorkerInfo> workers;
 
 
-	map<Worker_ID, Group_ID> allocated_workers;
-	vector<Worker_ID> unallocated_workers;
 
 	Matrix_ID next_matrix_ID;
 
@@ -81,18 +84,25 @@ private:
 
 	// ====================================   UTILITY FUNCTIONS   ====================================
 
+	// -----------------------------------------   Groups   ------------------------------------------
+
 	void new_group(tcp::socket socket);
+	void reset_group(const Group_ID & group_ID);
+
+	void set_group_communicator(const Group_ID & group_ID);
 
 	// -----------------------------------------   Workers   -----------------------------------------
+
+	uint16_t num_workers;
+
+	map<Worker_ID, WorkerInfo> workers;
+
+	map<Group_ID, map<Worker_ID, WorkerInfo> > allocated_workers;
+	vector<Worker_ID> unallocated_workers;
 
 	int start_workers();
 	int register_workers();
 
-	void open_workers(const Group_ID & group_ID, map<Worker_ID, WorkerInfo> & allocated_group);
-
-	// ----------------------------------------   File I/O   ----------------------------------------
-
-	int read_HDF5();
 
 	// ====================================   COMMAND FUNCTIONS   ====================================
 

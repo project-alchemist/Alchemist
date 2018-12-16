@@ -24,32 +24,15 @@ public:
 
 	void start();
 
-	bool send_response_string();
-	bool send_test_string();
-
 	void remove_session();
 
-	bool receive_client_info();
 	void request_matrix();
-
-	bool allocate_workers();
-	bool deallocate_workers();
-
-	bool list_all_workers();
-	bool list_active_workers();
-	bool list_inactive_workers();
-	bool list_assigned_workers();
-
-	bool load_library();
-	bool run_task();
-	bool unload_library();
-
-	void new_matrix();
 
 	void send_matrix_info(Matrix_ID matrix_ID);
 	void send_matrix_ID(Matrix_ID & matrix_ID);
-	void send_layout(vector<vector<uint32_t> > & rows_on_workers);
-	void send_layout(vector<uint16_t> & row_assignments);
+
+	bool send_response_string();
+
 
 	int handle_message();
 
@@ -63,6 +46,34 @@ private:
 
 	uint16_t num_group_workers;
 	string log_dir;
+
+//	void handle_handshake();
+	void handle_request_ID();
+	void handle_client_info();
+	void handle_send_test_string();
+	void handle_request_test_string();
+	void handle_close_connection();
+	void handle_request_workers();
+	void handle_yield_workers();
+	void handle_send_assigned_worker_info();
+	void handle_list_all_workers();
+	void handle_list_active_workers();
+	void handle_list_inactive_workers();
+	void handle_list_assigned_workers();
+	void handle_list_available_libraries();
+	void handle_load_library();
+	void handle_unload_library();
+	void handle_matrix_info();
+	void handle_matrix_layout();
+	void handle_send_matrix_blocks();
+	void handle_request_matrix_blocks();
+	void handle_run_task();
+	void handle_invalid_command();
+	void handle_shutdown();
+
+	void send_layout(vector<vector<uint32_t> > & rows_on_workers);
+	void send_layout(vector<uint16_t> & row_assignments);
+
 };
 
 typedef std::shared_ptr<DriverSession> DriverSession_ptr;

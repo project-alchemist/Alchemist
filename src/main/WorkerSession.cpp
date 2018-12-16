@@ -36,14 +36,14 @@ int WorkerSession::handle_message()
 	client_command command = read_msg.cc;
 
 	if (command == HANDSHAKE) {
-		check_handshake();
+		handle_handshake();
 		read_header();
 	}
 	else {
-		Client_ID client_ID = read_msg.client_ID;
-		Session_ID session_ID = read_msg.session_ID;
+		Client_ID _client_ID = read_msg.client_ID;
+		Session_ID _session_ID = read_msg.session_ID;
 
-		if (session_ID != ID) {
+		if (session_ID != _session_ID) {
 			log->info("{} Error in WorkerSession: Wrong session ID", session_preamble());
 		}
 
@@ -78,7 +78,7 @@ bool WorkerSession::send_matrix_blocks()
 
 	Matrix_ID matrix_ID = read_msg.read_uint16();
 
-	write_msg.start(client_ID, ID, REQUEST_MATRIX_BLOCKS);
+	write_msg.start(client_ID, session_ID, REQUEST_MATRIX_BLOCKS);
 	write_msg.add_uint16(matrix_ID);
 
 	while (!read_msg.eom()) {
@@ -128,7 +128,7 @@ bool WorkerSession::receive_matrix_blocks()
 		log->info("{} Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrix_ID, row_start, row_end, col_start, col_end);
 	}
 
-	write_msg.start(client_ID, ID, SEND_MATRIX_BLOCKS);
+	write_msg.start(client_ID, session_ID, SEND_MATRIX_BLOCKS);
 	write_msg.add_uint16(matrix_ID);
 	write_msg.add_uint32(num_blocks);
 	flush();
@@ -174,7 +174,7 @@ bool WorkerSession::send_response_string()
 	test_str += read_msg.read_string();
 	test_str += "'";
 
-	write_msg.start(client_ID, ID, SEND_TEST_STRING);
+	write_msg.start(client_ID, session_ID, SEND_TEST_STRING);
 	write_msg.add_string(test_str);
 	flush();
 

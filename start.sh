@@ -10,7 +10,7 @@ CURR_DIR=$PWD
 
 if [ "$SYSTEM" = "MacOS" ] || [ "$SYSTEM" = "Linux" ]
 then
-	sudo mpiexec  --allow-run-as-root -n 4 $ALCHEMIST_EXE
+	mpiexec -n 4 $ALCHEMIST_EXE
 	
 elif [ "$SYSTEM" = "Cori" ]
 then

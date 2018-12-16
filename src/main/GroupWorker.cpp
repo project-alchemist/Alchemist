@@ -11,50 +11,45 @@ namespace alchemist {
 //			Server(_io_context, endpoint, _log), group_ID(_group_ID), worker_ID(_worker_ID), group(_group), group_peers(_group_peers),
 //			next_session_ID(0), accept_connections(false)
 
-GroupWorker::GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, io_context & _io_context, const unsigned int port, Log_ptr & _log) :
-    	    GroupWorker(_group_ID, _worker_ID, _io_context, tcp::endpoint(tcp::v4(), port), _log) { }
+GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, Log_ptr & _log) :
+    	    GroupWorker(_group_ID, _worker, _io_context, tcp::endpoint(tcp::v4(), port), _log) { }
 
-GroupWorker::GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
-			Server(_io_context, endpoint, _log), library(nullptr), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker_ID(_worker_ID),
-			next_session_ID(0), accept_connections(false)
+GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
+			Server(_io_context, endpoint, _log), library(nullptr), grid(nullptr), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
+			next_session_ID(0), connection_open(false)
 {
-	char buffer[13];
-	sprintf(buffer, "worker-%03d", worker_ID);
+	worker_ID = worker.get_ID();
 
-	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v");
-	Server::set_log(log);
+	Server::set_log(_log);
 }
 
 GroupWorker::~GroupWorker() { }
 
 void GroupWorker::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
-
-	int rank, size;
-
+	log->info("uuuu1");
 	MPI_Comm_create_group(world, temp_group, 0, &group);
-
-	MPI_Comm_rank(group, &rank);
-	MPI_Comm_size(group, &size);
-
+	log->info("uuuu2");
+	log->info("AT _SET_GROUP_COMM BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _SET_GROUP_COMM BARRIER");
 }
 
 void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
-	int rank, size;
-
+	log->info("vvvv1");
 	MPI_Comm_create_group(world, temp_group, 0, &group_peers);
-
-	grid = new El::Grid(El::mpi::Comm(group_peers));
-
-	MPI_Comm_rank(group_peers, &rank);
-	MPI_Comm_size(group_peers, &size);
-}
-
-void GroupWorker::say_something()
-{
-	log->info("SOMETHING");
-
+	log->info("vvvv2");
+//
+//	MPI_Barrier(group_peers);
+//	if (grid == nullptr)
+//		grid = std::make_shared<El::Grid>(El::mpi::Comm(group_peers));
+//	else
+//		grid.reset(new El::Grid(El::mpi::Comm(group_peers)));
+	log->info("AT _SET_GROUP_PEERS_COMM BARRIER");
+	MPI_Barrier(group_peers);
+	log->info("PAST _SET_GROUP_PEERS_COMM BARRIER");
+//	layout_matrices();
 }
 
 Worker_ID GroupWorker::get_worker_ID()
@@ -118,7 +113,7 @@ int GroupWorker::wait_for_command()
 		threads.push_back(std::thread(&GroupWorker::handle_command, this, c));
 
 		flag = 0;
-		c = IDLE;
+		c = _AM_IDLE;
 
 		log->info("Number of threads: {}", threads.size());
 	}
@@ -128,11 +123,30 @@ int GroupWorker::wait_for_command()
 	return 0;
 }
 
+void GroupWorker::handle_free_group()
+{
+	if (group != MPI_COMM_NULL) {
+		log->info("AT _AM_FREE_GROUP BARRIER 1");
+		MPI_Barrier(group);
+		log->info("PAST _AM_FREE_GROUP BARRIER 1");
+		MPI_Comm_free(&group);
+		group = MPI_COMM_NULL;
+	}
+
+	if (group_peers != MPI_COMM_NULL) {
+		log->info("AT _AM_FREE_GROUP BARRIER 2");
+		MPI_Barrier(group_peers);
+		log->info("PAST _AM_FREE_GROUP BARRIER 2");
+		MPI_Comm_free(&group_peers);
+		group_peers = MPI_COMM_NULL;
+	}
+}
+
 int GroupWorker::handle_command(alchemist_command c)
 {
 
 	switch (c) {
-		case IDLE:
+		case _AM_IDLE:
 			break;
 //		case NEW_SESSION:
 //			new_session();
@@ -140,30 +154,63 @@ int GroupWorker::handle_command(alchemist_command c)
 //		case END_SESSION:
 //			end_session();
 //			break;
-		case SAY_SOMETHING:
-			say_something();
+		case _AM_PRINT_INFO:
+			handle_print_info();
 			break;
-		case ACCEPT_CONNECTION:
-			Group_ID ID;
-			MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-			accept_connection();
+		case _AM_GROUP_OPEN_CONNECTIONS:
+			handle_group_open_connections();
 			break;
-		case NEW_MATRIX:
+		case _AM_GROUP_CLOSE_CONNECTIONS:
+			handle_group_close_connections();
+			break;
+		case _AM_NEW_MATRIX:
 			new_matrix();
 			break;
-		case CLIENT_MATRIX_LAYOUT:
+		case _AM_FREE_GROUP:
+			handle_free_group();
+			break;
+		case _AM_CLIENT_MATRIX_LAYOUT:
 			get_matrix_layout();
 			break;
-		case WORKER_LOAD_LIBRARY:
+		case _AM_WORKER_LOAD_LIBRARY:
 			load_library();
 			break;
-		case WORKER_RUN_TASK:
+		case _AM_WORKER_RUN_TASK:
 			run_task();
 			break;
 	}
 
 	return 0;
 }
+
+void GroupWorker::handle_print_info()
+{
+	worker.print_info();
+	log->info("AT _AM_PRINT_INFO BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _AM_PRINT_INFO BARRIER");
+}
+
+void GroupWorker::handle_group_open_connections()
+{
+	connection_open = true;
+	log->info("AT _AM_GROUP_OPEN_CONNECTIONS BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _AM_GROUP_OPEN_CONNECTIONS BARRIER");
+	accept_connection();
+}
+
+void GroupWorker::handle_group_close_connections()
+{
+	log->info("Closing connection");
+	connection_open = false;
+
+
+	log->info("AT _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
+}
+
 
 //int GroupWorker::new_client()
 //{
@@ -725,7 +772,6 @@ int GroupWorker::get_matrix_rows()
 	return 0;
 }
 
-
 int GroupWorker::new_session(tcp::socket socket)
 {
 	next_session_ID++;
@@ -738,16 +784,18 @@ int GroupWorker::new_session(tcp::socket socket)
 
 int GroupWorker::accept_connection()
 {
-	acceptor.async_accept(
-		[this](error_code ec, tcp::socket socket)
-		{
-//			if (!ec) std::make_shared<WorkerSession>(std::move(socket), *this, next_session_ID++, log)->start();
-			if (!ec) new_session(std::move(socket));
+	if (connection_open) {
+		acceptor.async_accept(
+			[this](error_code ec, tcp::socket socket)
+			{
+	//			if (!ec) std::make_shared<WorkerSession>(std::move(socket), *this, next_session_ID++, log)->start();
+				if (!ec) new_session(std::move(socket));
 
-			accept_connection();
-		});
+				accept_connection();
+			});
 
-	ic.run();
+		ic.run();
+	}
 
 	return 0;
 }

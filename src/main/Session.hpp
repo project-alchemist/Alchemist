@@ -30,12 +30,12 @@ public:
 	void set_ID(Session_ID _ID);
 	void set_admin_privilege(bool privilege);
 
-	Session_ID get_ID() const;
+	Session_ID get_session_ID() const;
 	string get_address() const;
 	uint16_t get_port() const;
 	bool get_admin_privilege() const;
 
-	bool check_handshake();
+	bool handle_handshake();
 	bool valid_handshake();
 	bool invalid_handshake();
 
@@ -53,6 +53,7 @@ public:
 	string preamble();
 	string client_preamble();
 	string session_preamble();
+	string address_preamble();
 
 	void set_client_language(client_language _cl);
 
@@ -68,7 +69,7 @@ public:
 	Message write_msg;
 protected:
 	Client_ID client_ID;
-	Session_ID ID;
+	Session_ID session_ID;
 
 	bool admin_privilege;
 	bool ready;

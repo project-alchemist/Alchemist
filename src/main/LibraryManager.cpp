@@ -7,8 +7,8 @@ namespace alchemist {
 //	log = _log;
 //}
 
-//LibraryManager::LibraryManager() { }
-//
+LibraryManager::LibraryManager() { }
+
 LibraryManager::LibraryManager(Log_ptr & _log) : log(_log) { }
 
 int LibraryManager::load_library(MPI_Comm & group, string library_name, string library_path) {

@@ -8,41 +8,52 @@ namespace alchemist {
 
 typedef enum _client_command : uint8_t {
 	WAIT = 0,
-	HANDSHAKE,
-	REQUEST_ID,
-	CLIENT_INFO,
-	SEND_TEST_STRING,
-	REQUEST_TEST_STRING,
-	REQUEST_WORKERS,
-	YIELD_WORKERS,
-	SEND_ASSIGNED_WORKERS_INFO,
-	LIST_ALL_WORKERS,
-	LIST_ACTIVE_WORKERS,
-	LIST_INACTIVE_WORKERS,
-	LIST_ASSIGNED_WORKERS,
-	LOAD_LIBRARY,
-	RUN_TASK,
-	UNLOAD_LIBRARY,
-	MATRIX_INFO,
-	MATRIX_LAYOUT,
-	SEND_MATRIX_BLOCKS,
-	REQUEST_MATRIX_BLOCKS,
-	SHUT_DOWN
+	// Connection
+	HANDSHAKE = 1,
+	REQUEST_ID = 2,
+	CLIENT_INFO = 3,
+	SEND_TEST_STRING = 4,
+	REQUEST_TEST_STRING = 5,
+	CLOSE_CONNECTION = 6,
+	// Workers
+	REQUEST_WORKERS = 11,
+	YIELD_WORKERS = 12,
+	SEND_ASSIGNED_WORKERS_INFO = 13,
+	LIST_ALL_WORKERS = 14,
+	LIST_ACTIVE_WORKERS = 15,
+	LIST_INACTIVE_WORKERS = 16,
+	LIST_ASSIGNED_WORKERS = 17,
+	// Libraries
+	LIST_AVAILABLE_LIBRARIES = 21,
+	LOAD_LIBRARY = 22,
+	UNLOAD_LIBRARY = 23,
+	// Matrices
+	MATRIX_INFO = 31,
+	MATRIX_LAYOUT = 32,
+	SEND_MATRIX_BLOCKS = 33,
+	REQUEST_MATRIX_BLOCKS = 34,
+	// Tasks
+	RUN_TASK = 41,
+	// Shutting down
+	SHUTDOWN = 99
 } client_command;
 
 typedef enum _alchemist_command : uint8_t {
-	IDLE = 0,
-	START,
-	SEND_INFO,
-	ACCEPT_CONNECTION,
-	SAY_SOMETHING,
-	NEW_SESSION,
-	END_SESSION,
-	NEW_MATRIX,
-	CLIENT_MATRIX_LAYOUT,
-	PRINT_DATA,
-	WORKER_LOAD_LIBRARY,
-	WORKER_RUN_TASK
+	_AM_IDLE = 0,
+	_AM_START,
+	_AM_SEND_INFO,
+	_AM_PRINT_INFO,
+	_AM_GROUP_OPEN_CONNECTIONS,
+	_AM_GROUP_CLOSE_CONNECTIONS,
+	_AM_FREE_GROUP,
+	_AM_NEW_GROUP,
+	_AM_NEW_SESSION,
+	_AM_END_SESSION,
+	_AM_NEW_MATRIX,
+	_AM_CLIENT_MATRIX_LAYOUT,
+	_AM_PRINT_DATA,
+	_AM_WORKER_LOAD_LIBRARY,
+	_AM_WORKER_RUN_TASK
 } alchemist_command;
 
 inline const std::string get_command_name(const client_command & c)
@@ -60,6 +71,8 @@ inline const std::string get_command_name(const client_command & c)
 			return "SEND TEST STRING";
 		case REQUEST_TEST_STRING:
 			return "REQUEST TEST STRING";
+		case CLOSE_CONNECTION:
+			return "CLOSE CONNECTION";
 		case REQUEST_WORKERS:
 			return "REQUEST WORKERS";
 		case YIELD_WORKERS:
@@ -76,8 +89,8 @@ inline const std::string get_command_name(const client_command & c)
 			return "LIST ASSIGNED WORKERS";
 		case LOAD_LIBRARY:
 			return "LOAD LIBRARY";
-		case RUN_TASK:
-			return "RUN TASK";
+		case LIST_AVAILABLE_LIBRARIES:
+			return "LIST AVAILABLE LIBRARIES";
 		case UNLOAD_LIBRARY:
 			return "UNLOAD LIBRARY";
 		case MATRIX_INFO:
@@ -88,6 +101,10 @@ inline const std::string get_command_name(const client_command & c)
 			return "SEND MATRIX BLOCKS";
 		case REQUEST_MATRIX_BLOCKS:
 			return "REQUEST MATRIX BLOCKS";
+		case RUN_TASK:
+			return "RUN TASK";
+		case SHUTDOWN:
+			return "SHUTDOWN";
 		default:
 			return "INVALID COMMAND";
 		}
@@ -96,27 +113,33 @@ inline const std::string get_command_name(const client_command & c)
 inline const std::string get_command_name(const alchemist_command & c)
 {
 	switch (c) {
-		case START:
+		case _AM_START:
 			return "START";
-		case SEND_INFO:
-			return "SEND_INFO";
-		case ACCEPT_CONNECTION:
-			return "ACCEPT CONNECTION";
-		case SAY_SOMETHING:
-			return "SAY SOMETHING";
-		case NEW_SESSION:
+		case _AM_SEND_INFO:
+			return "SEND INFO";
+		case _AM_PRINT_INFO:
+			return "PRINT INFO";
+		case _AM_GROUP_OPEN_CONNECTIONS:
+			return "GROUP OPEN CONNECTIONS";
+		case _AM_GROUP_CLOSE_CONNECTIONS:
+			return "GROUP CLOSE CONNECTIONS";
+		case _AM_NEW_GROUP:
+			return "NEW GROUP";
+		case _AM_FREE_GROUP:
+			return "FREE GROUP";
+		case _AM_NEW_SESSION:
 			return "NEW SESSION";
-		case END_SESSION:
+		case _AM_END_SESSION:
 			return "END SESSION";
-		case NEW_MATRIX:
+		case _AM_NEW_MATRIX:
 			return "NEW MATRIX";
-		case CLIENT_MATRIX_LAYOUT:
+		case _AM_CLIENT_MATRIX_LAYOUT:
 			return "CLIENT MATRIX LAYOUT";
-		case WORKER_LOAD_LIBRARY:
+		case _AM_WORKER_LOAD_LIBRARY:
 			return "WORKER LOAD LIBRARY";
-		case WORKER_RUN_TASK:
+		case _AM_WORKER_RUN_TASK:
 			return "WORKER RUN TASK";
-		case PRINT_DATA:
+		case _AM_PRINT_DATA:
 			return "PRINT DATA";
 		default:
 			return "INVALID COMMAND";

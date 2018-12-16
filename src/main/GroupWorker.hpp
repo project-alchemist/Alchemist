@@ -33,8 +33,8 @@ public:
 //	GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, MPI_Comm & _group, MPI_Comm & _group_peers, io_context & _io_context,
 //			const tcp::endpoint & endpoint, Log_ptr & _log);
 
-	GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, io_context & _io_context, const unsigned int port, Log_ptr & _log);
-	GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log);
+	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, Log_ptr & _log);
+	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log);
 	~GroupWorker();
 
 	Worker_ID get_worker_ID();
@@ -42,13 +42,16 @@ public:
 
 	int start();
 
-	void say_something();
-
-	El::Grid * grid;
+	Grid_ptr grid;
 
 	// -------------------------------------   Matrix Management   -----------------------------------
 
 	//	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);
+
+	void handle_print_info();
+	void handle_group_open_connections();
+	void handle_group_close_connections();
+	void handle_free_group();
 
 	int new_matrix();
 	int get_matrix_layout();
@@ -83,6 +86,8 @@ private:
 	Group_ID group_ID;
 	Session_ID next_session_ID;
 
+	Worker & worker;
+
 	client_language cl;
 
 	Library * library;
@@ -90,7 +95,7 @@ private:
 	map<Session_ID, WorkerSession_ptr> sessions;
 	map<Matrix_ID, DistMatrix_ptr> matrices;
 
-	bool accept_connections;
+	bool connection_open;
 
 	vector<std::thread> threads;
 

@@ -10,7 +10,7 @@ namespace alchemist {
 //				ic(_io_context), endpoint(_endpoint), ID(0), client_ID(0), next_session_ID(0), accept_connections(false)
 
 Worker::Worker(io_context & _io_context, const unsigned int _port) :
-		ic(_io_context), ID(0), client_ID(0), next_session_ID(0), accept_connections(false)
+		ic(_io_context), group_worker(nullptr), ID(0), client_ID(0), next_session_ID(0), accept_connections(false)
 {
 	world = MPI_COMM_WORLD;
 
@@ -76,7 +76,7 @@ int Worker::wait_for_command()
 		threads.push_back(std::thread(&Worker::handle_command, this, c));
 
 		flag = 0;
-		c = IDLE;
+		c = _AM_IDLE;
 
 //		log->info("Number of threads: {}", threads.size());
 	}
@@ -86,28 +86,37 @@ int Worker::wait_for_command()
 	return 0;
 }
 
+
+Worker_ID Worker::get_ID()
+{
+	return ID;
+}
+
 int Worker::handle_command(alchemist_command c)
 {
 //	log->info("DEBUG: Worker: handle_command {}", c);
 
 	switch (c) {
-		case IDLE:
+		case _AM_IDLE:
 			break;
-		case START:
+		case _AM_START:
 			start();
 			break;
-		case SEND_INFO:
+		case _AM_SEND_INFO:
 			send_info();
 			break;
-		case NEW_SESSION:
+		case _AM_NEW_GROUP:
+			handle_new_group();
+			break;
+		case _AM_NEW_SESSION:
 //			new_session();
 			break;
 //		case END_SESSION:
 //			end_session();
-			break;
-		case ACCEPT_CONNECTION:
-			get_group_peers();
-			break;
+//			break;
+//		case _AM_ACCEPT_CONNECTION:
+//			get_group_peers();
+//			break;
 //		case NEW_MATRIX:
 //			new_matrix();
 //			break;
@@ -131,7 +140,7 @@ int Worker::start()
 	return 0;
 }
 
-int Worker::send_info()
+void Worker::send_info()
 {
 	log->info("Sending hostname and port to driver");
 
@@ -145,11 +154,9 @@ int Worker::send_info()
 	MPI_Send(&port, 1, MPI_UNSIGNED_SHORT, 0, 0, world);
 
 	MPI_Barrier(world);
-
-	return 0;
 }
 
-void Worker::get_group_peers()
+void Worker::handle_new_group()
 {
 	MPI_Status status;
 
@@ -162,33 +169,47 @@ void Worker::get_group_peers()
 
 		MPI_Recv(&num_peers, 1, MPI_UNSIGNED_SHORT, 0, 0, world, &status);
 
-		uint16_t peer_ID;
-
-		int group_IDs[num_peers+1];
-		int group_peer_IDs[num_peers];
+		int group_IDs[(int) num_peers+1];
+		int group_peer_IDs[(int) num_peers];
 
 		group_IDs[0] = 0;
-		for (uint16_t i = 0; i < num_peers; i++) {
-			MPI_Recv(&peer_ID, 1, MPI_UNSIGNED_SHORT, 0, 0, world, &status);
-			group_IDs[i+1] = peer_ID;
-			group_peer_IDs[i] = peer_ID;
-		}
+		MPI_Recv(&group_peer_IDs, (int) num_peers, MPI_INT, 0, 0, world, &status);
+		for (int i = 0; i < num_peers; i++) group_IDs[i+1] = group_peer_IDs[i];
 
-		group_worker = std::make_shared<GroupWorker>(group_ID, ID, ic, port, log);
+		if (group_worker == nullptr)
+			group_worker = std::make_shared<GroupWorker>(group_ID, *this, ic, port, log);
+
+		log->info("hg1");
 
 		MPI_Group world_group;
 		MPI_Group temp_group;
 		MPI_Comm_group(world, &world_group);
+		log->info("hg2");
 
 		MPI_Group_incl(world_group, (int) (num_peers+1), group_IDs, &temp_group);
 		group_worker->set_group_comm(world, temp_group);
 
-		MPI_Group_incl(world_group, (int) (num_peers), group_peer_IDs, &temp_group);
+		log->info("hg3");
+
+		MPI_Group_incl(world_group, (int) num_peers, group_peer_IDs, &temp_group);
 		group_worker->set_group_peers_comm(world, temp_group);
+
+		MPI_Group_free(&world_group);
+		MPI_Group_free(&temp_group);
+
+
+		log->info("hg4");
 
 		group_worker->start();
 	}
 }
+
+void Worker::print_info()
+{
+	log->info("OOOOOOOOOOOOOOO Worker {}: {} {}:{}", ID, hostname, address, port);
+}
+
+
 //
 ////int Worker::end_sessions()
 ////{

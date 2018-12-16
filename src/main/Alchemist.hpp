@@ -66,6 +66,7 @@ const string get_Alchemist_version();
 const string get_Boost_version();
 
 typedef El::Matrix<double> Matrix;
+typedef std::shared_ptr<El::Grid> Grid_ptr;
 typedef std::shared_ptr<DistMatrix> DistMatrix_ptr;
 
 typedef uint16_t Worker_ID;
@@ -73,8 +74,8 @@ typedef uint16_t Client_ID;
 typedef uint16_t Group_ID;
 typedef uint16_t Session_ID;
 typedef uint16_t Matrix_ID;
-typedef uint16_t Library_ID;
 typedef uint16_t Task_ID;
+typedef uint8_t  Library_ID;
 
 inline const string get_Alchemist_version()
 {
@@ -99,14 +100,16 @@ const string get_Boost_version()
 //}
 
 struct WorkerInfo {
-	WorkerInfo():
-		hostname(string("0")), address(string("0")), port(0), active(false) { }
-	WorkerInfo(string _hostname, string _address, uint16_t _port) :
-		hostname(_hostname), address(_address), port(_port), active(true) { }
+	WorkerInfo(Worker_ID _ID):
+		ID(_ID), hostname(string("0")), address(string("0")), port(0), active(false), group_ID(0) { }
+	WorkerInfo(Worker_ID _ID, string _hostname, string _address, uint16_t _port) :
+		ID(_ID), hostname(_hostname), address(_address), port(_port), active(false), group_ID(0)  { }
 
+	Worker_ID ID;
 	string hostname, address;
 	uint16_t port;
 	bool active;
+	Group_ID group_ID;
 };
 
 struct MatrixInfo {

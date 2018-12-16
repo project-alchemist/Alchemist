@@ -17,6 +17,11 @@ public:
 //	Worker(io_context & _io_context, const tcp::endpoint & endpoint);
 	~Worker();
 
+	void display_info();
+	void print_info();
+
+	Worker_ID get_ID();
+
 //	Worker_ID get_ID();
 //	bool is_active();
 //
@@ -74,7 +79,8 @@ private:
 	// --------------------------------------   Initialization   --------------------------------------
 
 	int start();
-	int send_info();
+	void send_info();
+	void handle_new_group();
 	void get_group_peers();
 
 //	string session_preamble();

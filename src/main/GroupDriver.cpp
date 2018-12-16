@@ -5,10 +5,13 @@ namespace alchemist {
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver): ID(_ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), library(nullptr), next_matrix_ID(0) { }
+GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver): ID(_ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), next_matrix_ID(0) { }
 
 GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver, Log_ptr & _log): ID(_ID), driver(_driver), group(MPI_COMM_NULL),
-		log(_log), cl(SCALA), library(nullptr), next_matrix_ID(0) { }
+		log(_log), cl(SCALA), next_matrix_ID(0) {
+
+	lm = LibraryManager(log);
+}
 
 GroupDriver::~GroupDriver() { }
 
@@ -20,28 +23,21 @@ void GroupDriver::start(tcp::socket socket)
 	session->start();
 }
 
-map<Worker_ID, WorkerInfo> GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
+void GroupDriver::idle_workers()
 {
+	alchemist_command command = _AM_IDLE;
 
-	workers = driver.allocate_workers(ID, num_requested_workers);
-
-	alchemist_command command = ACCEPT_CONNECTION;
+	log->info("Sending command {} to workers", get_command_name(command));
 
 	MPI_Request req;
 	MPI_Status status;
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
-
-	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-
-	return workers;
 }
 
-void GroupDriver::say_something()
+void GroupDriver::open_workers()
 {
-	log->info("SOMETHING");
-
-	alchemist_command command = SAY_SOMETHING;
+	alchemist_command command = _AM_GROUP_OPEN_CONNECTIONS;
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
@@ -50,6 +46,80 @@ void GroupDriver::say_something()
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
+	log->info("AT _AM_GROUP_OPEN_CONNECTIONS BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _AM_GROUP_OPEN_CONNECTIONS BARRIER");
+}
+
+void GroupDriver::close_workers()
+{
+	alchemist_command command = _AM_GROUP_CLOSE_CONNECTIONS;
+
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+	MPI_Wait(&req, &status);
+
+	log->info("AT _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
+}
+
+void GroupDriver::free_group()
+{
+	if (group != MPI_COMM_NULL) {
+		close_workers();
+
+		alchemist_command command = _AM_FREE_GROUP;
+
+		log->info("Sending command {} to workers", get_command_name(command));
+
+		MPI_Request req;
+		MPI_Status status;
+		MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+		MPI_Wait(&req, &status);
+
+		log->info("AT _AM_FREE_GROUP BARRIER");
+		MPI_Barrier(group);
+		log->info("PAST _AM_FREE_GROUP BARRIER");
+		MPI_Comm_free(&group);
+		group = MPI_COMM_NULL;
+	}
+}
+
+void GroupDriver::print_info()
+{
+	alchemist_command command = _AM_PRINT_INFO;
+
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+	MPI_Wait(&req, &status);
+
+	log->info("AT _AM_PRINT_INFO BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _AM_PRINT_INFO BARRIER");
+}
+
+const map<Worker_ID, WorkerInfo> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
+{
+	driver.allocate_workers(ID, num_requested_workers);
+
+	return workers;
+}
+
+vector<Worker_ID> GroupDriver::deallocate_workers(const vector<Worker_ID> & yielded_workers)
+{
+	return driver.deallocate_workers(ID, yielded_workers);
+}
+
+uint16_t GroupDriver::get_num_workers()
+{
+	return (uint16_t) workers.size();
 }
 
 uint64_t GroupDriver::get_num_rows(Matrix_ID & matrix_ID)
@@ -64,7 +134,20 @@ uint64_t GroupDriver::get_num_cols(Matrix_ID & matrix_ID)
 
 void GroupDriver::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
+
+	log->info("Creating new group");
 	MPI_Comm_create_group(world, temp_group, 0, &group);
+	log->info("AT _SET_GROUP_COMM BARRIER");
+	MPI_Barrier(group);
+	log->info("PAST _SET_GROUP_COMM BARRIER");
+
+}
+
+void GroupDriver::ready_group()
+{
+	print_info();
+
+	open_workers();
 }
 
 string GroupDriver::list_sessions()
@@ -85,14 +168,53 @@ string GroupDriver::list_sessions()
 }
 
 
-
 // -----------------------------------------   Workers   -----------------------------------------
+
+string GroupDriver::list_all_workers()
+{
+	return driver.list_all_workers();
+}
+
+string GroupDriver::list_all_workers(const string & preamble)
+{
+	return driver.list_all_workers(preamble);
+}
+
+string GroupDriver::list_active_workers()
+{
+	return driver.list_active_workers();
+}
+
+string GroupDriver::list_active_workers(const string & preamble)
+{
+	return driver.list_active_workers(preamble);
+}
+
+string GroupDriver::list_inactive_workers()
+{
+	return driver.list_inactive_workers();
+}
+
+string GroupDriver::list_inactive_workers(const string & preamble)
+{
+	return driver.list_inactive_workers(preamble);
+}
+
+string GroupDriver::list_allocated_workers()
+{
+	return driver.list_allocated_workers(ID);
+}
+
+string GroupDriver::list_allocated_workers(const string & preamble)
+{
+	return driver.list_allocated_workers(ID, preamble);
+}
 
 int GroupDriver::load_library(string library_path, string library_name)
 {
 	log->info("Loading library {} located at {}", library_name, library_path);
 
-	alchemist_command command = WORKER_LOAD_LIBRARY;
+	alchemist_command command = _AM_WORKER_LOAD_LIBRARY;
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
@@ -149,7 +271,7 @@ int GroupDriver::load_library(string library_path, string library_name)
 		return -1;
 	}
 
-	library = create_library(group);
+//	library = create_library(group);
 
 	//    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
 
@@ -169,6 +291,21 @@ int GroupDriver::load_library(string library_path, string library_name)
 
 	return 0;
 }
+
+void GroupDriver::add_worker(const Worker_ID & worker_ID, const WorkerInfo & info)
+{
+	workers.insert(std::make_pair(worker_ID, info));
+}
+
+void GroupDriver::remove_worker(const Worker_ID & worker_ID)
+{
+	workers.erase(workers.find(worker_ID));
+	for (auto it = workers.begin(); it != workers.end(); it++)
+					log->info("_____________ {}", it->first);
+}
+
+
+
 
 //int GroupDriver::run_task(const char * data, uint32_t data_length)
 //{
@@ -202,38 +339,38 @@ int GroupDriver::load_library(string library_path, string library_name)
 //	return 0;
 //}
 
-int GroupDriver::run_task(string task, Matrix_ID matrix_ID, uint32_t rank, uint8_t method)
-{
-	alchemist_command command = WORKER_RUN_TASK;
-
-	log->info("Sending command {} to workers", get_command_name(command));
-
-	MPI_Request req;
-	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
-	MPI_Wait(&req, &status);
-
-	MPI_Bcast(&matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
-	MPI_Bcast(&method, 1, MPI_UNSIGNED_CHAR, 0, group);
-
-	MPI_Barrier(group);
+//int GroupDriver::run_task(string task, Matrix_ID matrix_ID, uint32_t rank, uint8_t method)
+//{
+//	alchemist_command command = _AM_WORKER_RUN_TASK;
 //
-//	Message temp_msg = Message();
-//	temp_msg.cl = session->read_msg.cl;
-//	temp_msg.copy_data(&data[0], data_length);
-//	temp_msg.to_string();
-
-//	if (!library) {
-//		string task = temp_msg.read_string();
-//		Matrix_ID matrix_ID = temp_msg.read_uint16();
-//		uint32_t rank = temp_msg.read_uint16();
-
-		truncated_SVD(matrix_ID, rank, method);
-//	}
-
-	return 0;
-}
+//	log->info("Sending command {} to workers", get_command_name(command));
+//
+//	MPI_Request req;
+//	MPI_Status status;
+//	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+//	MPI_Wait(&req, &status);
+//
+//	MPI_Bcast(&matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+//	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
+//	MPI_Bcast(&method, 1, MPI_UNSIGNED_CHAR, 0, group);
+//
+//	MPI_Barrier(group);
+////
+////	Message temp_msg = Message();
+////	temp_msg.cl = session->read_msg.cl;
+////	temp_msg.copy_data(&data[0], data_length);
+////	temp_msg.to_string();
+//
+////	if (!library) {
+////		string task = temp_msg.read_string();
+////		Matrix_ID matrix_ID = temp_msg.read_uint16();
+////		uint32_t rank = temp_msg.read_uint16();
+//
+//		truncated_SVD(matrix_ID, rank, method);
+////	}
+//
+//	return 0;
+//}
 
 int GroupDriver::truncated_SVD(Matrix_ID matrix_ID, uint32_t rank, uint8_t method)
 {
@@ -367,7 +504,7 @@ int GroupDriver::truncated_SVD(Matrix_ID matrix_ID, uint32_t rank, uint8_t metho
 
 Matrix_ID GroupDriver::new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols)
 {
-	alchemist_command command = NEW_MATRIX;
+	alchemist_command command = _AM_NEW_MATRIX;
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
@@ -399,19 +536,11 @@ vector<uint16_t> & GroupDriver::get_row_assignments(Matrix_ID & matrix_ID)
 	return matrices[matrix_ID].row_assignments;
 }
 
-void GroupDriver::deallocate_workers()
-{
-	driver.deallocate_workers(ID);
-}
 
-uint16_t GroupDriver::get_num_workers()
-{
-	return driver.get_num_workers();
-}
 
 string GroupDriver::list_workers()
 {
-	return driver.list_workers();
+	return driver.list_all_workers();
 }
 
 void GroupDriver::determine_row_assignments(Matrix_ID & matrix_ID)
@@ -422,7 +551,7 @@ void GroupDriver::determine_row_assignments(Matrix_ID & matrix_ID)
 
 	std::clock_t start;
 
-	alchemist_command command = CLIENT_MATRIX_LAYOUT;
+	alchemist_command command = _AM_CLIENT_MATRIX_LAYOUT;
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
@@ -529,7 +658,7 @@ vector<vector<vector<float> > > GroupDriver::prepare_data_layout_table(uint16_t 
 
 int GroupDriver::read_HDF5() {
 
-	log->info("GroupDriver::read_HDF5 not yet implemented");
+	log->info(string("GroupDriver::read_HDF5 not yet implemented"));
 
 
 

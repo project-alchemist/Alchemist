@@ -7,23 +7,23 @@ namespace alchemist {
 // =============================================================================================
 
 Session::Session(tcp::socket _socket)
-    : socket(std::move(_socket)), ID(0), ready(false), admin_privilege(false)
+    : socket(std::move(_socket)), session_ID(0), ready(false), admin_privilege(false)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
 
-Session::Session(tcp::socket _socket, Session_ID _ID, Client_ID _client_ID)
-    : socket(std::move(_socket)), ID(_ID), client_ID(_client_ID), ready(false), admin_privilege(false)
+Session::Session(tcp::socket _socket, Session_ID _session_ID, Client_ID _client_ID)
+    : socket(std::move(_socket)), session_ID(_session_ID), client_ID(_client_ID), ready(false), admin_privilege(false)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
 
-Session::Session(tcp::socket _socket, Session_ID _ID, Client_ID _client_ID, Log_ptr & _log)
-    : socket(std::move(_socket)), ID(_ID), client_ID(_client_ID), ready(false), admin_privilege(false), log(_log)
+Session::Session(tcp::socket _socket, Session_ID _session_ID, Client_ID _client_ID, Log_ptr & _log)
+    : socket(std::move(_socket)), session_ID(_session_ID), client_ID(_client_ID), ready(false), admin_privilege(false), log(_log)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
@@ -43,9 +43,9 @@ void Session::set_log(Log_ptr _log)
 	log = _log;
 }
 
-void Session::set_ID(Session_ID _ID)
+void Session::set_ID(Session_ID _session_ID)
 {
-	ID = _ID;
+	session_ID = _session_ID;
 }
 
 void Session::set_admin_privilege(bool privilege)
@@ -53,9 +53,9 @@ void Session::set_admin_privilege(bool privilege)
 	admin_privilege = privilege;
 }
 
-Session_ID Session::get_ID() const
+Session_ID Session::get_session_ID() const
 {
-	return ID;
+	return session_ID;
 }
 
 string Session::get_address() const
@@ -82,12 +82,21 @@ bool Session::get_admin_privilege() const
 
 void Session::wait()
 {
-	log->info("Waiting for command ...");
+	log->info(string("Waiting for command ..."));
 }
 
 string Session::preamble()
 {
-	return client_preamble() + " " + session_preamble();
+	return client_preamble() + " " + session_preamble() + " " + address_preamble();
+}
+
+string Session::address_preamble()
+{
+	std::stringstream ss;
+
+	ss << "[" << get_address().c_str() << "]";
+
+	return ss.str();
 }
 
 string Session::client_preamble()
@@ -103,18 +112,18 @@ string Session::session_preamble()
 {
 	std::stringstream ss;
 
-	ss << "[Session " << ID << "]";
+	ss << "[Session " << session_ID << "]";
 
 	return ss.str();
 }
 
-bool Session::check_handshake()
+bool Session::handle_handshake()
 {
 	cl = (client_language) read_msg.read_uint8();
 	write_msg.set_client_language(cl);
 	read_msg.set_client_language(cl);
 
-	if (read_msg.read_uint16() == 1234 && read_msg.read_string().compare("ABCD") == 0) {
+	if (read_msg.read_uint16() == 1234 && read_msg.read_string().compare(string("ABCD")) == 0) {
 		log->info("{} Received handshake", preamble());
 		log->info("{} Client Language is {}", preamble(), get_client_language_name(cl));
 		return valid_handshake();
@@ -127,10 +136,10 @@ bool Session::check_handshake()
 
 bool Session::valid_handshake()
 {
-	write_msg.start(client_ID, ID, HANDSHAKE);
+	write_msg.start(client_ID, session_ID, HANDSHAKE);
 
 	write_msg.add_uint16(4321);
-	write_msg.add_string("DCBA");
+	write_msg.add_string(string("DCBA"));
 
 	flush();
 
@@ -139,9 +148,9 @@ bool Session::valid_handshake()
 
 bool Session::invalid_handshake()
 {
-	write_msg.start(client_ID, ID, HANDSHAKE);
+	write_msg.start(client_ID, session_ID, HANDSHAKE);
 
-	write_msg.add_string("INVALID HANDSHAKE FORMAT");
+	write_msg.add_string(string("INVALID HANDSHAKE FORMAT"));
 
 	flush();
 
@@ -184,7 +193,7 @@ void Session::flush()
 {
 	write_msg.update_body_length();
 	write_msg.update_datatype_count();
-//	log->info("{}", write_msg.to_string());
+	log->info("OUT: {}", write_msg.to_string());
 	auto self(shared_from_this());
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),

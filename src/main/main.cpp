@@ -4,7 +4,6 @@ int main(int argc, char **argv)
 {
 	int provided;
 	MPI_Init_thread(&argc, &argv, 3, &provided);
-//	MPI_Init(&argc, &argv);
 	int threads_ok = provided >= 3;
 
 	El::Initialize();

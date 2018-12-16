@@ -14,12 +14,15 @@ typedef std::shared_ptr<Library> Library_ptr;
 
 struct LibraryInfo {
 	LibraryInfo() :
-		name(" "), path(" "), lib(nullptr) { }
+		name(string(" ")), path(string(" ")), description(string(" ")), lib(nullptr) { }
 	LibraryInfo(std::string _name, std::string _path, void * _lib_ptr, Library_ptr _lib) :
-		name(_name), path(_path), lib(_lib) { }
+		name(_name), path(_path), description(string(" ")), lib(_lib) { }
+	LibraryInfo(std::string _name, std::string _path, std::string _description, void * _lib_ptr, Library_ptr _lib) :
+		name(_name), path(_path), description(_description), lib(_lib) { }
 
 	string name;
 	string path;
+	string description;
 
 	Library_ptr lib;
 };
@@ -32,7 +35,7 @@ public:
 
 	std::map<std::string, LibraryInfo> libraries;
 //
-//	LibraryManager();
+	LibraryManager();
 	LibraryManager(Log_ptr &);
 
 //	virtual int process_input_parameters(Parameters &) = 0;
