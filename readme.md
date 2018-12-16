@@ -2,8 +2,6 @@ Alchemist is a framework for easily and efficiently calling MPI-based codes from
 
 # Alchemist Framework Structure
 
-THIS DISCUSSION WILL BE UPDATED SOON
-
 The Alchemist framework has a modular structure in order to achieve flexibility and ease of use. We distinguish between three "layers":
 * The core Alchemist system
 * The library layer, consisting of one or more MPI-based libraries, as well as two interfaces for each of these libraries, one for bridging Apache Spark and Alchemist, and another one for bridging the MPI library and Alchemist.
