@@ -427,7 +427,8 @@ void DriverSession::handle_list_available_libraries()
 
 void DriverSession::handle_load_library()
 {
-	group_driver.load_library(read_msg.read_string(), read_msg.read_string());
+	string path = "/Users/kai/Projects/AlLib/target/testlib.dylib";
+	group_driver.load_library(read_msg.read_string(), path);
 
 	uint16_t temp = 1;
 	write_msg.start(client_ID, session_ID, LOAD_LIBRARY);
@@ -467,34 +468,42 @@ void DriverSession::handle_request_matrix_blocks()
 
 void DriverSession::handle_run_task()
 {
-	Library_ID lib_ID = read_msg.read_uint8();
-	string name = read_msg.read_string();
-	Matrix_ID matrix_ID = read_msg.read_uint16();
-	uint32_t rank = read_msg.read_uint32();
-	uint8_t method = read_msg.read_uint8();
+//	Library_ID lib_ID = read_msg.read_uint16();
+//	string function_name = read_msg.read_string();
 
-//	group_driver.run_task(name, matrix_ID, rank, method);
+	group_driver.run_task(read_msg.body(), read_msg.get_body_length());
 
-	write_msg.start(client_ID, session_ID, RUN_TASK);
-
-	for (int i = 0; i < 3; i++) {
-		matrix_ID++;
-		write_msg.add_uint16(matrix_ID);
-
-		group_driver.determine_row_assignments(matrix_ID);
-		vector<uint16_t> & row_assignments = group_driver.get_row_assignments(matrix_ID);
-
-		uint64_t num_rows = row_assignments.size();
-		uint64_t num_cols = group_driver.get_num_cols(matrix_ID);
-		uint16_t worker;
-
-		write_msg.add_uint64(num_rows);
-		write_msg.add_uint64(num_cols);
-
-		for (uint32_t row = 0; row < num_rows; row++)
-			write_msg.add_uint16(row_assignments[row]);
-	}
-	flush();
+//	string parameter_name = "";
+//	datatype dt = NONE;
+//	while (!read_msg.eom()) {
+//		if
+//	}
+//	Matrix_ID matrix_ID = read_msg.read_uint16();
+//	uint32_t rank = read_msg.read_uint32();
+//	uint8_t method = read_msg.read_uint8();
+//
+////	group_driver.run_task(name, matrix_ID, rank, method);
+//
+//	write_msg.start(client_ID, session_ID, RUN_TASK);
+//
+//	for (int i = 0; i < 3; i++) {
+//		matrix_ID++;
+//		write_msg.add_uint16(matrix_ID);
+//
+//		group_driver.determine_row_assignments(matrix_ID);
+//		vector<uint16_t> & row_assignments = group_driver.get_row_assignments(matrix_ID);
+//
+//		uint64_t num_rows = row_assignments.size();
+//		uint64_t num_cols = group_driver.get_num_cols(matrix_ID);
+//		uint16_t worker;
+//
+//		write_msg.add_uint64(num_rows);
+//		write_msg.add_uint64(num_cols);
+//
+//		for (uint32_t row = 0; row < num_rows; row++)
+//			write_msg.add_uint16(row_assignments[row]);
+//	}
+//	flush();
 }
 
 void DriverSession::handle_invalid_command()

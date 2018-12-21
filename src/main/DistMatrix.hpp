@@ -44,6 +44,10 @@ struct DistMatrix {
 //	std::shared_ptr<El::DistMatrix<double, El::STAR, El::STAR>> data;
 //};
 
+
+typedef std::shared_ptr<El::Grid> Grid_ptr;
+typedef std::shared_ptr<DistMatrix> DistMatrix_ptr;
+
 }
 
 #endif

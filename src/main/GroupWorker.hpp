@@ -4,25 +4,15 @@
 #include "Server.hpp"
 #include "Worker.hpp"
 #include "WorkerSession.hpp"
+#include "Library.hpp"
 
 namespace alchemist {
-
 typedef El::AbstractDistMatrix<double> ElDistMatrix;
-
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
 
 class Worker;
 class WorkerSession;
 
 typedef std::shared_ptr<WorkerSession> WorkerSession_ptr;
-
-struct GridObj {
-
-	GridObj(MPI_Comm & _peers) : grid(El::mpi::Comm(_peers)) {}
-
-	El::Grid grid;
-};
 
 class GroupWorker : public Server, public std::enable_shared_from_this<GroupWorker>
 {
@@ -42,7 +32,8 @@ public:
 
 	int start();
 
-	Grid_ptr grid;
+	uint32_t current_grid;
+	vector<Grid_ptr> grids;
 
 	// -------------------------------------   Matrix Management   -----------------------------------
 
@@ -60,11 +51,13 @@ public:
 	int get_matrix_dimensions();
 	int get_transpose();
 	int matrix_multiply();
-	int truncated_SVD(Matrix_ID matrix_ID, uint32_t rank, uint8_t method);
 
 	int get_matrix_rows();
 
 	void print_data(Matrix_ID ID);
+
+	void serialize_parameters(Parameters & output_parameters, Message & msg);
+	void deserialize_parameters(Parameters & input_parameters, Message & msg);
 
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 	void set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group);
@@ -76,7 +69,7 @@ public:
 	void get_value(Matrix_ID ID, uint64_t row, uint64_t col, double & value);
 
 	int load_library();
-	int run_task();
+	void run_task();
 
 private:
 	MPI_Comm group;
@@ -90,8 +83,7 @@ private:
 
 	client_language cl;
 
-	Library * library;
-
+	map<Library_ID, Library_ptr> libraries;
 	map<Session_ID, WorkerSession_ptr> sessions;
 	map<Matrix_ID, DistMatrix_ptr> matrices;
 

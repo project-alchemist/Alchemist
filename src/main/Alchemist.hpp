@@ -4,13 +4,20 @@
 #include <cstdlib>
 #include <deque>
 #include <iostream>
+#include <iomanip>
 #include <list>
 #include <memory>
 #include <set>
 #include <thread>
 #include <utility>
 #include <ctime>
-#include <string>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <complex>
+#include <cmath>
 #ifdef ASIO_STANDALONE
 #include <asio.hpp>
 #else
@@ -18,15 +25,12 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #endif
-#include <eigen3/Eigen/Dense>
-#include "arpackpp/arrssym.h"
-#include "mpi.h"
-#include "Library.hpp"
-#include "DistMatrix.hpp"
-#include "Parameters.hpp"
+#include "utility/endian.hpp"
 #include "utility/client_language.hpp"
 #include "utility/command.hpp"
 #include "utility/logging.hpp"
+#include "utility/datatype.hpp"
+#include "DistMatrix.hpp"
 
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
@@ -66,8 +70,6 @@ const string get_Alchemist_version();
 const string get_Boost_version();
 
 typedef El::Matrix<double> Matrix;
-typedef std::shared_ptr<El::Grid> Grid_ptr;
-typedef std::shared_ptr<DistMatrix> DistMatrix_ptr;
 
 typedef uint16_t Worker_ID;
 typedef uint16_t Client_ID;

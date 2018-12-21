@@ -55,7 +55,10 @@ typedef enum _datatype : uint8_t {
 	LONG_DOUBLE_INT,
 	STRING,
 	WSTRING,
-	COMMAND_CODE
+	COMMAND_CODE,
+	LIBRARY_ID,
+	MATRIX_ID,
+	MATRIX_HANDLE
 } datatype;
 
 inline const uint8_t get_datatype_length(const datatype & dt)
@@ -115,6 +118,10 @@ inline const uint8_t get_datatype_length(const datatype & dt)
 			return sizeof(double);
 		case REAL:
 			return sizeof(double);
+		case MATRIX_ID:
+			return sizeof(uint16_t);
+		case LIBRARY_ID:
+			return sizeof(uint16_t);
 		default:
 			return 1;
 		}
@@ -181,6 +188,12 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "STRING";
 		case WSTRING:
 			return "WSTRING";
+		case LIBRARY_ID:
+			return "LIBRARY ID";
+		case MATRIX_ID:
+			return "MATRIX ID";
+		case MATRIX_HANDLE:
+			return "MATRIX HANDLE";
 		default:
 			return "INVALID DATATYPE";
 		}

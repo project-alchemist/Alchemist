@@ -8,10 +8,7 @@ namespace alchemist {
 GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver): ID(_ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), next_matrix_ID(0) { }
 
 GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver, Log_ptr & _log): ID(_ID), driver(_driver), group(MPI_COMM_NULL),
-		log(_log), cl(SCALA), next_matrix_ID(0) {
-
-	lm = LibraryManager(log);
-}
+		log(_log), cl(SCALA), next_matrix_ID(0) { }
 
 GroupDriver::~GroupDriver() { }
 
@@ -304,7 +301,354 @@ void GroupDriver::remove_worker(const Worker_ID & worker_ID)
 					log->info("_____________ {}", it->first);
 }
 
+void GroupDriver::run_task(const char * data, uint32_t data_length)
+{
+	alchemist_command command = _AM_WORKER_RUN_TASK;
 
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+	MPI_Wait(&req, &status);
+
+	MPI_Bcast(&data_length, 1, MPI_UNSIGNED, 0, group);
+	MPI_Bcast(&data, data_length, MPI_CHAR, 0, group);
+
+	MPI_Barrier(group);
+
+	Message temp_in_msg, temp_out_msg;
+	Parameters in, out;
+
+	temp_in_msg.copy_body(&data[0], data_length);
+
+	Library_ID lib_ID = temp_in_msg.read_uint16();
+	if (check_library_ID(lib_ID)) {
+		string function_name = temp_in_msg.read_string();
+
+		deserialize_parameters(in, temp_in_msg);
+
+		libraries[lib_ID]->run(function_name, in, out);
+
+		MPI_Barrier(group);
+
+		serialize_parameters(out, temp_out_msg);
+	}
+}
+
+void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
+
+	string name = "";
+	datatype dt = NONE;
+	while (!msg.eom()) {
+		name = msg.read_string();
+		dt = (datatype) msg.read_uint8();
+
+		switch(dt) {
+		case CHAR:
+			p.add_char(name, msg.read_char());
+			break;
+		case SIGNED_CHAR:
+			p.add_signed_char(name, msg.read_signed_char());
+			break;
+		case UNSIGNED_CHAR:
+			p.add_unsigned_char(name, msg.read_unsigned_char());
+			break;
+		case CHARACTER:
+			p.add_character(name, msg.read_char());
+			break;
+		case WCHAR:
+			p.add_wchar(name, msg.read_wchar());
+			break;
+		case SHORT:
+			p.add_short(name, msg.read_short());
+			break;
+		case UNSIGNED_SHORT:
+			p.add_unsigned_short(name, msg.read_unsigned_short());
+			break;
+		case INT:
+			p.add_int(name, msg.read_int());
+			break;
+		case UNSIGNED:
+			p.add_unsigned(name, msg.read_unsigned());
+			break;
+		case LONG:
+			p.add_long(name, msg.read_long());
+			break;
+		case UNSIGNED_LONG:
+			p.add_unsigned_long(name, msg.read_unsigned_long());
+			break;
+		case LONG_LONG_INT:
+			p.add_long_long_int(name, msg.read_long_long_int());
+			break;
+		case LONG_LONG:
+			p.add_long_long(name, msg.read_long_long());
+			break;
+		case UNSIGNED_LONG_LONG:
+			p.add_unsigned_long_long(name, msg.read_unsigned_long_long());
+			break;
+		case FLOAT:
+			p.add_float(name, msg.read_float());
+			break;
+		case DOUBLE:
+			p.add_double(name, msg.read_double());
+			break;
+//				case LONG_DOUBLE:
+//					p.add_long_double(name, msg.read_long_double());
+//					break;
+		case BYTE:
+			p.add_byte(name, msg.read_byte());
+			break;
+		case BOOL:
+			p.add_bool(name, msg.read_bool());
+			break;
+		case INTEGER:
+			p.add_integer(name, msg.read_integer());
+			break;
+		case REAL:
+			p.add_real(name, msg.read_real());
+			break;
+		case LOGICAL:
+			p.add_logical(name, msg.read_logical());
+			break;
+//				case COMPLEX:
+//					p.add_complex(name, msg.read_complex());
+//					break;
+		case DOUBLE_PRECISION:
+			p.add_double_precision(name, msg.read_double_precision());
+			break;
+		case REAL4:
+			p.add_real4(name, msg.read_real4());
+			break;
+//				case COMPLEX8:
+//					p.add_complex8(name, msg.read_complex8());
+//					break;
+		case REAL8:
+			p.add_real8(name, msg.read_real8());
+			break;
+//				case COMPLEX16:
+//					p.add_complex16(name, msg.read_complex16());
+//					break;
+		case INTEGER1:
+			p.add_integer1(name, msg.read_integer1());
+			break;
+		case INTEGER2:
+			p.add_integer2(name, msg.read_integer2());
+			break;
+		case INTEGER4:
+			p.add_integer4(name, msg.read_integer4());
+			break;
+		case INTEGER8:
+			p.add_integer8(name, msg.read_integer8());
+			break;
+		case INT8_T:
+			p.add_int8(name, msg.read_int8());
+			break;
+		case INT16_T:
+			p.add_int16(name, msg.read_int16());
+			break;
+		case INT32_T:
+			p.add_int32(name, msg.read_int32());
+			break;
+		case INT64_T:
+			p.add_int64(name, msg.read_int64());
+			break;
+		case UINT8_T:
+			p.add_uint8(name, msg.read_uint8());
+			break;
+		case UINT16_T:
+			p.add_uint16(name, msg.read_uint16());
+			break;
+		case UINT32_T:
+			p.add_uint32(name, msg.read_uint32());
+			break;
+		case UINT64_T:
+			p.add_uint64(name, msg.read_uint64());
+			break;
+//				case FLOAT_INT:
+//					p.add_float_int(name, msg.read_float_int());
+//					break;
+//				case DOUBLE_INT:
+//					p.add_double_int(name, msg.read_double_int());
+//					break;
+//				case LONG_INT:
+//					p.add_long_int(name, msg.read_long_int());
+//					break;
+//				case SHORT_INT:
+//					p.add_short_int(name, msg.read_short_int());
+//					break;
+//				case LONG_DOUBLE_INT:
+//					p.add_long_double_int(name, msg.read_long_double_int());
+//					break;
+		case STRING:
+			p.add_string(name, msg.read_string());
+			break;
+		case WSTRING:
+			p.add_wstring(name, msg.read_wstring());
+			break;
+		case MATRIX_ID:
+			p.add_matrix_ID(name, msg.read_matrix_ID());
+			break;
+		}
+	}
+}
+
+void GroupDriver::serialize_parameters(Parameters & p, Message & msg) {
+
+	string name = "";
+	datatype dt = NONE;
+	while (!msg.eom()) {
+		name = msg.read_string();
+		dt = (datatype) msg.read_uint8();
+
+		switch(dt) {
+		case CHAR:
+			p.add_char(name, msg.read_char());
+			break;
+		case SIGNED_CHAR:
+			p.add_signed_char(name, msg.read_signed_char());
+			break;
+		case UNSIGNED_CHAR:
+			p.add_unsigned_char(name, msg.read_unsigned_char());
+			break;
+		case CHARACTER:
+			p.add_character(name, msg.read_char());
+			break;
+		case WCHAR:
+			p.add_wchar(name, msg.read_wchar());
+			break;
+		case SHORT:
+			p.add_short(name, msg.read_short());
+			break;
+		case UNSIGNED_SHORT:
+			p.add_unsigned_short(name, msg.read_unsigned_short());
+			break;
+		case INT:
+			p.add_int(name, msg.read_int());
+			break;
+		case UNSIGNED:
+			p.add_unsigned(name, msg.read_unsigned());
+			break;
+		case LONG:
+			p.add_long(name, msg.read_long());
+			break;
+		case UNSIGNED_LONG:
+			p.add_unsigned_long(name, msg.read_unsigned_long());
+			break;
+		case LONG_LONG_INT:
+			p.add_long_long_int(name, msg.read_long_long_int());
+			break;
+		case LONG_LONG:
+			p.add_long_long(name, msg.read_long_long());
+			break;
+		case UNSIGNED_LONG_LONG:
+			p.add_unsigned_long_long(name, msg.read_unsigned_long_long());
+			break;
+		case FLOAT:
+			p.add_float(name, msg.read_float());
+			break;
+		case DOUBLE:
+			p.add_double(name, msg.read_double());
+			break;
+//				case LONG_DOUBLE:
+//					p.add_long_double(name, msg.read_long_double());
+//					break;
+		case BYTE:
+			p.add_byte(name, msg.read_byte());
+			break;
+		case BOOL:
+			p.add_bool(name, msg.read_bool());
+			break;
+		case INTEGER:
+			p.add_integer(name, msg.read_integer());
+			break;
+		case REAL:
+			p.add_real(name, msg.read_real());
+			break;
+		case LOGICAL:
+			p.add_logical(name, msg.read_logical());
+			break;
+//				case COMPLEX:
+//					p.add_complex(name, msg.read_complex());
+//					break;
+		case DOUBLE_PRECISION:
+			p.add_double_precision(name, msg.read_double_precision());
+			break;
+		case REAL4:
+			p.add_real4(name, msg.read_real4());
+			break;
+//				case COMPLEX8:
+//					p.add_complex8(name, msg.read_complex8());
+//					break;
+		case REAL8:
+			p.add_real8(name, msg.read_real8());
+			break;
+//				case COMPLEX16:
+//					p.add_complex16(name, msg.read_complex16());
+//					break;
+		case INTEGER1:
+			p.add_integer1(name, msg.read_integer1());
+			break;
+		case INTEGER2:
+			p.add_integer2(name, msg.read_integer2());
+			break;
+		case INTEGER4:
+			p.add_integer4(name, msg.read_integer4());
+			break;
+		case INTEGER8:
+			p.add_integer8(name, msg.read_integer8());
+			break;
+		case INT8_T:
+			p.add_int8(name, msg.read_int8());
+			break;
+		case INT16_T:
+			p.add_int16(name, msg.read_int16());
+			break;
+		case INT32_T:
+			p.add_int32(name, msg.read_int32());
+			break;
+		case INT64_T:
+			p.add_int64(name, msg.read_int64());
+			break;
+		case UINT8_T:
+			p.add_uint8(name, msg.read_uint8());
+			break;
+		case UINT16_T:
+			p.add_uint16(name, msg.read_uint16());
+			break;
+		case UINT32_T:
+			p.add_uint32(name, msg.read_uint32());
+			break;
+		case UINT64_T:
+			p.add_uint64(name, msg.read_uint64());
+			break;
+//				case FLOAT_INT:
+//					p.add_float_int(name, msg.read_float_int());
+//					break;
+//				case DOUBLE_INT:
+//					p.add_double_int(name, msg.read_double_int());
+//					break;
+//				case LONG_INT:
+//					p.add_long_int(name, msg.read_long_int());
+//					break;
+//				case SHORT_INT:
+//					p.add_short_int(name, msg.read_short_int());
+//					break;
+//				case LONG_DOUBLE_INT:
+//					p.add_long_double_int(name, msg.read_long_double_int());
+//					break;
+		case STRING:
+			p.add_string(name, msg.read_string());
+			break;
+		case WSTRING:
+			p.add_wstring(name, msg.read_wstring());
+			break;
+		case MATRIX_ID:
+			p.add_matrix_ID(name, msg.read_matrix_ID());
+			break;
+		}
+	}
+}
 
 
 //int GroupDriver::run_task(const char * data, uint32_t data_length)
@@ -372,135 +716,7 @@ void GroupDriver::remove_worker(const Worker_ID & worker_ID)
 //	return 0;
 //}
 
-int GroupDriver::truncated_SVD(Matrix_ID matrix_ID, uint32_t rank, uint8_t method)
-{
-	uint64_t m = matrices[matrix_ID].num_rows;
-	uint64_t n = matrices[matrix_ID].num_cols;
 
-	log->info("Starting truncated SVD on {}x{} matrix", m, n);
-	log->info("Settings:");
-	log->info("    rank = {}", rank);
-
-	MPI_Barrier(group);
-
-//	int LOCALEIGS = 0; // TODO: make these an enumeration, and global to Alchemist
-//	int LOCALEIGSPRECOMPUTE = 1;
-//	int DISTEIGS = 2;
-
-//	MatrixHandle UHandle{nextMatrixId++};
-//	MatrixHandle SHandle{nextMatrixId++};
-//	MatrixHandle VHandle{nextMatrixId++};
-//
-//	TruncatedSVDCommand cmd(inputMat, UHandle, SHandle, VHandle, k, method);
-//	issue(cmd);
-
-	switch(method) {
-	case 2:
-		log->info("using distributed mat-vec prods against A, then A tranpose");
-		break;
-	case 1:
-		log->info("using local mat-vec prods computed on the fly against the local Gramians");
-		break;
-	case 0:
-		log->info("using local mat-vec prods against the precomputed local Gramians");
-		break;
-	}
-
-	ARrcSymStdEig<double> prob(n, rank, "LM");
-	uint8_t command;
-	std::vector<double> zerosVector(n);
-	for(uint32_t idx = 0; idx < n; idx++)
-		zerosVector[idx] = 0;
-
-	uint32_t iterNum = 0;
-
-	while (!prob.ArnoldiBasisFound()) {
-		prob.TakeStep();
-		++iterNum;
-		if(iterNum % 20 == 0) log->info("Computed {} mv products", iterNum);
-		if (prob.GetIdo() == 1 || prob.GetIdo() == -1) {
-			command = 1;
-
-			MPI_Bcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group);
-//			mpi::broadcast(world, command, 0);
-			if (method == 0 || method == 1) {
-				auto temp = prob.GetVector();
-//				log->info("DDDDD1 {} {} {}", iterNum, temp[0], temp[1]);
-				MPI_Bcast(prob.GetVector(), n, MPI_DOUBLE, 0, group);
-//				mpi::broadcast(world, prob.GetVector(), n, 0);
-//				auto z = zerosVector.data();
-				MPI_Reduce(zerosVector.data(), prob.PutVector(), n, MPI_DOUBLE, MPI_SUM, 0, group);
-				auto temp1 = prob.GetVector();
-//				log->info("DDDDD2 {} {} {}", iterNum, temp1[0], temp1[1]);
-//				mpi::reduce(world, zerosVector.data(), n, prob.PutVector(), std::plus<double>(), 0);
-			}
-			if (method == 2) {
-//				MPI_Status status;
-//				MPI_Send(prob.GetVector(), n, MPI_DOUBLE, 1, 0, group);
-//				MPI_Recv(prob.PutVector(), n, MPI_DOUBLE, 1, 0, group, status);
-////				world.send(1, 0, prob.GetVector(), n);
-////				world.recv(1, 0, prob.PutVector(), n);
-			}
-		}
-	}
-
-	prob.FindEigenvectors();
-	uint32_t nconv = prob.ConvergedEigenvalues();
-	uint32_t niters = prob.GetIter();
-	log->info("Done after {} Arnoldi iterations, converged to {} eigenvectors of size {}", niters, nconv, n);
-
-	//NB: it may be the case that n*nconv > 4 GB, then have to be careful!
-	// assuming tall and skinny A for now
-	MatrixXd rightVecs(n, nconv);
-	log->info("Allocated matrix for right eigenvectors of A'*A");
-	// Eigen uses column-major layout by default!
-	for(uint32_t idx = 0; idx < nconv; idx++)
-		std::memcpy(rightVecs.col(idx).data(), prob.RawEigenvector(idx), n*sizeof(double));
-	log->info("Copied right eigenvectors into allocated storage");
-
-	// Populate U, V, S
-	command = 2;
-	MPI_Bcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group);
-	MPI_Bcast(&nconv, 1, MPI_UNSIGNED, 0, group);
-//	mpi::broadcast(world, nconv, 0);
-	log->info("Broadcasted command and number of converged eigenvectors");
-	MPI_Bcast(rightVecs.data(), n*nconv, MPI_DOUBLE, 0, group);
-//	mpi::broadcast(world, rightVecs.data(), n*nconv, 0);
-	log->info("Broadcasted right eigenvectors");
-	auto ng = prob.RawEigenvalues();
-//	log->info("BBBBBBBBBBB {}", ng[0]);
-	MPI_Bcast(prob.RawEigenvalues(), nconv, MPI_DOUBLE, 0, group);
-//	mpi::broadcast(world, prob.RawEigenvalues(), nconv, 0);
-	log->info("Broadcasted eigenvalues");
-
-
-	matrices.insert(std::make_pair(matrix_ID+1, MatrixInfo(matrix_ID+1, m, nconv)));
-	matrices.insert(std::make_pair(matrix_ID+2, MatrixInfo(matrix_ID+2, nconv, 1)));
-	matrices.insert(std::make_pair(matrix_ID+3, MatrixInfo(matrix_ID+3, n, nconv)));
-
-	next_matrix_ID += 3;
-
-//	MatrixDescriptor Uinfo(UHandle, m, nconv);
-//	MatrixDescriptor Sinfo(SHandle, nconv, 1);
-//	MatrixDescriptor Vinfo(VHandle, n, nconv);
-//	ENSURE(matrices.insert(std::make_pair(UHandle, Uinfo)).second);
-//	ENSURE(matrices.insert(std::make_pair(SHandle, Sinfo)).second);
-//	ENSURE(matrices.insert(std::make_pair(VHandle, Vinfo)).second);
-//
-	log->info("Waiting on workers to store U,S,V");
-//
-//	world.barrier();
-//	log->info("Writing ok status followed by U,S,V handles");
-//	output.writeInt(0x1);
-//	output.writeInt(UHandle.id);
-//	output.writeInt(SHandle.id);
-//	output.writeInt(VHandle.id);
-//	output.flush();
-
-	MPI_Barrier(group);
-
-	return 0;
-}
 
 Matrix_ID GroupDriver::new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols)
 {
@@ -536,7 +752,10 @@ vector<uint16_t> & GroupDriver::get_row_assignments(Matrix_ID & matrix_ID)
 	return matrices[matrix_ID].row_assignments;
 }
 
-
+bool GroupDriver::check_library_ID(Library_ID & lib_ID)
+{
+	return true;
+}
 
 string GroupDriver::list_workers()
 {

@@ -174,7 +174,10 @@ void Worker::handle_new_group()
 
 		group_IDs[0] = 0;
 		MPI_Recv(&group_peer_IDs, (int) num_peers, MPI_INT, 0, 0, world, &status);
-		for (int i = 0; i < num_peers; i++) group_IDs[i+1] = group_peer_IDs[i];
+		for (int i = 0; i < num_peers; i++) {
+			group_IDs[i+1] = group_peer_IDs[i];
+			log->info("PEERS {}", group_peer_IDs[i]);
+		}
 
 		if (group_worker == nullptr)
 			group_worker = std::make_shared<GroupWorker>(group_ID, *this, ic, port, log);

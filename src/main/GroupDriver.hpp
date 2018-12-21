@@ -4,14 +4,12 @@
 #include "Alchemist.hpp"
 #include "Driver.hpp"
 #include "DriverSession.hpp"
+#include "Library.hpp"
 
 namespace alchemist {
 
 class Driver;
 class DriverSession;
-
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
 
 typedef std::shared_ptr<DriverSession> DriverSession_ptr;
 
@@ -41,6 +39,7 @@ public:
 	uint16_t get_num_workers();
 
 	string list_sessions();
+	int load_library(string library_name);
 	int load_library(string library_name, string library_path);
 	Matrix_ID new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols);
 	vector<uint16_t> & get_row_assignments(Matrix_ID & matrix_ID);
@@ -53,11 +52,14 @@ public:
 	int read_HDF5();
 
 //	int run_task(Library_ID lib_ID, string task, Matrix_ID matrix_ID, uint32_t rank, uint8_t method);
-//	int run_task(const char * data, uint32_t data_length);
+	void run_task(const char * data, uint32_t data_length);
 	int process_input_parameters(Parameters & input_parameters);
 	int process_output_parameters(Parameters & output_parameters);
 
-	int truncated_SVD(Matrix_ID matrix_ID, uint32_t rank, uint8_t method);
+	void serialize_parameters(Parameters & output_parameters, Message & msg);
+	void deserialize_parameters(Parameters & input_parameters, Message & msg);
+
+	bool check_library_ID(Library_ID & lib_ID);
 
 	uint64_t get_num_rows(Matrix_ID & matrix_ID);
 	uint64_t get_num_cols(Matrix_ID & matrix_ID);
@@ -86,8 +88,7 @@ private:
 	Group_ID ID;
 	client_language cl;
 
-	LibraryManager lm;
-
+	map<Library_ID, Library_ptr> libraries;
 	map<Matrix_ID, MatrixInfo> matrices;
 
 	Driver & driver;

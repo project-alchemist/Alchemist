@@ -1,10 +1,7 @@
 #ifndef ALCHEMIST__SESSION_HPP
 #define ALCHEMIST__SESSION_HPP
 
-
 #include "Message.hpp"
-#include "LibraryManager.hpp"
-
 
 namespace alchemist {
 

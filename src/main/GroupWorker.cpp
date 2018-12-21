@@ -15,7 +15,7 @@ GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_
     	    GroupWorker(_group_ID, _worker, _io_context, tcp::endpoint(tcp::v4(), port), _log) { }
 
 GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
-			Server(_io_context, endpoint, _log), library(nullptr), grid(nullptr), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
+			Server(_io_context, endpoint, _log), current_grid(-1), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
 			next_session_ID(0), connection_open(false)
 {
 	worker_ID = worker.get_ID();
@@ -40,15 +40,20 @@ void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 	log->info("vvvv1");
 	MPI_Comm_create_group(world, temp_group, 0, &group_peers);
 	log->info("vvvv2");
+
 //
 //	MPI_Barrier(group_peers);
 //	if (grid == nullptr)
-//		grid = std::make_shared<El::Grid>(El::mpi::Comm(group_peers));
-//	else
+//	else {
+//		grid = nullptr;
 //		grid.reset(new El::Grid(El::mpi::Comm(group_peers)));
+//	}
 	log->info("AT _SET_GROUP_PEERS_COMM BARRIER");
 	MPI_Barrier(group_peers);
 	log->info("PAST _SET_GROUP_PEERS_COMM BARRIER");
+
+	current_grid++;
+	grids.push_back(std::make_shared<El::Grid>(El::mpi::Comm(group_peers)));
 //	layout_matrices();
 }
 
@@ -134,6 +139,7 @@ void GroupWorker::handle_free_group()
 	}
 
 	if (group_peers != MPI_COMM_NULL) {
+		grids[current_grid] = nullptr;
 		log->info("AT _AM_FREE_GROUP BARRIER 2");
 		MPI_Barrier(group_peers);
 		log->info("PAST _AM_FREE_GROUP BARRIER 2");
@@ -316,28 +322,38 @@ int GroupWorker::load_library()
 	std::strcpy(cstr, library_path.c_str());
 
 	log->info("Loading library {} located at {}", library_name, library_path);
+//
+//	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
+//	if (lib == NULL) {
+//		log->info("dlopen failed: {}", dlerror());
+//
+//		return -1;
+//	}
+//
+//	dlerror();			// Reset errors
+//
+//	create_t * create_library = (create_t*) dlsym(lib, "create");
+//	const char * dlsym_error = dlerror();
+//	if (dlsym_error) {
+////    		log->info("dlsym with command \"load\" failed: {}", dlerror());
+//
+////        	delete [] cstr;
+////        	delete dlsym_error;
+//
+//		return -1;
+//	}
 
-	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
-	if (lib == NULL) {
-		log->info("dlopen failed: {}", dlerror());
 
-		return -1;
-	}
+//
+//	void (*register_function)(void(*)());
+//	void *handle = dlopen("libmylib.so");
+//
+//	register_function = dlsym(handle, "register_function");
+//
+//	register_function(in_main_func);
 
-	dlerror();			// Reset errors
 
-	create_t * create_library = (create_t*) dlsym(lib, "create");
-	const char * dlsym_error = dlerror();
-	if (dlsym_error) {
-//    		log->info("dlsym with command \"load\" failed: {}", dlerror());
-
-//        	delete [] cstr;
-//        	delete dlsym_error;
-
-		return -1;
-	}
-
-	library = create_library(group);
+//	library = create_library(group);
 
 //    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
 
@@ -350,8 +366,8 @@ int GroupWorker::load_library()
 //		library->run("greet", input, output);
 //	}
 
-	delete [] cstr;
-	delete dlsym_error;
+//	delete [] cstr;
+//	delete dlsym_error;
 
 	MPI_Barrier(group);
 
@@ -372,7 +388,7 @@ int GroupWorker::new_matrix()
 	MPI_Barrier(group);
 
 //	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, group_peers)));
-	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *grid)));
+	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *(grids[current_grid]))));
 	log->info("{} Created new Elemental distributed matrix {}", client_preamble(), ID);
 
 	MPI_Barrier(group);
@@ -450,7 +466,6 @@ void GroupWorker::print_data(Matrix_ID ID)
 	log->info(ss.str());
 }
 
-
 string GroupWorker::list_sessions()
 {
 	std::stringstream list_of_workers;
@@ -460,17 +475,45 @@ string GroupWorker::list_sessions()
 
 }
 
-int GroupWorker::run_task()
+bool check_library_ID(Library_ID)
 {
-	Matrix_ID matrix_ID;
-	uint32_t rank;
-	uint8_t method;
+	return true;
+}
 
-	MPI_Bcast(&matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
-	MPI_Bcast(&method, 1, MPI_UNSIGNED_CHAR, 0, group);
+void GroupWorker::run_task()
+{
+	uint32_t data_length;
+	MPI_Bcast(&data_length, 1, MPI_UNSIGNED, 0, group);
+
+	char data[data_length];
+	MPI_Bcast(&data, data_length, MPI_CHAR, 0, group);
 
 	MPI_Barrier(group);
+
+	Message temp_in_msg, temp_out_msg;
+	Parameters in, out;
+
+	temp_in_msg.copy_body(&data[0], data_length);
+
+	Library_ID lib_ID = temp_in_msg.read_uint16();
+	if (check_library_ID(lib_ID)) {
+		string function_name = temp_in_msg.read_string();
+
+		deserialize_parameters(in, temp_in_msg);
+
+		libraries[lib_ID]->run(function_name, in, out);
+
+		MPI_Barrier(group);
+
+		serialize_parameters(out, temp_out_msg);
+	}
+
+
+
+
+//	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
+//	MPI_Bcast(&method, 1, MPI_UNSIGNED_CHAR, 0, group);
+
 
 //	MPI_Bcast(&data_length, 1, MPI_UNSIGNED, 0, group);
 //	char data[data_length];
@@ -492,182 +535,10 @@ int GroupWorker::run_task()
 //		Matrix_ID matrix_ID = temp_msg.read_uint16();
 //		uint32_t rank = temp_msg.read_uint16();
 
-		truncated_SVD(matrix_ID, rank, method);
+//		truncated_SVD(matrix_ID, rank, method);
 //	}
 
-	return 0;
-}
-
-int GroupWorker::truncated_SVD(Matrix_ID matrix_ID, uint32_t rank, uint8_t method)
-{
-	auto workingMat = matrices[matrix_ID]->data;
-
-	int m = workingMat->Height();
-	int n = workingMat->Width();
-
-	MPI_Barrier(group);
-
-	log->info("Starting truncated SVD");
-
-//	  int LOCALEIGS = 0; // TODO: make these an enumeration, and global to Alchemist
-//	  int LOCALEIGSPRECOMPUTE = 1;
-//	  int DISTEIGS = 2;
-
-	// Assume matrix is row-partitioned b/c relaying it out doubles memory requirements
-
-	//NB: sometimes it makes sense to precompute the gramMat (when it's cheap (we have a lot of cores and enough memory), sometimes
-	// it makes more sense to compute A'*(A*x) separately each time (when we don't have enough memory for gramMat, or its too expensive
-	// time-wise to precompute GramMat). trade-off depends on k (through the number of Arnoldi iterations we'll end up needing), the
-	// amount of memory we have free to store GramMat, and the number of cores we have available
-	El::Matrix<double> localGramChunk;
-
-	if (method == 1) {
-		localGramChunk.Resize(n, n);
-		log->info("Computing the local contribution to A'*A");
-		log->info("Local matrix's dimensions are {}, {}", workingMat->LockedMatrix().Height(), workingMat->LockedMatrix().Width());
-		log->info("Storing A'*A in {},{} matrix", n, n);
-		auto startFillLocalMat = std::chrono::system_clock::now();
-		if (workingMat->LockedMatrix().Height() > 0)
-			El::Gemm(El::TRANSPOSE, El::NORMAL, 1.0, workingMat->LockedMatrix(), workingMat->LockedMatrix(), 0.0, localGramChunk);
-		else
-			El::Zeros(localGramChunk, n, n);
-		std::chrono::duration<double, std::milli> fillLocalMat_duration(std::chrono::system_clock::now() - startFillLocalMat);
-		log->info("Took {} ms to compute local contribution to A'*A", fillLocalMat_duration.count());
-	}
-
-	uint8_t command;
-	std::unique_ptr<double[]> vecIn{new double[n]};
-	El::Matrix<double> localx(n, 1);
-	El::Matrix<double> localintermed(workingMat->LocalHeight(), 1);
-	El::Matrix<double> localy(n, 1);
-	localx.LockedAttach(n, 1, vecIn.get(), 1);
-	auto distx = new DistMatrix(n, 1, *grid);
-	auto distintermed = new DistMatrix(m, 1, *grid);
-//	auto distx = El::DistMatrix<double, El::STAR, El::STAR>(n, 1, self->grid);
-//	auto distintermed = El::DistMatrix<double, El::STAR, El::STAR>(m, 1, self->grid);
-
-	log->info("finished initialization for truncated SVD");
-
-	while(true) {
-		MPI_Bcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group);
-//		mpi::broadcast(self->world, command, 0);
-		if (command == 1 && method == 0) {
-			void * uut;
-			MPI_Bcast(vecIn.get(), n, MPI_DOUBLE, 0, group);
-			auto uu = vecIn.get();
-//			log->info("Cvvvv {} {}", uu[0], uu[1]);
-//			mpi::broadcast(self->world, vecIn.get(), n, 0);
-			El::Gemv(El::NORMAL, 1.0, workingMat->LockedMatrix(), localx, 0.0, localintermed);
-//			log->info("Cvvrr {} {}", localx(0,0), localx(1,0));
-			El::Gemv(El::TRANSPOSE, 1.0, workingMat->LockedMatrix(), localintermed, 0.0, localy);
-			MPI_Reduce(localy.LockedBuffer(), uut, n, MPI_DOUBLE, MPI_SUM, 0, group);
-//			mpi::reduce(self->world, localy.LockedBuffer(), n, std::plus<double>(), 0);
-		}
-		if (command == 1 && method == 1) {
-			MPI_Bcast(vecIn.get(), n, MPI_DOUBLE, 0, group);
-			void * uut;
-//			mpi::broadcast(self->world, vecIn.get(), n, 0);
-			El::Gemv(El::NORMAL, 1.0, localGramChunk, localx, 0.0, localy);
-			MPI_Reduce(localy.LockedBuffer(), uut, n, MPI_DOUBLE, MPI_SUM, 0, group);
-//			mpi::reduce(self->world, localy.LockedBuffer(), n, std::plus<double>(), 0);
-		}
-		if (command == 1 && method == 2) {
-//			El::Zeros(distx, n, 1);
-//			log->info("Computing a mat-vec prod against A^TA");
-//			if (self->world.rank() == 1) {
-//				self->world.recv(0, 0, vecIn.get(), n);
-//				distx.Reserve(n);
-//				for(El::Int row=0; row < n; row++)
-//					distx.QueueUpdate(row, 0, vecIn[row]);
-//			}
-//			else {
-//				distx.Reserve(0);
-//			}
-//			distx.ProcessQueues();
-//			log->info("Retrieved x, computing A^TAx");
-//			El::Gemv(El::NORMAL, 1.0, *workingMat, distx, 0.0, distintermed);
-//			log->info("Computed y = A*x");
-//			El::Gemv(El::TRANSPOSE, 1.0, *workingMat, distintermed, 0.0, distx);
-//			log->info("Computed x = A^T*y");
-//			if(self->world.rank() == 1) {
-//				world.send(0, 0, distx.LockedBuffer(), n);
-//			}
-		}
-		if (command == 2) {
-			uint32_t nconv;
-			MPI_Bcast(&nconv, 1, MPI_UNSIGNED, 0, group);
-
-			MatrixXd rightEigs(n, nconv);
-			MPI_Bcast(rightEigs.data(), n*nconv, MPI_DOUBLE, 0, group);
-//			mpi::broadcast(self->world, rightEigs.data(), n*nconv, 0);
-			VectorXd singValsSq(nconv);
-			MPI_Bcast(singValsSq.data(), nconv, MPI_DOUBLE, 0, group);
-//			mpi::broadcast(self->world, singValsSq.data(), nconv, 0);
-			log->info("Received the right eigenvectors and the eigenvalues");
-
-//			auto U = new DistMatrix(m, nconv, group_peers);
-//			matrices.insert(std::make_pair(matrix_ID+1, U));
-//			auto S = new DistMatrix(nconv, 1, group_peers);
-//			matrices.insert(std::make_pair(matrix_ID+2, S));
-//			auto Sinv = new DistMatrix(nconv, 1, group_peers);
-//			matrices.insert(std::make_pair(matrix_ID+3, Sinv));
-//			auto V = new DistMatrix(n, nconv, group_peers);
-//			matrices.insert(std::make_pair(matrix_ID+4, V));
-			auto U = new DistMatrix(m, nconv, *grid);
-			matrices.insert(std::make_pair(matrix_ID+1, U));
-			auto S = new DistMatrix(nconv, 1, *grid);
-			matrices.insert(std::make_pair(matrix_ID+2, S));
-			auto Sinv = new DistMatrix(nconv, 1, *grid);
-//			matrices.insert(std::make_pair(matrix_ID+3, Sinv));
-			auto V = new DistMatrix(n, nconv, *grid);
-			matrices.insert(std::make_pair(matrix_ID+3, V));
-//
-//			auto U = new El::DistMatrix<double, El::VR, El::STAR>(m, nconv, self->grid);
-//			DistMatrix * S = new El::DistMatrix<double, El::VR, El::STAR>(nconv, 1, self->grid);
-//			DistMatrix * Sinv = new El::DistMatrix<double, El::VR, El::STAR>(nconv, 1, self->grid);
-//			DistMatrix * V = new El::DistMatrix<double, El::VR, El::STAR>(n, nconv, self->grid);
-//
-//			ENSURE(self->matrices.insert(std::make_pair(UHandle, std::unique_ptr<DistMatrix>(U))).second);
-//			ENSURE(self->matrices.insert(std::make_pair(SHandle, std::unique_ptr<DistMatrix>(S))).second);
-//			ENSURE(self->matrices.insert(std::make_pair(VHandle, std::unique_ptr<DistMatrix>(V))).second);
-			log->info("Created new matrix objects to hold U,S,V");
-//
-			// populate V
-			for(El::Int rowIdx=0; rowIdx < n; rowIdx++)
-				for(El::Int colIdx=0; colIdx < (El::Int) nconv; colIdx++)
-					if(V->data->IsLocal(rowIdx, colIdx))
-						V->data->SetLocal(V->data->LocalRow(rowIdx), V->data->LocalCol(colIdx), rightEigs(rowIdx,colIdx));
-			rightEigs.resize(0,0); // clear any memory this temporary variable used (a lot, since it's on every rank)
-
-			// populate S, Sinv
-			for(El::Int idx=0; idx < (El::Int) nconv; idx++) {
-				if(S->data->IsLocal(idx, 0)) {
-//					log->info("BBBBBBBBBBB {} {} {}", idx, S->data->LocalRow(idx), singValsSq(idx));
-					S->data->SetLocal(S->data->LocalRow(idx), 0, std::sqrt(singValsSq(idx)));
-				}
-				if(Sinv->data->IsLocal(idx, 0))
-					Sinv->data->SetLocal(Sinv->data->LocalRow(idx), 0, 1/std::sqrt(singValsSq(idx)));
-			}
-			log->info("Stored V and S");
-
-			// form U
-			log->info("computing A*V = U*Sigma");
-			log->info("A is {}-by-{}, V is {}-by-{}, the resulting matrix should be {}-by-{}", workingMat->Height(), workingMat->Width(), V->data->Height(), V->data->Width(), U->data->Height(), U->data->Width());
-			//Gemm(1.0, *workingMat, *V, 0.0, *U, self->log);
-			El::Gemm(El::NORMAL, El::NORMAL, 1.0, *workingMat, *(V->data), 0.0, *(U->data));
-			log->info("done computing A*V, rescaling to get U");
-			// TODO: do a QR instead to ensure stability, but does column pivoting so would require postprocessing S,V to stay consistent
-			El::DiagonalScale(El::RIGHT, El::NORMAL, *(Sinv->data), *(U->data));
-			log->info("Computed and stored U");
-
-			break;
-		}
-	}
-
-
-	MPI_Barrier(group);
-
-	return 0;
+//	return 0;
 }
 
 // ----------------------------------------   Parameters   ---------------------------------------
@@ -687,6 +558,8 @@ int GroupWorker::process_output_parameters(Parameters & output_parameters) {
 }
 
 // -----------------------------------------   Library   -----------------------------------------
+
+
 
 
 int GroupWorker::print_num_sessions()
@@ -770,6 +643,320 @@ int GroupWorker::get_matrix_rows()
 
 
 	return 0;
+}
+
+void GroupWorker::deserialize_parameters(Parameters & p, Message & msg) {
+
+	string name = "";
+	datatype dt = NONE;
+	while (!msg.eom()) {
+		name = msg.read_string();
+		dt = (datatype) msg.read_uint8();
+
+		switch(dt) {
+		case CHAR:
+			p.add_char(name, msg.read_char());
+			break;
+		case SIGNED_CHAR:
+			p.add_signed_char(name, msg.read_signed_char());
+			break;
+		case UNSIGNED_CHAR:
+			p.add_unsigned_char(name, msg.read_unsigned_char());
+			break;
+		case CHARACTER:
+			p.add_character(name, msg.read_char());
+			break;
+		case WCHAR:
+			p.add_wchar(name, msg.read_wchar());
+			break;
+		case SHORT:
+			p.add_short(name, msg.read_short());
+			break;
+		case UNSIGNED_SHORT:
+			p.add_unsigned_short(name, msg.read_unsigned_short());
+			break;
+		case INT:
+			p.add_int(name, msg.read_int());
+			break;
+		case UNSIGNED:
+			p.add_unsigned(name, msg.read_unsigned());
+			break;
+		case LONG:
+			p.add_long(name, msg.read_long());
+			break;
+		case UNSIGNED_LONG:
+			p.add_unsigned_long(name, msg.read_unsigned_long());
+			break;
+		case LONG_LONG_INT:
+			p.add_long_long_int(name, msg.read_long_long_int());
+			break;
+		case LONG_LONG:
+			p.add_long_long(name, msg.read_long_long());
+			break;
+		case UNSIGNED_LONG_LONG:
+			p.add_unsigned_long_long(name, msg.read_unsigned_long_long());
+			break;
+		case FLOAT:
+			p.add_float(name, msg.read_float());
+			break;
+		case DOUBLE:
+			p.add_double(name, msg.read_double());
+			break;
+//				case LONG_DOUBLE:
+//					p.add_long_double(name, msg.read_long_double());
+//					break;
+		case BYTE:
+			p.add_byte(name, msg.read_byte());
+			break;
+		case BOOL:
+			p.add_bool(name, msg.read_bool());
+			break;
+		case INTEGER:
+			p.add_integer(name, msg.read_integer());
+			break;
+		case REAL:
+			p.add_real(name, msg.read_real());
+			break;
+		case LOGICAL:
+			p.add_logical(name, msg.read_logical());
+			break;
+//				case COMPLEX:
+//					p.add_complex(name, msg.read_complex());
+//					break;
+		case DOUBLE_PRECISION:
+			p.add_double_precision(name, msg.read_double_precision());
+			break;
+		case REAL4:
+			p.add_real4(name, msg.read_real4());
+			break;
+//				case COMPLEX8:
+//					p.add_complex8(name, msg.read_complex8());
+//					break;
+		case REAL8:
+			p.add_real8(name, msg.read_real8());
+			break;
+//				case COMPLEX16:
+//					p.add_complex16(name, msg.read_complex16());
+//					break;
+		case INTEGER1:
+			p.add_integer1(name, msg.read_integer1());
+			break;
+		case INTEGER2:
+			p.add_integer2(name, msg.read_integer2());
+			break;
+		case INTEGER4:
+			p.add_integer4(name, msg.read_integer4());
+			break;
+		case INTEGER8:
+			p.add_integer8(name, msg.read_integer8());
+			break;
+		case INT8_T:
+			p.add_int8(name, msg.read_int8());
+			break;
+		case INT16_T:
+			p.add_int16(name, msg.read_int16());
+			break;
+		case INT32_T:
+			p.add_int32(name, msg.read_int32());
+			break;
+		case INT64_T:
+			p.add_int64(name, msg.read_int64());
+			break;
+		case UINT8_T:
+			p.add_uint8(name, msg.read_uint8());
+			break;
+		case UINT16_T:
+			p.add_uint16(name, msg.read_uint16());
+			break;
+		case UINT32_T:
+			p.add_uint32(name, msg.read_uint32());
+			break;
+		case UINT64_T:
+			p.add_uint64(name, msg.read_uint64());
+			break;
+//				case FLOAT_INT:
+//					p.add_float_int(name, msg.read_float_int());
+//					break;
+//				case DOUBLE_INT:
+//					p.add_double_int(name, msg.read_double_int());
+//					break;
+//				case LONG_INT:
+//					p.add_long_int(name, msg.read_long_int());
+//					break;
+//				case SHORT_INT:
+//					p.add_short_int(name, msg.read_short_int());
+//					break;
+//				case LONG_DOUBLE_INT:
+//					p.add_long_double_int(name, msg.read_long_double_int());
+//					break;
+		case STRING:
+			p.add_string(name, msg.read_string());
+			break;
+		case WSTRING:
+			p.add_wstring(name, msg.read_wstring());
+			break;
+		case MATRIX_ID:
+			p.add_distmatrix(name, matrices[msg.read_matrix_ID()]);
+			break;
+		}
+	}
+}
+
+void GroupWorker::serialize_parameters(Parameters & p, Message & msg) {
+
+	string name = "";
+	datatype dt = NONE;
+	while (!msg.eom()) {
+		name = msg.read_string();
+		dt = (datatype) msg.read_uint8();
+
+		switch(dt) {
+		case CHAR:
+			p.add_char(name, msg.read_char());
+			break;
+		case SIGNED_CHAR:
+			p.add_signed_char(name, msg.read_signed_char());
+			break;
+		case UNSIGNED_CHAR:
+			p.add_unsigned_char(name, msg.read_unsigned_char());
+			break;
+		case CHARACTER:
+			p.add_character(name, msg.read_char());
+			break;
+		case WCHAR:
+			p.add_wchar(name, msg.read_wchar());
+			break;
+		case SHORT:
+			p.add_short(name, msg.read_short());
+			break;
+		case UNSIGNED_SHORT:
+			p.add_unsigned_short(name, msg.read_unsigned_short());
+			break;
+		case INT:
+			p.add_int(name, msg.read_int());
+			break;
+		case UNSIGNED:
+			p.add_unsigned(name, msg.read_unsigned());
+			break;
+		case LONG:
+			p.add_long(name, msg.read_long());
+			break;
+		case UNSIGNED_LONG:
+			p.add_unsigned_long(name, msg.read_unsigned_long());
+			break;
+		case LONG_LONG_INT:
+			p.add_long_long_int(name, msg.read_long_long_int());
+			break;
+		case LONG_LONG:
+			p.add_long_long(name, msg.read_long_long());
+			break;
+		case UNSIGNED_LONG_LONG:
+			p.add_unsigned_long_long(name, msg.read_unsigned_long_long());
+			break;
+		case FLOAT:
+			p.add_float(name, msg.read_float());
+			break;
+		case DOUBLE:
+			p.add_double(name, msg.read_double());
+			break;
+//				case LONG_DOUBLE:
+//					p.add_long_double(name, msg.read_long_double());
+//					break;
+		case BYTE:
+			p.add_byte(name, msg.read_byte());
+			break;
+		case BOOL:
+			p.add_bool(name, msg.read_bool());
+			break;
+		case INTEGER:
+			p.add_integer(name, msg.read_integer());
+			break;
+		case REAL:
+			p.add_real(name, msg.read_real());
+			break;
+		case LOGICAL:
+			p.add_logical(name, msg.read_logical());
+			break;
+//				case COMPLEX:
+//					p.add_complex(name, msg.read_complex());
+//					break;
+		case DOUBLE_PRECISION:
+			p.add_double_precision(name, msg.read_double_precision());
+			break;
+		case REAL4:
+			p.add_real4(name, msg.read_real4());
+			break;
+//				case COMPLEX8:
+//					p.add_complex8(name, msg.read_complex8());
+//					break;
+		case REAL8:
+			p.add_real8(name, msg.read_real8());
+			break;
+//				case COMPLEX16:
+//					p.add_complex16(name, msg.read_complex16());
+//					break;
+		case INTEGER1:
+			p.add_integer1(name, msg.read_integer1());
+			break;
+		case INTEGER2:
+			p.add_integer2(name, msg.read_integer2());
+			break;
+		case INTEGER4:
+			p.add_integer4(name, msg.read_integer4());
+			break;
+		case INTEGER8:
+			p.add_integer8(name, msg.read_integer8());
+			break;
+		case INT8_T:
+			p.add_int8(name, msg.read_int8());
+			break;
+		case INT16_T:
+			p.add_int16(name, msg.read_int16());
+			break;
+		case INT32_T:
+			p.add_int32(name, msg.read_int32());
+			break;
+		case INT64_T:
+			p.add_int64(name, msg.read_int64());
+			break;
+		case UINT8_T:
+			p.add_uint8(name, msg.read_uint8());
+			break;
+		case UINT16_T:
+			p.add_uint16(name, msg.read_uint16());
+			break;
+		case UINT32_T:
+			p.add_uint32(name, msg.read_uint32());
+			break;
+		case UINT64_T:
+			p.add_uint64(name, msg.read_uint64());
+			break;
+//				case FLOAT_INT:
+//					p.add_float_int(name, msg.read_float_int());
+//					break;
+//				case DOUBLE_INT:
+//					p.add_double_int(name, msg.read_double_int());
+//					break;
+//				case LONG_INT:
+//					p.add_long_int(name, msg.read_long_int());
+//					break;
+//				case SHORT_INT:
+//					p.add_short_int(name, msg.read_short_int());
+//					break;
+//				case LONG_DOUBLE_INT:
+//					p.add_long_double_int(name, msg.read_long_double_int());
+//					break;
+		case STRING:
+			p.add_string(name, msg.read_string());
+			break;
+		case WSTRING:
+			p.add_wstring(name, msg.read_wstring());
+			break;
+		case MATRIX_ID:
+			p.add_distmatrix(name, matrices[msg.read_matrix_ID()]);
+			break;
+		}
+	}
 }
 
 int GroupWorker::new_session(tcp::socket socket)
