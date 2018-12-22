@@ -207,10 +207,8 @@ string GroupDriver::list_allocated_workers(const string & preamble)
 	return driver.list_allocated_workers(ID, preamble);
 }
 
-int GroupDriver::load_library(string library_path, string library_name)
+int GroupDriver::load_library(string library_name, string library_path)
 {
-	log->info("Loading library {} located at {}", library_name, library_path);
-
 	alchemist_command command = _AM_WORKER_LOAD_LIBRARY;
 
 	log->info("Sending command {} to workers", get_command_name(command));
@@ -243,6 +241,8 @@ int GroupDriver::load_library(string library_path, string library_name)
 	MPI_Bcast(&library_path_c_length, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(library_path_c, library_path_length+1, MPI_CHAR, 0, group);
 
+	MPI_Barrier(group);
+
 	char * cstr = new char [library_path.length()+1];
 	std::strcpy(cstr, library_path.c_str());
 
@@ -257,6 +257,8 @@ int GroupDriver::load_library(string library_path, string library_name)
 
 	dlerror();			// Reset errors
 
+//	void * create_library = dlsym(lib, "create");
+
 	create_t * create_library = (create_t*) dlsym(lib, "create");
 	const char * dlsym_error = dlerror();
 	if (dlsym_error) {
@@ -268,7 +270,22 @@ int GroupDriver::load_library(string library_path, string library_name)
 		return -1;
 	}
 
-//	library = create_library(group);
+
+//		Library * library = create_library(group);
+	Library * library = reinterpret_cast<Library*>(create_library(group));
+
+	log->info("OH NO");
+
+	string task_name = "greet";
+	Parameters in, out;
+
+	std::stringstream ss;
+
+	ss << "OOOOOO " << library;
+	log->info("kkk {}", ss.str());
+
+	library->load();
+	library->run(task_name, in, out);
 
 	//    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
 

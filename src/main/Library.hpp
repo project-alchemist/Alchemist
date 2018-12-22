@@ -8,9 +8,11 @@ namespace alchemist {
 
 struct Library {
 
-	Library(MPI_Comm & _world) : world(_world) { }
+	Library(MPI_Comm & _world);
 
 	virtual ~Library() { }
+
+	Log_ptr log;
 
 	MPI_Comm & world;
 
@@ -19,8 +21,8 @@ struct Library {
 	virtual int run(string & task_name, Parameters & in, Parameters & out) = 0;
 };
 
-typedef Library * create_t(MPI_Comm &);
-typedef void destroy_t(Library *);
+typedef void * create_t(MPI_Comm &);
+typedef void destroy_t(void *);
 
 typedef std::shared_ptr<Library> Library_ptr;
 

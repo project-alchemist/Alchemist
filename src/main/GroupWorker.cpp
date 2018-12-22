@@ -52,8 +52,8 @@ void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 	MPI_Barrier(group_peers);
 	log->info("PAST _SET_GROUP_PEERS_COMM BARRIER");
 
-	current_grid++;
-	grids.push_back(std::make_shared<El::Grid>(El::mpi::Comm(group_peers)));
+//	current_grid++;
+//	grids.push_back(std::make_shared<El::Grid>(El::mpi::Comm(group_peers)));
 //	layout_matrices();
 }
 
@@ -139,7 +139,7 @@ void GroupWorker::handle_free_group()
 	}
 
 	if (group_peers != MPI_COMM_NULL) {
-		grids[current_grid] = nullptr;
+//		grids[current_grid] = nullptr;
 		log->info("AT _AM_FREE_GROUP BARRIER 2");
 		MPI_Barrier(group_peers);
 		log->info("PAST _AM_FREE_GROUP BARRIER 2");
@@ -315,6 +315,8 @@ int GroupWorker::load_library()
 	char library_path_c[library_path_length+1];
 	MPI_Bcast(library_path_c, library_path_length+1, MPI_CHAR, 0, group);
 
+	MPI_Barrier(group);
+
 	string library_name = string(library_name_c);
 	string library_path = string(library_path_c);
 
@@ -322,6 +324,42 @@ int GroupWorker::load_library()
 	std::strcpy(cstr, library_path.c_str());
 
 	log->info("Loading library {} located at {}", library_name, library_path);
+
+	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
+	if (lib == NULL) {
+		log->info("dlopen failed: {}", dlerror());
+
+		return -1;
+	}
+
+	dlerror();			// Reset errors
+
+//	void * create_library = dlsym(lib, "create");
+	create_t * create_library = (create_t*) dlsym(lib, "create");
+	const char * dlsym_error = dlerror();
+	if (dlsym_error) {
+//    		log->info("dlsym with command \"load\" failed: {}", dlerror());
+
+//        	delete [] cstr;
+//        	delete dlsym_error;
+
+		return -1;
+	}
+
+	Library * library = reinterpret_cast<Library*>(create_library(group));
+
+	log->info("OH NO");
+
+	string task_name = "greet";
+	Parameters in, out;
+
+	std::stringstream ss;
+
+	ss << "OOOOOO " << library;
+	log->info("kkk {}", ss.str());
+
+	library->load();
+	library->run(task_name, in, out);
 //
 //	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
 //	if (lib == NULL) {
