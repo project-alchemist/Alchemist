@@ -21,14 +21,12 @@ class Message
 {
 public:
 	enum { header_length = 9 };
-	enum { max_body_length = 100000000 };
+
+	uint32_t max_body_length;
 
 	bool big_endian;
 
-	Message() : cc(WAIT), client_ID(0), session_ID(0), body_length(0), cl(C), read_pos(header_length), current_datatype(NONE),
-			current_datatype_count(0), current_datatype_count_max(0), current_datatype_count_pos(header_length+1), write_pos(header_length) {
-		big_endian = is_big_endian();
-	}
+	char * data;
 
 	uint16_t client_ID;
 	uint16_t session_ID;
@@ -46,6 +44,21 @@ public:
 	int32_t current_datatype_count_pos;
 	int32_t write_pos;
 
+	bool data_copied;
+
+	Message() : Message(10000000) { }
+
+	Message(uint32_t _max_body_length) : cc(WAIT), client_ID(0), session_ID(0), body_length(0), cl(C), read_pos(header_length), current_datatype(NONE),
+				current_datatype_count(0), current_datatype_count_max(0), max_body_length(_max_body_length), current_datatype_count_pos(header_length+1),
+				write_pos(header_length), data_copied(false) {
+
+		data = new char[header_length + max_body_length]();
+
+		big_endian = is_big_endian();
+	}
+
+	~Message() { delete [] data; }
+
 	bool is_big_endian()
 	{
 	    union {
@@ -57,8 +70,6 @@ public:
 	}
 
 	const uint32_t get_max_body_length() const { return max_body_length; }
-
-	char data[header_length + max_body_length];
 
 	const int32_t length() const
 	{
@@ -83,16 +94,21 @@ public:
 	void copy_body(const char * _body, const uint32_t _body_length)
 	{
 		for (uint32_t i = 0; i < _body_length; i++) {
-			data[i] = _body[header_length + i];
+			data[header_length + i] = _body[i];
 		}
+
+		data_copied = true;
+		body_length = _body_length;
+		write_pos = body_length + header_length;
 	}
 
 	void copy_data(const char * _data, const uint32_t _data_length)
 	{
-		for (uint32_t i = 0; i < _data_length; i++) {
-			data[i] = _data[i];
-		}
+		for (uint32_t i = 0; i < _data_length; i++) data[i] = _data[i];
+
+		data_copied = true;
 		body_length = _data_length - header_length;
+		write_pos = body_length + header_length;
 	}
 
  	const char * body() const
@@ -135,6 +151,11 @@ public:
 	void set_client_language(const client_language & _cl)
 	{
 		cl = _cl;
+	}
+
+	const client_language get_client_language()
+	{
+		return cl;
 	}
 
 	void clear()
@@ -267,6 +288,58 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_bool(const bool * _data, uint32_t length)
+	{
+		check_datatype(BOOL);
+
+		bool temp_bool;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_bool = _data[i];
+			memcpy(data + write_pos, &temp_bool, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_bool(const unsigned char _data)
+	{
+		check_datatype(BOOL);
+
+		bool temp_bool = _data;
+		memcpy(data + write_pos, &temp_bool, 1);
+		write_pos += 1;
+
+		current_datatype_count += 1;
+	}
+
+	void add_logical(const bool * _data, uint32_t length)
+	{
+		check_datatype(LOGICAL);
+
+		bool temp_bool;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_bool = _data[i];
+			memcpy(data + write_pos, &temp_bool, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_logical(const unsigned char _data)
+	{
+		check_datatype(LOGICAL);
+
+		bool temp_bool = _data;
+		memcpy(data + write_pos, &temp_bool, 1);
+		write_pos += 1;
+
+		current_datatype_count += 1;
+	}
+
 	void add_char(const char * _data, uint32_t length)
 	{
 		check_datatype(CHAR);
@@ -361,6 +434,136 @@ public:
 		temp_wchar = htobe16(temp_wchar);
 		memcpy(data + write_pos, &temp_wchar, 2);
 		write_pos += 2;
+
+		current_datatype_count += 1;
+	}
+
+	void add_int(const int * _data, uint32_t length)
+	{
+		check_datatype(INT);
+
+		int temp_int;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_int = _data[i];
+			memcpy(data + write_pos, &temp_int, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_int(const int _data)
+	{
+		check_datatype(INT);
+
+		int temp_int = _data;
+		memcpy(data + write_pos, &temp_int, 1);
+		write_pos += 1;
+
+		current_datatype_count += 1;
+	}
+
+	void add_integer1(const int8_t * _data, uint32_t length)
+	{
+		check_datatype(INTEGER1);
+
+		int8_t temp_int8;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_int8 = _data[i];
+			memcpy(data + write_pos, &temp_int8, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_integer1(const int8_t _data)
+	{
+		check_datatype(INTEGER1);
+
+		int8_t temp_int8 = _data;
+		memcpy(data + write_pos, &temp_int8, 1);
+		write_pos += 1;
+
+		current_datatype_count += 1;
+	}
+
+	void add_integer2(const int16_t * _data, uint32_t length)
+	{
+		check_datatype(INTEGER2);
+
+		int16_t temp_int16;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_int16 = _data[i];
+			memcpy(data + write_pos, &temp_int16, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_integer2(const int16_t _data)
+	{
+		check_datatype(INTEGER2);
+
+		int16_t temp_int16 = _data;
+		memcpy(data + write_pos, &temp_int16, 1);
+		write_pos += 1;
+
+		current_datatype_count += 1;
+	}
+
+	void add_integer4(const int32_t * _data, uint32_t length)
+	{
+		check_datatype(INTEGER4);
+
+		int32_t temp_int32;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_int32 = _data[i];
+			memcpy(data + write_pos, &temp_int32, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_integer4(const int32_t _data)
+	{
+		check_datatype(INTEGER4);
+
+		int16_t temp_int32 = _data;
+		memcpy(data + write_pos, &temp_int32, 1);
+		write_pos += 1;
+
+		current_datatype_count += 1;
+	}
+
+	void add_integer8(const int64_t * _data, uint32_t length)
+	{
+		check_datatype(INTEGER8);
+
+		int64_t temp_int64;
+
+		for (uint32_t i = 0; i < length; i++) {
+			temp_int64 = _data[i];
+			memcpy(data + write_pos, &temp_int64, 1);
+			write_pos += 1;
+		}
+
+		current_datatype_count += length;
+	}
+
+	void add_integer8(const int64_t _data)
+	{
+		check_datatype(INTEGER8);
+
+		int16_t temp_int64 = _data;
+		memcpy(data + write_pos, &temp_int64, 1);
+		write_pos += 1;
 
 		current_datatype_count += 1;
 	}
@@ -647,6 +850,8 @@ public:
 	{
 		check_datatype(UINT64_T);
 
+		std::cout << "LLLL " << std::endl;
+
 		uint64_t temp_uint64 = _data;
 		temp_uint64 = htobe64(temp_uint64);
 		memcpy(data + write_pos, &temp_uint64, 8);
@@ -711,6 +916,24 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_matrix_ID(const Matrix_ID & _data) {
+
+		switch(cl) {
+		case C:
+		case CPP:
+			add_uint16((uint16_t) _data);
+			break;
+		case SCALA:
+		case JAVA:
+			add_int16((int16_t) _data);
+			break;
+		case PYTHON:
+		case JULIA:
+			add_int16((int16_t) _data);
+			break;
+		}
+	}
+
 	void update_body_length()
 	{
 		body_length = write_pos - header_length;
@@ -720,8 +943,11 @@ public:
 
 	void update_datatype_count()
 	{
-		int32_t _current_datatype_count = htobe32(current_datatype_count);
-		memcpy(data + current_datatype_count_pos, &_current_datatype_count, 4);
+		if (!data_copied) {
+			int32_t _current_datatype_count = htobe32(current_datatype_count);
+			memcpy(data + current_datatype_count_pos, &_current_datatype_count, 4);
+		}
+		data_copied = false;
  	}
 
 	void check_datatype(const datatype new_datatype)

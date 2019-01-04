@@ -39,8 +39,7 @@ public:
 	uint16_t get_num_workers();
 
 	string list_sessions();
-	int load_library(string library_name);
-	int load_library(string library_name, string library_path);
+	Library_ID load_library(string library_name, string library_path);
 	Matrix_ID new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols);
 	vector<uint16_t> & get_row_assignments(Matrix_ID & matrix_ID);
 	void determine_row_assignments(Matrix_ID & matrix_ID);
@@ -52,7 +51,7 @@ public:
 	int read_HDF5();
 
 //	int run_task(Library_ID lib_ID, string task, Matrix_ID matrix_ID, uint32_t rank, uint8_t method);
-	void run_task(const char * data, uint32_t data_length);
+	void run_task(const char * & in_data, uint32_t & in_data_length, char * & out_data, uint32_t & out_data_length, client_language cl);
 	int process_input_parameters(Parameters & input_parameters);
 	int process_output_parameters(Parameters & output_parameters);
 
@@ -88,12 +87,13 @@ private:
 	Group_ID ID;
 	client_language cl;
 
-	map<Library_ID, Library_ptr> libraries;
+	map<Library_ID, Library *> libraries;
 	map<Matrix_ID, MatrixInfo> matrices;
 
 	Driver & driver;
 
 	Matrix_ID next_matrix_ID;
+	Library_ID next_library_ID;
 
 	Log_ptr log;
 };

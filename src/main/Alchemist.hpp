@@ -77,7 +77,7 @@ typedef uint16_t Group_ID;
 typedef uint16_t Session_ID;
 typedef uint16_t Matrix_ID;
 typedef uint16_t Task_ID;
-typedef uint8_t  Library_ID;
+typedef uint16_t Library_ID;
 
 inline const string get_Alchemist_version()
 {

@@ -304,8 +304,11 @@ string GroupWorker::client_preamble()
 
 int GroupWorker::load_library()
 {
+	Library_ID library_ID;
 	uint16_t library_name_length = 0;
 	uint16_t library_path_length = 0;
+
+	MPI_Bcast(&library_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 
 	MPI_Bcast(&library_name_length, 1, MPI_UNSIGNED_SHORT, 0, group);
 	char library_name_c[library_name_length+1];
@@ -346,20 +349,19 @@ int GroupWorker::load_library()
 		return -1;
 	}
 
-	Library * library = reinterpret_cast<Library*>(create_library(group));
+//	Library * library = reinterpret_cast<Library*>(create_library(group));
+	Library * library_ptr = reinterpret_cast<Library*>(create_library(group));
 
-	log->info("OH NO");
+	libraries.insert(std::make_pair(library_ID, library_ptr));
+//	Library_ptr library_ptr = std::make_shared<Library>(reinterpret_cast<Library*>(create_library(group)));
+//
+//	libraries.insert(std::make_pair(next_library_ID, library_ptr));
 
-	string task_name = "greet";
-	Parameters in, out;
+//	string task_name = "greet";
+//	Parameters in, out;
 
-	std::stringstream ss;
-
-	ss << "OOOOOO " << library;
-	log->info("kkk {}", ss.str());
-
-	library->load();
-	library->run(task_name, in, out);
+	library_ptr->load();
+//	library_ptr->run(task_name, in, out);
 //
 //	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
 //	if (lib == NULL) {
@@ -523,15 +525,16 @@ void GroupWorker::run_task()
 	uint32_t data_length;
 	MPI_Bcast(&data_length, 1, MPI_UNSIGNED, 0, group);
 
-	char data[data_length];
-	MPI_Bcast(&data, data_length, MPI_CHAR, 0, group);
+	char * data = new char[data_length];
+	MPI_Bcast(data, data_length, MPI_CHAR, 0, group);
 
 	MPI_Barrier(group);
 
-	Message temp_in_msg, temp_out_msg;
+	Message temp_in_msg(data_length), temp_out_msg(data_length);
 	Parameters in, out;
 
 	temp_in_msg.copy_body(&data[0], data_length);
+	MPI_Barrier(group);
 
 	Library_ID lib_ID = temp_in_msg.read_uint16();
 	if (check_library_ID(lib_ID)) {
@@ -545,8 +548,6 @@ void GroupWorker::run_task()
 
 		serialize_parameters(out, temp_out_msg);
 	}
-
-
 
 
 //	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
@@ -689,7 +690,7 @@ void GroupWorker::deserialize_parameters(Parameters & p, Message & msg) {
 	datatype dt = NONE;
 	while (!msg.eom()) {
 		name = msg.read_string();
-		dt = (datatype) msg.read_uint8();
+		dt = (datatype) msg.next_datatype();
 
 		switch(dt) {
 		case CHAR:

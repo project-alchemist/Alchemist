@@ -83,7 +83,7 @@ private:
 
 	client_language cl;
 
-	map<Library_ID, Library_ptr> libraries;
+	map<Library_ID, Library *> libraries;
 	map<Session_ID, WorkerSession_ptr> sessions;
 	map<Matrix_ID, DistMatrix_ptr> matrices;
 

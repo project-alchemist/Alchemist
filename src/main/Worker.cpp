@@ -174,25 +174,17 @@ void Worker::handle_new_group()
 
 		group_IDs[0] = 0;
 		MPI_Recv(&group_peer_IDs, (int) num_peers, MPI_INT, 0, 0, world, &status);
-		for (int i = 0; i < num_peers; i++) {
-			group_IDs[i+1] = group_peer_IDs[i];
-			log->info("PEERS {}", group_peer_IDs[i]);
-		}
+		for (int i = 0; i < num_peers; i++) group_IDs[i+1] = group_peer_IDs[i];
 
 		if (group_worker == nullptr)
 			group_worker = std::make_shared<GroupWorker>(group_ID, *this, ic, port, log);
 
-		log->info("hg1");
-
 		MPI_Group world_group;
 		MPI_Group temp_group;
 		MPI_Comm_group(world, &world_group);
-		log->info("hg2");
 
 		MPI_Group_incl(world_group, (int) (num_peers+1), group_IDs, &temp_group);
 		group_worker->set_group_comm(world, temp_group);
-
-		log->info("hg3");
 
 		MPI_Group_incl(world_group, (int) num_peers, group_peer_IDs, &temp_group);
 		group_worker->set_group_peers_comm(world, temp_group);
@@ -200,16 +192,13 @@ void Worker::handle_new_group()
 		MPI_Group_free(&world_group);
 		MPI_Group_free(&temp_group);
 
-
-		log->info("hg4");
-
 		group_worker->start();
 	}
 }
 
 void Worker::print_info()
 {
-	log->info("OOOOOOOOOOOOOOO Worker {}: {} {}:{}", ID, hostname, address, port);
+	log->info("Worker {}: {} {}:{}", ID, hostname, address, port);
 }
 
 

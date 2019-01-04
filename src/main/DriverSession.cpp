@@ -179,18 +179,13 @@ void DriverSession::handle_request_workers()
 
 	write_msg.start(client_ID, session_ID, REQUEST_WORKERS);
 
-	log->info("1");
-
 	if (num_requested_workers > 0) {
 		map<Worker_ID, WorkerInfo> allocated_workers = group_driver.allocate_workers(num_requested_workers);
-		log->info("2");
 
 		if (allocated_workers.size() > 0) {
-			log->info("3");
 			uint16_t num_allocated_workers = allocated_workers.size();
 			write_msg.add_uint16(num_allocated_workers);
 			for (auto it = allocated_workers.begin(); it != allocated_workers.end(); it++) {
-				log->info("4");
 				write_msg.add_uint16(it->first);
 				write_msg.add_string(it->second.hostname);
 				write_msg.add_string(it->second.address);
@@ -219,21 +214,16 @@ void DriverSession::handle_yield_workers()
 	write_msg.start(client_ID, session_ID, YIELD_WORKERS);
 
 	if (read_msg.eom()) {
-		log->info("1e");
 		for (auto it = workers.begin(); it != workers.end(); it++)
 			yielded_workers.push_back(it->first);
 	}
 	else {
-		log->info("2e");
 		while (!read_msg.eom()) {
 			worker_ID = read_msg.read_uint16();
-			log->info("MMMMMMMMMMMMMMMMMMMMM {}", worker_ID);
-			for (auto it = group_driver.workers.begin(); it != group_driver.workers.end(); it++)
-				log->info("YYYYYYYYYYYYYY {}", it->first);
+//			for (auto it = group_driver.workers.begin(); it != group_driver.workers.end(); it++)
+//				log->info("YYYYYYYYYYYYYY {}", it->first);
 			it = group_driver.workers.find(worker_ID);
-			log->info("fffffffffffffffff {}", it->first);
 			if (it != workers.end()) {
-				log->info("MMMMMMMMMMMMMMMMMMMMM {}", worker_ID);
 				yielded_workers.push_back(worker_ID);
 			}
 		}
@@ -427,12 +417,14 @@ void DriverSession::handle_list_available_libraries()
 
 void DriverSession::handle_load_library()
 {
-	string path = "/Users/kai/Projects/AlLib/target/testlib.dylib";
-	group_driver.load_library(read_msg.read_string(), path);
+//	string path = "/Users/kai/Projects/AlLib/target/testlib.dylib";
+	string lib_name = read_msg.read_string();
+	string lib_path = read_msg.read_string();
+	log->info("ssdsdd {} {}", lib_name, lib_path);
+	Library_ID lib_ID = group_driver.load_library(lib_name, lib_path);
 
-	uint16_t temp = 1;
 	write_msg.start(client_ID, session_ID, LOAD_LIBRARY);
-	write_msg.add_uint16(temp);
+	write_msg.add_uint16(lib_ID);
 	flush();
 }
 
@@ -471,7 +463,17 @@ void DriverSession::handle_run_task()
 //	Library_ID lib_ID = read_msg.read_uint16();
 //	string function_name = read_msg.read_string();
 
-	group_driver.run_task(read_msg.body(), read_msg.get_body_length());
+	const char * in_data = read_msg.body();
+	uint32_t in_data_length = read_msg.get_body_length();
+	char * out_data = nullptr;
+	uint32_t out_data_length;
+
+	group_driver.run_task(in_data, in_data_length, out_data, out_data_length, read_msg.get_client_language());
+
+	write_msg.start(client_ID, session_ID, RUN_TASK);
+	write_msg.copy_body(&out_data[0], out_data_length);
+	flush();
+
 
 //	string parameter_name = "";
 //	datatype dt = NONE;
@@ -503,7 +505,6 @@ void DriverSession::handle_run_task()
 //		for (uint32_t row = 0; row < num_rows; row++)
 //			write_msg.add_uint16(row_assignments[row]);
 //	}
-//	flush();
 }
 
 void DriverSession::handle_invalid_command()
