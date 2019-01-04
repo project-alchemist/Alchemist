@@ -18,10 +18,13 @@ LDFLAGS += -Wl,-rpath,/opt/intel/compilers_and_libraries_2016.3.210/linux/compil
 OBJ_FILES = \
 	$(TARGET_PATH)/main.o \
 	$(TARGET_PATH)/Session.o \
+	$(TARGET_PATH)/DriverSession.o \
+	$(TARGET_PATH)/WorkerSession.o \
 	$(TARGET_PATH)/Server.o \
-	$(TARGET_PATH)/Executor.o \
 	$(TARGET_PATH)/Driver.o \
-	$(TARGET_PATH)/Worker.o
+	$(TARGET_PATH)/Worker.o \
+	$(TARGET_PATH)/GroupDriver.o \
+	$(TARGET_PATH)/GroupWorker.o
 
 $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
 	$(CXX) -c $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 $< -o $@
