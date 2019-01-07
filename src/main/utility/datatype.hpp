@@ -58,7 +58,9 @@ typedef enum _datatype : uint8_t {
 	COMMAND_CODE,
 	LIBRARY_ID,
 	MATRIX_ID,
-	MATRIX_HANDLE
+	MATRIX_HANDLE,
+	DISTMATRIX,
+	VOID_POINTER
 } datatype;
 
 inline const uint8_t get_datatype_length(const datatype & dt)
@@ -194,6 +196,10 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "MATRIX ID";
 		case MATRIX_HANDLE:
 			return "MATRIX HANDLE";
+		case DISTMATRIX:
+			return "DISTMATRIX";
+		case VOID_POINTER:
+			return "VOID POINTER";
 		default:
 			return "INVALID DATATYPE";
 		}

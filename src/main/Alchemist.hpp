@@ -25,12 +25,13 @@
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
 #endif
+#include <El.hpp>
+#include "mpi.h"
 #include "utility/endian.hpp"
 #include "utility/client_language.hpp"
 #include "utility/command.hpp"
 #include "utility/logging.hpp"
 #include "utility/datatype.hpp"
-#include "DistMatrix.hpp"
 
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
@@ -126,6 +127,16 @@ struct MatrixInfo {
 	MatrixInfo(Matrix_ID _ID, uint64_t _num_rows, uint64_t _num_cols) :
 		ID(_ID), num_rows(_num_rows), num_cols(_num_cols) {
 		row_assignments.resize(num_rows);
+	}
+
+	~MatrixInfo() { }
+
+	string to_string() const {
+		std::stringstream ss;
+
+		ss << "Matrix " << ID << " (dim: " << num_rows << " x " << num_cols << ")";
+
+		return ss.str();
 	}
 };
 

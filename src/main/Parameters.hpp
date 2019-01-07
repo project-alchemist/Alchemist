@@ -5,6 +5,9 @@
 
 namespace alchemist {
 
+typedef El::DistMatrix<double> DistMatrix;
+typedef std::shared_ptr<El::AbstractDistMatrix<double>> DistMatrix_ptr;
+
 using std::string;
 using std::stringstream;
 
@@ -894,29 +897,29 @@ protected:
 	string value;
 };
 
-struct MatrixIDParameter : Parameter {
+struct MatrixInfoParameter : Parameter {
 public:
 
-	MatrixIDParameter(string _name, Matrix_ID _value) : Parameter(_name, MATRIX_ID), value(_value) { }
+	MatrixInfoParameter(string _name, MatrixInfo _value) : Parameter(_name, MATRIX_ID), value(_value) { }
 
-	~MatrixIDParameter() { }
+	~MatrixInfoParameter() { }
 
-	Matrix_ID get_value() const {
+	MatrixInfo get_value() const {
 		return value;
 	}
 
 	string to_string() const {
-		return std::to_string(value);
+		return value.to_string();
 	}
 
 protected:
-	Matrix_ID value;
+	MatrixInfo value;
 };
 
 struct DistMatrixParameter : Parameter {
 public:
 
-	DistMatrixParameter(string _name, DistMatrix_ptr _value) : Parameter(_name, NONE), value(_value) {}
+	DistMatrixParameter(string _name, DistMatrix_ptr _value) : Parameter(_name, DISTMATRIX), value(_value) {}
 
 	~DistMatrixParameter() {}
 
@@ -937,7 +940,7 @@ protected:
 struct PointerParameter : Parameter {
 public:
 
-	PointerParameter(string _name, void * _value) : Parameter(_name, NONE), value(_value) {}
+	PointerParameter(string _name, void * _value) : Parameter(_name, VOID_POINTER), value(_value) {}
 
 	~PointerParameter() {}
 
@@ -962,34 +965,34 @@ public:
 	~Parameters() { }
 
 	uint32_t current_parameter_count;
-	std::map<string, std::shared_ptr<Parameter> >::iterator it;
+	std::map<std::string, std::shared_ptr<Parameter> >::iterator it;
 
 	datatype get_next_parameter()
 	{
+		datatype _dt = NONE;
+
 		if (current_parameter_count == 0) it = parameters.begin();
 		else it++;
-		current_parameter_count++;
 
-		datatype _dt = it->second->dt;
+		if (it != parameters.end()) {
+			current_parameter_count++;
+			_dt = it->second->dt;
+		}
 
 		return _dt;
 	}
 
-	string get_name() {
+	std::string get_name() {
 		return it->second->get_name();
 	}
 
 	int num() const {
-		return parameters.size() + matrix_parameters.size() + distmatrix_parameters.size();
+		return parameters.size();
 	}
 
 //	size_t num_distmatrices() const {
 //		return distmatrix_parameters.size();
 //	}
-
-	size_t num_matrices() const {
-		return matrix_parameters.size();
-	}
 
 	void add(Parameter * p) {
 		parameters.insert(std::make_pair(p->get_name(), p));
@@ -1187,20 +1190,16 @@ public:
 		parameters.insert(std::make_pair(name, new WStringParameter(name, value)));
 	}
 
-	void add_matrix_ID(string name, const Matrix_ID value) {
-		matrix_parameters.insert(std::make_pair(name, new MatrixIDParameter(name, value)));
+	void add_matrix_info(string name, const MatrixInfo & value) {
+		parameters.insert(std::make_pair(name, new MatrixInfoParameter(name, value)));
 	}
 
-	void add_distmatrix(string name, const DistMatrix_ptr & value) {
-		distmatrix_parameters.insert(std::make_pair(name, new DistMatrixParameter(name, value)));
+	void add_distmatrix(string name, DistMatrix_ptr value) {
+		parameters.insert(std::make_pair(name, new DistMatrixParameter(name, value)));
 	}
-
-//	void add_distmatrix(string name, DistMatrix * value) {
-//		distmatrix_parameters.insert(std::make_pair(name, new DistMatrixParameter(name, value)));
-//	}
 
 	void add_ptr(string name, void * value) {
-		pointer_parameters.insert(std::make_pair(name, new PointerParameter(name, value)));
+		parameters.insert(std::make_pair(name, new PointerParameter(name, value)));
 	}
 
 	int get_char(string name) const {
@@ -1311,63 +1310,34 @@ public:
 		return std::dynamic_pointer_cast<LongDoubleParameter> (parameters.find(name)->second)->get_value();
 	}
 
-	string get_string(string name) const {
-		return std::dynamic_pointer_cast<StringParameter> (parameters.find(name)->second)->get_value();
+	std::string get_string(std::string name) const {
+		return std::dynamic_pointer_cast<StringParameter>(parameters.find(name)->second)->get_value();
 	}
 
-	Matrix_ID get_matrix_ID(string name) const {
-		return std::dynamic_pointer_cast<MatrixIDParameter> (parameters.find(name)->second)->get_value();
+	MatrixInfo get_matrix_info(string name) const {
+		return std::dynamic_pointer_cast<MatrixInfoParameter>(parameters.find(name)->second)->get_value();
 	}
 
-	uint32_t get_matrixhandle(string name) const {
-		return matrix_parameters.find(name)->second->get_value();
+	DistMatrix_ptr get_distmatrix(string name) const {
+		return std::dynamic_pointer_cast<DistMatrixParameter>(parameters.find(name)->second)->get_value();
 	}
-
-//	DistMatrix * get_distmatrix(string name) const {
-//		return distmatrix_parameters.find(name)->second->get_value();
-//	}
 
 	void * get_ptr(string name) const {
-		return pointer_parameters.find(name)->second->get_value();
-	}
-
-	std::map<string, std::shared_ptr<MatrixIDParameter> > get_matrixhandles() const {
-		return matrix_parameters;
-	}
-
-//	std::map<string, std::shared_ptr<DistMatrixParameter> > get_distmatrices() const {
-//		return distmatrix_parameters;
-//	}
-
-	std::map<string, std::shared_ptr<PointerParameter> > get_pointers() const {
-		return pointer_parameters;
+		return std::dynamic_pointer_cast<PointerParameter>(parameters.find(name)->second)->get_value();
 	}
 
 	string to_string() const {
-		string arg_list = "";
+		std::stringstream arg_list;
 
 		for (auto it = parameters.begin(); it != parameters.end(); it++ ) {
-			arg_list.append(it->first);
-			arg_list.append("(");
-			arg_list.append(it->second->to_string());
-			arg_list.append(")");
+			arg_list << it->first << ": "<< it->second->to_string() << std::endl;
 		}
 
-		for (auto it = matrix_parameters.begin(); it != matrix_parameters.end(); it++ ) {
-			arg_list.append(it->first);
-			arg_list.append("(mh ");
-			arg_list.append(it->second->to_string());
-			arg_list.append(")");
-		}
-
-		return arg_list;
+		return arg_list.str();
 	}
 
 private:
 	std::map<string, std::shared_ptr<Parameter> > parameters;
-	std::map<string, std::shared_ptr<MatrixIDParameter> > matrix_parameters;
-	std::map<string, std::shared_ptr<DistMatrixParameter> > distmatrix_parameters;
-	std::map<string, std::shared_ptr<PointerParameter> > pointer_parameters;
 };
 
 }

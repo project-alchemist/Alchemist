@@ -7,11 +7,11 @@
 #include "Library.hpp"
 
 namespace alchemist {
-typedef El::AbstractDistMatrix<double> ElDistMatrix;
 
 class Worker;
 class WorkerSession;
 
+typedef std::shared_ptr<El::Grid> Grid_ptr;
 typedef std::shared_ptr<WorkerSession> WorkerSession_ptr;
 
 class GroupWorker : public Server, public std::enable_shared_from_this<GroupWorker>

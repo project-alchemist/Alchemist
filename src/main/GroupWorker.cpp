@@ -428,8 +428,10 @@ int GroupWorker::new_matrix()
 	MPI_Barrier(group);
 	log->info("PAST _AM_NEW_MATRIX BARRIER 1");
 
-	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *grid)));
-//	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *(grids[current_grid]))));
+	DistMatrix_ptr M = std::make_shared<El::DistMatrix<double, El::VR, El::STAR>>(El::DistMatrix<double, El::VR, El::STAR>(num_rows, num_cols, *grid));
+	El::Zero(*M);
+
+	matrices.insert(std::make_pair(ID, M));
 	log->info("{} Created new Elemental distributed matrix {}", client_preamble(), ID);
 
 	log->info("AT _AM_NEW_MATRIX BARRIER 2");
@@ -450,7 +452,7 @@ int GroupWorker::get_matrix_layout()
 	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Barrier(group);
 
-	auto matrix = matrices[ID]->data;
+	DistMatrix_ptr matrix = matrices[ID];
 	uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
 	uint64_t * local_rows = new uint64_t[num_local_rows];
 
@@ -478,32 +480,32 @@ int GroupWorker::get_matrix_layout()
 
 void GroupWorker::set_value(Matrix_ID ID, uint64_t row, uint64_t col, float value)
 {
-	matrices[ID]->data->Set(row, col, value);
+	matrices[ID]->Set(row, col, value);
 }
 
 void GroupWorker::set_value(Matrix_ID ID, uint64_t row, uint64_t col, double value)
 {
-	matrices[ID]->data->Set(row, col, value);
+	matrices[ID]->Set(row, col, value);
 }
 
 void GroupWorker::get_value(Matrix_ID ID, uint64_t row, uint64_t col, float & value)
 {
-	value = matrices[ID]->data->Get(row, col);
+	value = matrices[ID]->Get(row, col);
 }
 
 void GroupWorker::get_value(Matrix_ID ID, uint64_t row, uint64_t col, double & value)
 {
-	value = matrices[ID]->data->Get(row, col);
+	value = matrices[ID]->Get(row, col);
 }
 
 void GroupWorker::print_data(Matrix_ID ID)
 {
 	std::stringstream ss;
 	ss << "LOCAL DATA:" << std::endl;
-	ss << "Local size: " << matrices[ID]->data->LocalHeight() << " x " << matrices[ID]->data->LocalWidth() << std::endl;
-	for (El::Int i = 0; i < matrices[ID]->data->LocalHeight(); i++) {
-		for (El::Int j = 0; j < matrices[ID]->data->LocalWidth(); j++)
-			ss <<  matrices[ID]->data->GetLocal(i, j) << " ";
+	ss << "Local size: " << matrices[ID]->LocalHeight() << " x " << matrices[ID]->LocalWidth() << std::endl;
+	for (El::Int i = 0; i < matrices[ID]->LocalHeight(); i++) {
+		for (El::Int j = 0; j < matrices[ID]->LocalWidth(); j++)
+			ss <<  matrices[ID]->GetLocal(i, j) << " ";
 		ss << std::endl;
 	}
 	log->info(ss.str());

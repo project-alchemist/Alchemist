@@ -9,15 +9,10 @@ fi
 if [ "$SYSTEM" = "MacOS" ]; then
 	export ALCHEMIST_PATH=$HOME/Projects/Alchemist2
 	export ELEMENTAL_PATH=$HOME/Software/Elemental
-	export EIGEN3_PATH=$HOME/Projects/eigen
-	export ARPACK_PATH=$HOME/Software/arpack
 
 elif [ "$SYSTEM" = "Linux" ]; then
 	export ALCHEMIST_PATH=/usr/local/Alchemist
-	export SPDLOG_PATH=/usr/local/spdlog
 	export ELEMENTAL_PATH=/usr/local/elemental
-	export EIGEN3_PATH=/usr/local/eigen
-	export ARPACK_PATH=/usr/local/arpack
 	export ASIO_PATH=/usr/local/asio
 
 elif [ "$SYSTEM" = "Cori" ]; then

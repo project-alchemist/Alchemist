@@ -512,18 +512,21 @@ void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
 			p.add_wstring(name, msg.read_wstring());
 			break;
 		case MATRIX_ID:
-			p.add_matrix_ID(name, msg.read_matrix_ID());
+			p.add_matrix_info(name, matrices[msg.read_matrix_ID()]);
 			break;
 		}
 	}
 }
 
-void GroupDriver::serialize_parameters(Parameters & p, Message & msg) {
-
+void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
+{
+	log->info("JSJDJSD");
 	string name = "";
 	datatype dt = p.get_next_parameter();
+	log->info("JSJDJSDmn");
 	while (dt != NONE) {
 		name = p.get_name();
+		log->info("JSJ {}", name);
 		msg.add_string(name);
 
 //		if (dt == UINT64_T) {
@@ -675,12 +678,13 @@ void GroupDriver::serialize_parameters(Parameters & p, Message & msg) {
 //			msg.add_wstring(p.get_wstring(name));
 			break;
 		case MATRIX_ID:
-			msg.add_matrix_ID(p.get_matrix_ID(name));
+			msg.add_matrix_ID(p.get_matrix_info(name).ID);
 			break;
 		}
 
 		dt = p.get_next_parameter();
 	}
+	log->info("ffffffff");
 }
 
 
