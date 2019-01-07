@@ -15,7 +15,7 @@ GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_
     	    GroupWorker(_group_ID, _worker, _io_context, tcp::endpoint(tcp::v4(), port), _log) { }
 
 GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
-			Server(_io_context, endpoint, _log), current_grid(-1), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
+			Server(_io_context, endpoint, _log), grid(nullptr), current_grid(-1), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
 			next_session_ID(0), connection_open(false)
 {
 	worker_ID = worker.get_ID();
@@ -37,9 +37,7 @@ void GroupWorker::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 
 void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
-	log->info("vvvv1");
 	MPI_Comm_create_group(world, temp_group, 0, &group_peers);
-	log->info("vvvv2");
 
 //
 //	MPI_Barrier(group_peers);
@@ -48,6 +46,7 @@ void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 //		grid = nullptr;
 //		grid.reset(new El::Grid(El::mpi::Comm(group_peers)));
 //	}
+	grid = std::make_shared<El::Grid>(El::mpi::Comm(group_peers));
 	log->info("AT _SET_GROUP_PEERS_COMM BARRIER");
 	MPI_Barrier(group_peers);
 	log->info("PAST _SET_GROUP_PEERS_COMM BARRIER");
@@ -425,13 +424,17 @@ int GroupWorker::new_matrix()
 	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 
+	log->info("AT _AM_NEW_MATRIX BARRIER 1");
 	MPI_Barrier(group);
+	log->info("PAST _AM_NEW_MATRIX BARRIER 1");
 
-//	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, group_peers)));
-	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *(grids[current_grid]))));
+	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *grid)));
+//	matrices.insert(std::make_pair(ID, new DistMatrix(num_rows, num_cols, *(grids[current_grid]))));
 	log->info("{} Created new Elemental distributed matrix {}", client_preamble(), ID);
 
+	log->info("AT _AM_NEW_MATRIX BARRIER 2");
 	MPI_Barrier(group);
+	log->info("PAST _AM_NEW_MATRIX BARRIER 2");
 
 	return 0;
 }

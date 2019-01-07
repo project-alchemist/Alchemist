@@ -32,6 +32,8 @@ public:
 
 	int start();
 
+	Grid_ptr grid;
+
 	uint32_t current_grid;
 	vector<Grid_ptr> grids;
 

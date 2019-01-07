@@ -771,11 +771,15 @@ Matrix_ID GroupDriver::new_matrix(unsigned char type, unsigned char layout, uint
 	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 
+	log->info("AT _AM_NEW_MATRIX BARRIER 1");
 	MPI_Barrier(group);
+	log->info("PAST _AM_NEW_MATRIX BARRIER 1");
 
 	matrices.insert(std::make_pair(next_matrix_ID, MatrixInfo(next_matrix_ID, num_rows, num_cols)));
 
+	log->info("AT _AM_NEW_MATRIX BARRIER 2");
 	MPI_Barrier(group);
+	log->info("PAST _AM_NEW_MATRIX BARRIER 2");
 
 	return next_matrix_ID;
 }
