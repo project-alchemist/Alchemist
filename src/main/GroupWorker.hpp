@@ -79,6 +79,7 @@ private:
 
 	Worker_ID worker_ID;
 	Group_ID group_ID;
+	Matrix_ID current_matrix_ID;
 	Session_ID next_session_ID;
 
 	Worker & worker;
@@ -122,6 +123,7 @@ private:
 
 	int process_input_parameters(Parameters & input_parameters);
 	int process_output_parameters(Parameters & output_parameters);
+	void read_matrix_parameters(Parameters & output_parameters);
 
 	// -------------------------------------   Client Management   -----------------------------------
 

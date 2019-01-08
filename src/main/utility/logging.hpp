@@ -8,7 +8,7 @@
 
 namespace alchemist {
 
-#define SPACE "                                              ";
+#define SPACE "                                                 ";
 #define TAB "    ";
 
 typedef std::shared_ptr<spdlog::logger> Log_ptr;

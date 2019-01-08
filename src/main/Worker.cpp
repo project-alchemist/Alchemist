@@ -5,10 +5,6 @@ namespace alchemist {
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-//
-//Worker::Worker(io_context & _io_context, tcp::endpoint & _endpoint) :
-//				ic(_io_context), endpoint(_endpoint), ID(0), client_ID(0), next_session_ID(0), accept_connections(false)
-
 Worker::Worker(io_context & _io_context, const unsigned int _port) :
 		ic(_io_context), group_worker(nullptr), ID(0), client_ID(0), next_session_ID(0), accept_connections(false)
 {
@@ -31,7 +27,7 @@ Worker::Worker(io_context & _io_context, const unsigned int _port) :
 	char buffer[12];
 	sprintf(buffer, "worker-%03d", ID);
 
-	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l] %v");
+	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]    %v");
 
 	wait_for_command();
 }

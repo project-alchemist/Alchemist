@@ -31,7 +31,7 @@ bool DriverSession::send_response_string()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
-	log->info("IN: {}", read_msg.to_string());
+//	log->info("IN: {}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
@@ -420,7 +420,7 @@ void DriverSession::handle_load_library()
 //	string path = "/Users/kai/Projects/AlLib/target/testlib.dylib";
 	string lib_name = read_msg.read_string();
 	string lib_path = read_msg.read_string();
-	log->info("ssdsdd {} {}", lib_name, lib_path);
+
 	Library_ID lib_ID = group_driver.load_library(lib_name, lib_path);
 
 	write_msg.start(client_ID, session_ID, LOAD_LIBRARY);

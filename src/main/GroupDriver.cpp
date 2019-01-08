@@ -43,9 +43,7 @@ void GroupDriver::open_workers()
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	log->info("AT _AM_GROUP_OPEN_CONNECTIONS BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _AM_GROUP_OPEN_CONNECTIONS BARRIER");
 }
 
 void GroupDriver::close_workers()
@@ -59,9 +57,7 @@ void GroupDriver::close_workers()
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	log->info("AT _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
 }
 
 void GroupDriver::free_group()
@@ -78,9 +74,7 @@ void GroupDriver::free_group()
 		MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 		MPI_Wait(&req, &status);
 
-		log->info("AT _AM_FREE_GROUP BARRIER");
 		MPI_Barrier(group);
-		log->info("PAST _AM_FREE_GROUP BARRIER");
 		MPI_Comm_free(&group);
 		group = MPI_COMM_NULL;
 	}
@@ -97,9 +91,7 @@ void GroupDriver::print_info()
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	log->info("AT _AM_PRINT_INFO BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _AM_PRINT_INFO BARRIER");
 }
 
 const map<Worker_ID, WorkerInfo> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
@@ -131,12 +123,9 @@ uint64_t GroupDriver::get_num_cols(Matrix_ID & matrix_ID)
 
 void GroupDriver::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
-
 	log->info("Creating new group");
 	MPI_Comm_create_group(world, temp_group, 0, &group);
-	log->info("AT _SET_GROUP_COMM BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _SET_GROUP_COMM BARRIER");
 
 }
 
@@ -520,13 +509,10 @@ void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
 
 void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 {
-	log->info("JSJDJSD");
 	string name = "";
 	datatype dt = p.get_next_parameter();
-	log->info("JSJDJSDmn");
 	while (dt != NONE) {
 		name = p.get_name();
-		log->info("JSJ {}", name);
 		msg.add_string(name);
 
 //		if (dt == UINT64_T) {
@@ -684,76 +670,7 @@ void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 
 		dt = p.get_next_parameter();
 	}
-	log->info("ffffffff");
 }
-
-
-//int GroupDriver::run_task(const char * data, uint32_t data_length)
-//{
-//	alchemist_command command = WORKER_RUN_TASK;
-//
-//	log->info("Sending command {} to workers", get_command_name(command));
-//
-//	MPI_Request req;
-//	MPI_Status status;
-//	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
-//	MPI_Wait(&req, &status);
-//
-//	MPI_Bcast(&data_length, 1, MPI_UNSIGNED, 0, group);
-//	MPI_Bcast(&data, data_length, MPI_CHAR, 0, group);
-//
-//	MPI_Barrier(group);
-//
-//	Message temp_msg = Message();
-//	temp_msg.cl = session->read_msg.cl;
-//	temp_msg.copy_data(&data[0], data_length);
-//	temp_msg.to_string();
-//
-//	if (!library) {
-//		string task = temp_msg.read_string();
-//		Matrix_ID matrix_ID = temp_msg.read_uint16();
-//		uint32_t rank = temp_msg.read_uint16();
-//
-//		truncated_SVD(matrix_ID, rank);
-//	}
-//
-//	return 0;
-//}
-
-//int GroupDriver::run_task(string task, Matrix_ID matrix_ID, uint32_t rank, uint8_t method)
-//{
-//	alchemist_command command = _AM_WORKER_RUN_TASK;
-//
-//	log->info("Sending command {} to workers", get_command_name(command));
-//
-//	MPI_Request req;
-//	MPI_Status status;
-//	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
-//	MPI_Wait(&req, &status);
-//
-//	MPI_Bcast(&matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-//	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
-//	MPI_Bcast(&method, 1, MPI_UNSIGNED_CHAR, 0, group);
-//
-//	MPI_Barrier(group);
-////
-////	Message temp_msg = Message();
-////	temp_msg.cl = session->read_msg.cl;
-////	temp_msg.copy_data(&data[0], data_length);
-////	temp_msg.to_string();
-//
-////	if (!library) {
-////		string task = temp_msg.read_string();
-////		Matrix_ID matrix_ID = temp_msg.read_uint16();
-////		uint32_t rank = temp_msg.read_uint16();
-//
-//		truncated_SVD(matrix_ID, rank, method);
-////	}
-//
-//	return 0;
-//}
-
-
 
 Matrix_ID GroupDriver::new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols)
 {
@@ -775,15 +692,11 @@ Matrix_ID GroupDriver::new_matrix(unsigned char type, unsigned char layout, uint
 	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 
-	log->info("AT _AM_NEW_MATRIX BARRIER 1");
 	MPI_Barrier(group);
-	log->info("PAST _AM_NEW_MATRIX BARRIER 1");
 
 	matrices.insert(std::make_pair(next_matrix_ID, MatrixInfo(next_matrix_ID, num_rows, num_cols)));
 
-	log->info("AT _AM_NEW_MATRIX BARRIER 2");
 	MPI_Barrier(group);
-	log->info("PAST _AM_NEW_MATRIX BARRIER 2");
 
 	return next_matrix_ID;
 }

@@ -11,7 +11,7 @@ Driver::Driver(io_context & _io_context, const unsigned int port) :
 Driver::Driver(io_context & _io_context, const tcp::endpoint & endpoint) :
 				Server(_io_context, endpoint), next_matrix_ID(0), next_group_ID(0)
 {
-	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]     %v");
+	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]        %v");
 	Server::set_log(log);
 
 	world = MPI_COMM_WORLD;
@@ -127,7 +127,6 @@ void Driver::set_group_communicator(const Group_ID & group_ID)
 
 	int i = 1;
 	for (auto it = groups[group_ID]->workers.begin(); it != groups[group_ID]->workers.end(); it++) {
-		log->info("Send {}", it->first);
 		group_IDs[i] = it->first;
 		group_peer_IDs[i-1] = it->first;
 		i++;
@@ -145,9 +144,6 @@ void Driver::set_group_communicator(const Group_ID & group_ID)
 	alchemist_command command = _AM_NEW_GROUP;
 
 	log->info("Sending command {} to {} workers", get_command_name(command), group_size);
-	for (int i = 0; i < group_size; i++) {
-		log->info("S {}", group_IDs[i+1]);
-	}
 	groups[group_ID]->free_group();
 
 	MPI_Request req;
@@ -251,8 +247,6 @@ uint16_t Driver::allocate_workers(const Group_ID group_ID, const uint16_t & num_
 	uint16_t num_allocated_workers = std::min(num_requested_workers, (uint16_t) unallocated_workers.size());
 
 	std::lock_guard<std::mutex> lock(worker_mutex);
-
-	log->info("zzzzzzzzzz {}", num_allocated_workers);
 
 	if (num_allocated_workers > 0) {
 

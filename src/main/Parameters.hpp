@@ -960,12 +960,19 @@ protected:
 
 struct Parameters {
 public:
-	Parameters() : current_parameter_count(0) { }
+	Parameters() : current_parameter_count(0), current_distmatrix_count(0) { }
 
 	~Parameters() { }
 
+	std::vector<string> distmatrix_names;
+	std::vector<string> matrix_info_names;
+	std::vector<string> ptr_names;
+
 	uint32_t current_parameter_count;
 	std::map<std::string, std::shared_ptr<Parameter> >::iterator it;
+
+	uint8_t current_distmatrix_count;
+	std::vector<std::string>::iterator distmatrix_it;
 
 	datatype get_next_parameter()
 	{
@@ -982,8 +989,35 @@ public:
 		return _dt;
 	}
 
+	void get_next_distmatrix(string & distmatrix_name, DistMatrix_ptr & distmatrix_ptr)
+	{
+		distmatrix_name = "";
+		distmatrix_ptr = nullptr;
+
+		if (current_distmatrix_count == 0) distmatrix_it = distmatrix_names.begin();
+		else distmatrix_it++;
+
+		if (distmatrix_it != distmatrix_names.end()) {
+			current_distmatrix_count++;
+			distmatrix_name = *distmatrix_it;
+			distmatrix_ptr = get_distmatrix(*distmatrix_it);
+		}
+	}
+
 	std::string get_name() {
 		return it->second->get_name();
+	}
+
+	uint8_t num_distmatrices() {
+		return (uint8_t) distmatrix_names.size();
+	}
+
+	uint8_t num_matrix_infos() {
+		return (uint8_t) matrix_info_names.size();
+	}
+
+	uint8_t num_void_pointers() {
+		return (uint8_t) ptr_names.size();
 	}
 
 	int num() const {
@@ -1330,7 +1364,7 @@ public:
 		std::stringstream arg_list;
 
 		for (auto it = parameters.begin(); it != parameters.end(); it++ ) {
-			arg_list << it->first << ": "<< it->second->to_string() << std::endl;
+			arg_list << it->first << " (" << it->second->dt << "): "<< it->second->to_string() << std::endl;
 		}
 
 		return arg_list.str();

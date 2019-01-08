@@ -56,9 +56,8 @@ typedef enum _datatype : uint8_t {
 	STRING,
 	WSTRING,
 	COMMAND_CODE,
-	LIBRARY_ID,
 	MATRIX_ID,
-	MATRIX_HANDLE,
+	LIBRARY_ID,
 	DISTMATRIX,
 	VOID_POINTER
 } datatype;
@@ -190,12 +189,10 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "STRING";
 		case WSTRING:
 			return "WSTRING";
-		case LIBRARY_ID:
-			return "LIBRARY ID";
 		case MATRIX_ID:
 			return "MATRIX ID";
-		case MATRIX_HANDLE:
-			return "MATRIX HANDLE";
+		case LIBRARY_ID:
+			return "LIBRARY ID";
 		case DISTMATRIX:
 			return "DISTMATRIX";
 		case VOID_POINTER:

@@ -16,7 +16,7 @@ GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_
 
 GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
 			Server(_io_context, endpoint, _log), grid(nullptr), current_grid(-1), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
-			next_session_ID(0), connection_open(false)
+			next_session_ID(0), current_matrix_ID(0), connection_open(false)
 {
 	worker_ID = worker.get_ID();
 
@@ -27,12 +27,8 @@ GroupWorker::~GroupWorker() { }
 
 void GroupWorker::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
-	log->info("uuuu1");
 	MPI_Comm_create_group(world, temp_group, 0, &group);
-	log->info("uuuu2");
-	log->info("AT _SET_GROUP_COMM BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _SET_GROUP_COMM BARRIER");
 }
 
 void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
@@ -47,9 +43,7 @@ void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 //		grid.reset(new El::Grid(El::mpi::Comm(group_peers)));
 //	}
 	grid = std::make_shared<El::Grid>(El::mpi::Comm(group_peers));
-	log->info("AT _SET_GROUP_PEERS_COMM BARRIER");
 	MPI_Barrier(group_peers);
-	log->info("PAST _SET_GROUP_PEERS_COMM BARRIER");
 
 //	current_grid++;
 //	grids.push_back(std::make_shared<El::Grid>(El::mpi::Comm(group_peers)));
@@ -119,7 +113,7 @@ int GroupWorker::wait_for_command()
 		flag = 0;
 		c = _AM_IDLE;
 
-		log->info("Number of threads: {}", threads.size());
+//		log->info("Number of threads: {}", threads.size());
 	}
 
 	for (auto & t: threads) t.join();
@@ -130,18 +124,16 @@ int GroupWorker::wait_for_command()
 void GroupWorker::handle_free_group()
 {
 	if (group != MPI_COMM_NULL) {
-		log->info("AT _AM_FREE_GROUP BARRIER 1");
 		MPI_Barrier(group);
-		log->info("PAST _AM_FREE_GROUP BARRIER 1");
+
 		MPI_Comm_free(&group);
 		group = MPI_COMM_NULL;
 	}
 
 	if (group_peers != MPI_COMM_NULL) {
 //		grids[current_grid] = nullptr;
-		log->info("AT _AM_FREE_GROUP BARRIER 2");
 		MPI_Barrier(group_peers);
-		log->info("PAST _AM_FREE_GROUP BARRIER 2");
+
 		MPI_Comm_free(&group_peers);
 		group_peers = MPI_COMM_NULL;
 	}
@@ -191,17 +183,13 @@ int GroupWorker::handle_command(alchemist_command c)
 void GroupWorker::handle_print_info()
 {
 	worker.print_info();
-	log->info("AT _AM_PRINT_INFO BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _AM_PRINT_INFO BARRIER");
 }
 
 void GroupWorker::handle_group_open_connections()
 {
 	connection_open = true;
-	log->info("AT _AM_GROUP_OPEN_CONNECTIONS BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _AM_GROUP_OPEN_CONNECTIONS BARRIER");
 	accept_connection();
 }
 
@@ -210,10 +198,7 @@ void GroupWorker::handle_group_close_connections()
 	log->info("Closing connection");
 	connection_open = false;
 
-
-	log->info("AT _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
 	MPI_Barrier(group);
-	log->info("PAST _AM_GROUP_CLOSE_CONNECTIONS BARRIER");
 }
 
 
@@ -418,27 +403,44 @@ int GroupWorker::new_matrix()
 	log->info("Creating new Elemental distributed matrix");
 
 	uint64_t num_rows, num_cols;
-	Matrix_ID ID;
 
-	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+	MPI_Bcast(&current_matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 
-	log->info("AT _AM_NEW_MATRIX BARRIER 1");
 	MPI_Barrier(group);
-	log->info("PAST _AM_NEW_MATRIX BARRIER 1");
 
-	DistMatrix_ptr M = std::make_shared<El::DistMatrix<double, El::VR, El::STAR>>(El::DistMatrix<double, El::VR, El::STAR>(num_rows, num_cols, *grid));
+	DistMatrix_ptr M = std::make_shared<El::DistMatrix<double, El::VR, El::STAR>>(num_rows, num_cols, *grid);
 	El::Zero(*M);
 
-	matrices.insert(std::make_pair(ID, M));
-	log->info("{} Created new Elemental distributed matrix {}", client_preamble(), ID);
+	matrices.insert(std::make_pair(current_matrix_ID, M));
+	log->info("{} Created new Elemental distributed matrix {}", client_preamble(), current_matrix_ID);
 
-	log->info("AT _AM_NEW_MATRIX BARRIER 2");
 	MPI_Barrier(group);
-	log->info("PAST _AM_NEW_MATRIX BARRIER 2");
 
 	return 0;
+}
+
+void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
+{
+	DistMatrix_ptr distmatrix_ptr = nullptr;
+	string distmatrix_name = "";
+
+	output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
+
+//	std::stringstream ss;
+//	ss << "BLAH : ";
+
+	while (distmatrix_ptr != nullptr) {
+
+//		ss << distmatrix_name << " " << distmatrix_ptr << std::endl;
+
+		matrices.insert(std::make_pair(++current_matrix_ID, distmatrix_ptr));
+
+		output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
+	}
+
+//	log->info(":D {}", ss.str());
 }
 
 int GroupWorker::get_matrix_layout()
@@ -551,38 +553,10 @@ void GroupWorker::run_task()
 
 		MPI_Barrier(group);
 
-		serialize_parameters(out, temp_out_msg);
+//		serialize_parameters(out, temp_out_msg);
+
+		read_matrix_parameters(out);
 	}
-
-
-//	MPI_Bcast(&rank, 1, MPI_UNSIGNED, 0, group);
-//	MPI_Bcast(&method, 1, MPI_UNSIGNED_CHAR, 0, group);
-
-
-//	MPI_Bcast(&data_length, 1, MPI_UNSIGNED, 0, group);
-//	char data[data_length];
-//	MPI_Bcast(&data[0], data_length, MPI_CHAR, 0, group);
-//
-//	MPI_Barrier(group);
-//
-//	log->info("9999999");
-//	Message temp_msg = Message();
-//	log->info("8888888");
-//	temp_msg.copy_data(&data[0], data_length);
-//	log->info("6666666");
-//	temp_msg.decode_header();
-//	temp_msg.cl = sessions[temp_msg.session_ID+1]->read_msg.cl;
-//	temp_msg.to_string();
-
-//	if (!library) {
-//		string task = temp_msg.read_string();
-//		Matrix_ID matrix_ID = temp_msg.read_uint16();
-//		uint32_t rank = temp_msg.read_uint16();
-
-//		truncated_SVD(matrix_ID, rank, method);
-//	}
-
-//	return 0;
 }
 
 // ----------------------------------------   Parameters   ---------------------------------------
