@@ -432,16 +432,22 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 	output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
 
+	log->info("ottp {}", distmatrix_name);
+
 	while (distmatrix_ptr != nullptr) {
 		distmatrix_names.push_back(distmatrix_name);
 		distmatrix_ptrs.push_back(distmatrix_ptr);
 
 		output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
+
+		log->info("ottp {}", distmatrix_name);
 	}
 
-	uint8_t num_distmatrices = (uint8_t) distmatrix_ptrs.size();
+	int num_distmatrices = (int) distmatrix_ptrs.size();
 
-	if (primary_group_worker) MPI_Send(&num_distmatrices, 1, MPI_BYTE, 0, 0, group);
+	log->info("ottp {} {}", num_distmatrices, primary_group_worker);
+
+	if (primary_group_worker) MPI_Send(&num_distmatrices, 1, MPI_INT, 0, 0, group);
 
 	if (num_distmatrices > 0) {
 

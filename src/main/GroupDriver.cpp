@@ -349,7 +349,10 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 
 		Worker_ID primary_worker = workers.begin()->first;
 
-		MPI_Recv(&num_distmatrices, 1, MPI_BYTE, primary_worker, 0, group, &status);
+		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
+
+		log->info("ottp {}", num_distmatrices);
+
 		if (num_distmatrices > 0) {
 			Matrix_ID matrix_IDs[num_distmatrices];
 			for (int i = 0; i < num_distmatrices; i++) {
@@ -360,6 +363,8 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 
 				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
+
+				log->info("ottp {} {} {} {}", i, distmatrix_name, num_rows, num_cols);
 
 				matrices.insert(std::make_pair(next_matrix_ID, MatrixInfo(next_matrix_ID, 0, 0)));
 				matrix_IDs[i] = next_matrix_ID++;
@@ -396,6 +401,10 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 					delete [] row_indices;
 				}
 			}
+		}
+
+		for (auto itt = matrices.begin(); itt != matrices.end(); itt++) {
+			log->info("ott {}", itt->second.to_string());
 		}
 
 		MPI_Barrier(group);

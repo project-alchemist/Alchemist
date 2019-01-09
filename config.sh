@@ -13,6 +13,7 @@ if [ "$SYSTEM" = "MacOS" ]; then
 elif [ "$SYSTEM" = "Linux" ]; then
 	export ALCHEMIST_PATH=/usr/local/Alchemist
 	export ELEMENTAL_PATH=/usr/local/elemental
+	export SPDLOG_PATH=/usr/local/spdlog
 	export ASIO_PATH=/usr/local/asio
 
 elif [ "$SYSTEM" = "Cori" ]; then
