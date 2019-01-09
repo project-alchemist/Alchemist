@@ -37,7 +37,7 @@
 
 #define ALCHEMIST_PORT 24960
 #define ALCHEMIST_VERSION_MAJOR 0
-#define ALCHEMIST_VERSION_MINOR 2
+#define ALCHEMIST_VERSION_MINOR 5
 
 #ifndef NDEBUG
 #define ENSURE(x) assert(x)
@@ -117,6 +117,8 @@ struct WorkerInfo {
 
 struct MatrixInfo {
 	Matrix_ID ID;
+
+	string name;
 	uint64_t num_rows;
 	uint64_t num_cols;
 
@@ -125,7 +127,12 @@ struct MatrixInfo {
 	explicit MatrixInfo() : ID(0), num_rows(0), num_cols(0) { }
 
 	MatrixInfo(Matrix_ID _ID, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(_ID), num_rows(_num_rows), num_cols(_num_cols) {
+		MatrixInfo(_ID, "", _num_rows, _num_cols) {
+		row_assignments.resize(num_rows);
+	}
+
+	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
+		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols) {
 		row_assignments.resize(num_rows);
 	}
 
@@ -134,7 +141,7 @@ struct MatrixInfo {
 	string to_string() const {
 		std::stringstream ss;
 
-		ss << "Matrix " << ID << " (dim: " << num_rows << " x " << num_cols << ")";
+		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ")";
 
 		return ss.str();
 	}

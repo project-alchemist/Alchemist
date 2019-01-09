@@ -11,12 +11,12 @@ namespace alchemist {
 //			Server(_io_context, endpoint, _log), group_ID(_group_ID), worker_ID(_worker_ID), group(_group), group_peers(_group_peers),
 //			next_session_ID(0), accept_connections(false)
 
-GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, Log_ptr & _log) :
-    	    GroupWorker(_group_ID, _worker, _io_context, tcp::endpoint(tcp::v4(), port), _log) { }
+GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, bool _primary_group_worker, Log_ptr & _log) :
+    	    GroupWorker(_group_ID, _worker, _io_context, tcp::endpoint(tcp::v4(), port), _primary_group_worker, _log) { }
 
-GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log) :
+GroupWorker::GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, bool _primary_group_worker, Log_ptr & _log) :
 			Server(_io_context, endpoint, _log), grid(nullptr), current_grid(-1), group_ID(_group_ID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
-			next_session_ID(0), current_matrix_ID(0), connection_open(false)
+			next_session_ID(0), current_matrix_ID(0), connection_open(false), primary_group_worker(_primary_group_worker)
 {
 	worker_ID = worker.get_ID();
 
@@ -418,29 +418,78 @@ int GroupWorker::new_matrix()
 
 	MPI_Barrier(group);
 
+	get_matrix_layout();
+
 	return 0;
 }
 
 void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 {
 	DistMatrix_ptr distmatrix_ptr = nullptr;
+	std::vector<string> distmatrix_names;
+	std::vector<DistMatrix_ptr> distmatrix_ptrs;
 	string distmatrix_name = "";
 
 	output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
 
-//	std::stringstream ss;
-//	ss << "BLAH : ";
-
 	while (distmatrix_ptr != nullptr) {
-
-//		ss << distmatrix_name << " " << distmatrix_ptr << std::endl;
-
-		matrices.insert(std::make_pair(++current_matrix_ID, distmatrix_ptr));
+		distmatrix_names.push_back(distmatrix_name);
+		distmatrix_ptrs.push_back(distmatrix_ptr);
 
 		output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
 	}
 
-//	log->info(":D {}", ss.str());
+	uint8_t num_distmatrices = (uint8_t) distmatrix_ptrs.size();
+
+	if (primary_group_worker) MPI_Send(&num_distmatrices, 1, MPI_BYTE, 0, 0, group);
+
+	if (num_distmatrices > 0) {
+
+		if (primary_group_worker) {
+			for (int i = 0; i < num_distmatrices; i++) {
+				uint16_t dmnl = distmatrix_names[i].length()+1;
+
+				MPI_Send(&dmnl, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
+				MPI_Send(distmatrix_names[i].c_str(), dmnl, MPI_CHAR, 0, 0, group);
+
+				uint64_t num_rows = (uint64_t) distmatrix_ptrs[i]->Height();
+				uint64_t num_cols = (uint64_t) distmatrix_ptrs[i]->Width();
+
+				MPI_Send(&num_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+				MPI_Send(&num_cols, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+			}
+		}
+
+		Matrix_ID matrix_IDs[num_distmatrices];
+		MPI_Bcast(&matrix_IDs, (int) num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
+
+		for (int i = 0; i < num_distmatrices; i++) {
+			matrices.insert(std::make_pair(matrix_IDs[i], distmatrix_ptrs[i]));
+
+			distmatrix_ptr = distmatrix_ptrs[i];
+
+			log->info("Creating vector of local rows");
+
+			MPI_Bcast(&matrix_IDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
+			MPI_Barrier(group);
+
+			DistMatrix_ptr matrix = matrices[matrix_IDs[i]];
+			uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
+			uint64_t * local_rows = new uint64_t[num_local_rows];
+
+			for (uint64_t i = 0; i < num_local_rows; i++) {
+				local_rows[i] = (uint64_t) matrix->GlobalRow(i);
+			}
+
+			MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+			for (uint64_t i = 0; i < num_local_rows; i++)
+				MPI_Send(&local_rows[i], 1, MPI_UNSIGNED_LONG, 0, 0, group);\
+
+			delete [] local_rows;
+		}
+	}
+
+	MPI_Barrier(group);
 }
 
 int GroupWorker::get_matrix_layout()
@@ -458,20 +507,10 @@ int GroupWorker::get_matrix_layout()
 	uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
 	uint64_t * local_rows = new uint64_t[num_local_rows];
 
-//	std::stringstream ss;
-//	ss << "Local rows (" <<matrix->LocalHeight() << "): ";
-	for (uint64_t i = 0; i < num_local_rows; i++) {
-		local_rows[i] = (uint64_t) matrix->GlobalRow(i);
-//		ss << "(" << i << ", " << local_rows[i] << ") ";
-	}
-//	log->info(ss.str());
+	for (uint64_t i = 0; i < num_local_rows; i++) local_rows[i] = (uint64_t) matrix->GlobalRow(i);
 
 	MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
-//	MPI_Send(local_rows, (int) num_local_rows, MPI_UNSIGNED_LONG, 0, 0, world);		// For some reason this doesn't work
-	for (uint64_t i = 0; i < num_local_rows; i++)
-		MPI_Send(&local_rows[i], 1, MPI_UNSIGNED_LONG, 0, 0, group);
-
-//	log->info("DURATION: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
+	MPI_Send(local_rows, (int) num_local_rows, MPI_UNSIGNED_LONG, 0, 0, group);
 
 	delete [] local_rows;
 
@@ -548,6 +587,7 @@ void GroupWorker::run_task()
 		string function_name = temp_in_msg.read_string();
 
 		deserialize_parameters(in, temp_in_msg);
+		log->info("S 1 {}", in.to_string());
 
 		libraries[lib_ID]->run(function_name, in, out);
 

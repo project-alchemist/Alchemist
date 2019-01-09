@@ -533,7 +533,7 @@ void DriverSession::send_matrix_info(Matrix_ID matrix_ID)
 	log->info("Sending back info for matrix {}", matrix_ID);
 	write_msg.add_uint16(matrix_ID);
 
-	group_driver.determine_row_assignments(matrix_ID);
+//	group_driver.determine_row_assignments(matrix_ID);
 	vector<uint16_t> & row_assignments = group_driver.get_row_assignments(matrix_ID);
 
 	uint64_t num_rows = row_assignments.size();

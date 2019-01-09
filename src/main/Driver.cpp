@@ -11,7 +11,7 @@ Driver::Driver(io_context & _io_context, const unsigned int port) :
 Driver::Driver(io_context & _io_context, const tcp::endpoint & endpoint) :
 				Server(_io_context, endpoint), next_matrix_ID(0), next_group_ID(0)
 {
-	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]        %v");
+	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]        %^%v%$", bold, iwhite);
 	Server::set_log(log);
 
 	world = MPI_COMM_WORLD;
@@ -152,17 +152,20 @@ void Driver::set_group_communicator(const Group_ID & group_ID)
 	MPI_Wait(&req, &status);
 
 	uint16_t num_workers = (uint16_t) workers.size();
+	Group_ID null_group_ID = 0;
+
+	int primary_group_worker = 0;
 
 	for (int j = 1; j <= num_workers; j++) {
 		worker_ID = j;
-		if (groups[group_ID]->workers.find(worker_ID) == groups[group_ID]->workers.end() ) {
-			Group_ID null_group_ID = 0;
+		if (groups[group_ID]->workers.find(worker_ID) == groups[group_ID]->workers.end() )
 			MPI_Send(&null_group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
-		}
 		else {
 			MPI_Send(&group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
 			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
 			MPI_Send(&group_peer_IDs, (int) group_size, MPI_INT, worker_ID, 0, world);
+			MPI_Send(&primary_group_worker, 1, MPI_INT, worker_ID, 0, world);
+			if (primary_group_worker) primary_group_worker = 1;
 		}
 	}
 	groups[group_ID]->set_group_comm(world, temp_group);

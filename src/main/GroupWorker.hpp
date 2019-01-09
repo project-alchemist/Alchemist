@@ -23,8 +23,8 @@ public:
 //	GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, MPI_Comm & _group, MPI_Comm & _group_peers, io_context & _io_context,
 //			const tcp::endpoint & endpoint, Log_ptr & _log);
 
-	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, Log_ptr & _log);
-	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, Log_ptr & _log);
+	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, bool _primary_group_worker, Log_ptr & _log);
+	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, bool _primary_group_worker, Log_ptr & _log);
 	~GroupWorker();
 
 	Worker_ID get_worker_ID();
@@ -83,6 +83,8 @@ private:
 	Session_ID next_session_ID;
 
 	Worker & worker;
+
+	bool primary_group_worker;
 
 	client_language cl;
 

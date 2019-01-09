@@ -331,12 +331,72 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 	MPI_Barrier(group);
 
 	Library_ID lib_ID = temp_in_msg.read_uint16();
+
 	if (check_library_ID(lib_ID)) {
 		string function_name = temp_in_msg.read_string();
 
 		deserialize_parameters(in, temp_in_msg);
+		log->info("S 1 {}", in.to_string());
 
 		libraries[lib_ID]->run(function_name, in, out);
+
+		MPI_Barrier(group);
+
+		uint8_t num_distmatrices;
+		string distmatrix_name;
+		uint16_t dmnl;
+		uint64_t num_rows, num_cols;
+
+		Worker_ID primary_worker = workers.begin()->first;
+
+		MPI_Recv(&num_distmatrices, 1, MPI_BYTE, primary_worker, 0, group, &status);
+		if (num_distmatrices > 0) {
+			Matrix_ID matrix_IDs[num_distmatrices];
+			for (int i = 0; i < num_distmatrices; i++) {
+				MPI_Recv(&dmnl, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
+				char distmatrix_name_c[dmnl];
+				MPI_Recv(&distmatrix_name_c, 1, MPI_CHAR, primary_worker, 0, group, &status);
+				distmatrix_name = string(distmatrix_name_c);
+
+				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
+				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
+
+				matrices.insert(std::make_pair(next_matrix_ID, MatrixInfo(next_matrix_ID, 0, 0)));
+				matrix_IDs[i] = next_matrix_ID++;
+			}
+
+			MPI_Bcast(&matrix_IDs, (int) num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
+
+			uint64_t worker_num_rows;
+			uint64_t * row_indices;
+
+			for (int i = 0; i < num_distmatrices; i++) {
+
+				std::clock_t start;
+
+				MatrixInfo & matrix = matrices[matrix_IDs[i]];
+
+				MPI_Bcast(&matrix_IDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
+				MPI_Barrier(group);
+
+				for (auto it = workers.begin(); it != workers.end(); it++) {
+					Worker_ID id = it->first;
+					start = std::clock();
+					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
+
+					start = std::clock();
+					row_indices = new uint64_t[worker_num_rows];
+
+					start = std::clock();
+					for (uint64_t i = 0; i < worker_num_rows; i++) {
+						MPI_Recv(&row_indices[i], 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
+						matrix.row_assignments[row_indices[i]] = id;
+					}
+
+					delete [] row_indices;
+				}
+			}
+		}
 
 		MPI_Barrier(group);
 
@@ -698,6 +758,8 @@ Matrix_ID GroupDriver::new_matrix(unsigned char type, unsigned char layout, uint
 
 	MPI_Barrier(group);
 
+	determine_row_assignments(next_matrix_ID);
+
 	return next_matrix_ID;
 }
 
@@ -724,36 +786,28 @@ void GroupDriver::determine_row_assignments(Matrix_ID & matrix_ID)
 
 	std::clock_t start;
 
-	alchemist_command command = _AM_CLIENT_MATRIX_LAYOUT;
-
-	log->info("Sending command {} to workers", get_command_name(command));
-
+//	alchemist_command command = _AM_CLIENT_MATRIX_LAYOUT;
+//
+//	log->info("Sending command {} to workers", get_command_name(command));
+//
 	MPI_Request req;
 	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
-	MPI_Wait(&req, &status);
+//	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+//	MPI_Wait(&req, &status);
 
 	MPI_Bcast(&matrix.ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Barrier(group);
 
 	for (auto it = workers.begin(); it != workers.end(); it++) {
 		Worker_ID id = it->first;
-		start = std::clock();
 		MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
-//		log->info("DURATION 1: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
 
-		start = std::clock();
 		row_indices = new uint64_t[worker_num_rows];
-//		MPI_Recv(row_indices, worker_num_rows, MPI_UNSIGNED_LONG, id, 0, world, &status);		// For some reason this doesn't work
 
-//		log->info("DURATION 2: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
-
-		start = std::clock();
+		MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
 		for (uint64_t i = 0; i < worker_num_rows; i++) {
-			MPI_Recv(&row_indices[i], 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
 			matrix.row_assignments[row_indices[i]] = id;
 		}
-//		log->info("DURATION 3: {}", ( std::clock() - start ) / (double) CLOCKS_PER_SEC);
 
 		delete [] row_indices;
 	}

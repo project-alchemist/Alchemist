@@ -27,7 +27,7 @@ Worker::Worker(io_context & _io_context, const unsigned int _port) :
 	char buffer[12];
 	sprintf(buffer, "worker-%03d", ID);
 
-	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]    %v");
+	log = start_log(string(buffer), "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]    %^%v%$", italic, iwhite);
 
 	wait_for_command();
 }
@@ -158,6 +158,8 @@ void Worker::handle_new_group()
 
 	Group_ID group_ID;
 
+	int primary_group_worker = -1;
+
 	MPI_Recv(&group_ID, 1, MPI_UNSIGNED_SHORT, 0, 0, world, &status);
 	if (group_ID > 0) {
 
@@ -170,10 +172,12 @@ void Worker::handle_new_group()
 
 		group_IDs[0] = 0;
 		MPI_Recv(&group_peer_IDs, (int) num_peers, MPI_INT, 0, 0, world, &status);
-		for (int i = 0; i < num_peers; i++) group_IDs[i+1] = group_peer_IDs[i];
+		MPI_Recv(&primary_group_worker, 1, MPI_INT, 0, 0, world, &status);
+
+		for (uint16_t i = 0; i < num_peers; i++) group_IDs[i+1] = group_peer_IDs[i];
 
 		if (group_worker == nullptr)
-			group_worker = std::make_shared<GroupWorker>(group_ID, *this, ic, port, log);
+			group_worker = std::make_shared<GroupWorker>(group_ID, *this, ic, port, primary_group_worker == 0, log);
 
 		MPI_Group world_group;
 		MPI_Group temp_group;
