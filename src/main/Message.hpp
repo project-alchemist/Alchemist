@@ -2409,11 +2409,9 @@ public:
 
 		memcpy(&matrix_ID, data + i, 2);
 		matrix_ID = be16toh(matrix_ID);
-		std::cout << "TT 1 " << matrix_ID << std::endl;
 		i += 2;
 		memcpy(&name_length, data + i, 4);
 		name_length = be32toh(name_length);
-		std::cout << "TT 2 " << name_length << std::endl;
 		i += 4;
 		if (name_length > 0) {
 			char name_c[name_length];
@@ -2422,23 +2420,17 @@ public:
 			name = string(name_c);
 		}
 		else name = "";
-		std::cout << "TT 3 " << name << std::endl;
 		memcpy(&num_rows, data + i, 8);
 		num_rows = be64toh(num_rows);
-		std::cout << "TT 4 " << num_rows << std::endl;
 		i += 8;
 		memcpy(&num_cols, data + i, 8);
 		num_cols = be64toh(num_cols);
-		std::cout << "TT 5 " << num_cols << std::endl;
 		i += 8;
 		memcpy(&sparse, data + i, 1);
-		std::cout << "TT 6 " << sparse << std::endl;
 		i += 1;
 		memcpy(&layout, data + i, 1);
-		std::cout << "TT 7 " << layout << std::endl;
 		i += 1;
 		memcpy(&num_partitions, &data[i], 1);
-		std::cout << "TT 8 " << num_partitions << " " << (uint16_t) data[i+1] << " " << (uint16_t) data[i+2] << " " << (uint16_t) data[i+3] << " " << (uint16_t) data[i+4] << std::endl;
 		i += 1;
 		MatrixInfo_ptr matrix = std::make_shared<MatrixInfo>(matrix_ID, name, num_rows, num_cols, sparse, layout, num_partitions);
 		memcpy(matrix->row_assignments, data + i, num_rows);
@@ -2602,10 +2594,8 @@ public:
 						ss << read_wstring(i) << "\n" << space;
 					else if (dt == PARAMETER)
 						ss << " ";
-					else if (dt == MATRIX_INFO) {
+					else if (dt == MATRIX_INFO)
 						ss << read_matrix_info(i)->to_string(true);
-						std::cout << "iiiii " << i << std::endl;
-					}
 					else {
 						read_next(ss, i, dt);
 						ss << " ";

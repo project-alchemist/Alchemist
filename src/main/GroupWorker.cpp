@@ -433,6 +433,8 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 	std::vector<DistMatrix_ptr> distmatrix_ptrs;
 	string distmatrix_name = "";
 
+	log->info("OOO {}", output_parameters.to_string());
+
 	output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
 
 	while (distmatrix_ptr != nullptr) {
@@ -860,7 +862,8 @@ void GroupWorker::deserialize_parameters(Parameters & p, Message & msg)
 				p.add_wstring(name, msg.read_wstring());
 				break;
 			case MATRIX_ID:
-				p.add_distmatrix(name, matrices[msg.read_matrix_ID()]);
+				auto iid = msg.read_matrix_ID();
+				p.add_distmatrix(name, matrices[iid]);
 				break;
 			}
 		}
@@ -878,124 +881,125 @@ void GroupWorker::serialize_parameters(Parameters & p, Message & msg) {
 
 		switch(dt) {
 		case CHAR:
-			p.add_char(name, msg.read_char());
+			msg.add_char(p.get_char(name));
 			break;
 		case SIGNED_CHAR:
-			p.add_signed_char(name, msg.read_signed_char());
+//			msg.add_signed_char(p.get_signed_char(name));
 			break;
 		case UNSIGNED_CHAR:
-			p.add_unsigned_char(name, msg.read_unsigned_char());
+//			unsigned char value = p.get_unsigned_char(name);
+//			msg.add_unsigned_char();
 			break;
 		case CHARACTER:
-			p.add_character(name, msg.read_char());
+//			msg.add_character(p.get_char(name));
 			break;
 		case WCHAR:
-			p.add_wchar(name, msg.read_wchar());
+//			msg.add_wchar(p.read_wchar(name));
 			break;
 		case SHORT:
-			p.add_short(name, msg.read_short());
+//			msg.add_short(p.read_short(name));
 			break;
 		case UNSIGNED_SHORT:
-			p.add_unsigned_short(name, msg.read_unsigned_short());
+//			msg.add_unsigned_short(p.read_unsigned_short(name));
 			break;
 		case INT:
-			p.add_int(name, msg.read_int());
+			msg.add_int(p.get_int(name));
 			break;
 		case UNSIGNED:
-			p.add_unsigned(name, msg.read_unsigned());
+//			msg.add_unsigned(p.get_unsigned(name));
 			break;
 		case LONG:
-			p.add_long(name, msg.read_long());
+//			msg.add_long(p.get_long(name));
 			break;
 		case UNSIGNED_LONG:
-			p.add_unsigned_long(name, msg.read_unsigned_long());
+//			msg.add_unsigned_long(p.get_unsigned_long(name));
 			break;
 		case LONG_LONG_INT:
-			p.add_long_long_int(name, msg.read_long_long_int());
+//			msg.add_long_long_int(p.get_long_long_int(name));
 			break;
 		case LONG_LONG:
-			p.add_long_long(name, msg.read_long_long());
+//			msg.add_long_long(p.get_long_long(name));
 			break;
 		case UNSIGNED_LONG_LONG:
-			p.add_unsigned_long_long(name, msg.read_unsigned_long_long());
+//			msg.add_unsigned_long_long(p.get_unsigned_long_long(name));
 			break;
 		case FLOAT:
-			p.add_float(name, msg.read_float());
+			msg.add_float(p.get_float(name));
 			break;
 		case DOUBLE:
-			p.add_double(name, msg.read_double());
+			msg.add_double(p.get_double(name));
 			break;
 //				case LONG_DOUBLE:
 //					p.add_long_double(name, msg.read_long_double());
 //					break;
 		case BYTE:
-			p.add_byte(name, msg.read_byte());
+			msg.add_byte(p.get_byte(name));
 			break;
 		case BOOL:
-			p.add_bool(name, msg.read_bool());
+			msg.add_bool(p.get_bool(name));
 			break;
 		case INTEGER:
-			p.add_integer(name, msg.read_integer());
+//			msg.add_integer(p.get_integer(name));
 			break;
 		case REAL:
-			p.add_real(name, msg.read_real());
+//			msg.add_real(p.get_real(name));
 			break;
 		case LOGICAL:
-			p.add_logical(name, msg.read_logical());
+			msg.add_logical(p.get_logical(name));
 			break;
 //				case COMPLEX:
 //					p.add_complex(name, msg.read_complex());
 //					break;
 		case DOUBLE_PRECISION:
-			p.add_double_precision(name, msg.read_double_precision());
+//			msg.add_double_precision(p.get_double_precision(name));
 			break;
 		case REAL4:
-			p.add_real4(name, msg.read_real4());
+//			msg.add_real4(p.get_real4(name));
 			break;
 //				case COMPLEX8:
 //					p.add_complex8(name, msg.read_complex8());
 //					break;
 		case REAL8:
-			p.add_real8(name, msg.read_real8());
+//			msg.add_real8(p.get_real8(name));
 			break;
 //				case COMPLEX16:
 //					p.add_complex16(name, msg.read_complex16());
 //					break;
 		case INTEGER1:
-			p.add_integer1(name, msg.read_integer1());
+			msg.add_integer1(p.get_integer1(name));
 			break;
 		case INTEGER2:
-			p.add_integer2(name, msg.read_integer2());
+			msg.add_integer2(p.get_integer2(name));
 			break;
 		case INTEGER4:
-			p.add_integer4(name, msg.read_integer4());
+			msg.add_integer4(p.get_integer4(name));
 			break;
 		case INTEGER8:
-			p.add_integer8(name, msg.read_integer8());
+			msg.add_integer8(p.get_integer8(name));
 			break;
 		case INT8_T:
-			p.add_int8(name, msg.read_int8());
+			msg.add_int8(p.get_int8(name));
 			break;
 		case INT16_T:
-			p.add_int16(name, msg.read_int16());
+			msg.add_int16(p.get_int16(name));
 			break;
 		case INT32_T:
-			p.add_int32(name, msg.read_int32());
+			msg.add_int32(p.get_int32(name));
 			break;
 		case INT64_T:
-			p.add_int64(name, msg.read_int64());
+			msg.add_int64(p.get_int64(name));
 			break;
 		case UINT8_T:
-			p.add_uint8(name, msg.read_uint8());
+			msg.add_uint8(p.get_uint8(name));
 			break;
 		case UINT16_T:
-			p.add_uint16(name, msg.read_uint16());
+			msg.add_uint16(p.get_uint16(name));
 			break;
 		case UINT32_T:
-			p.add_uint32(name, msg.read_uint32());
+			msg.add_uint32(p.get_uint32(name));
 			break;
 		case UINT64_T:
-			p.add_uint64(name, msg.read_uint64());
+			msg.add_uint64(p.get_uint64(name));
 			break;
 //				case FLOAT_INT:
 //					p.add_float_int(name, msg.read_float_int());
@@ -1013,15 +1017,17 @@ void GroupWorker::serialize_parameters(Parameters & p, Message & msg) {
 //					p.add_long_double_int(name, msg.read_long_double_int());
 //					break;
 		case STRING:
-			p.add_string(name, msg.read_string());
+			msg.add_string(p.get_string(name));
 			break;
 		case WSTRING:
-			p.add_wstring(name, msg.read_wstring());
+//			msg.add_wstring(p.get_wstring(name));
 			break;
 		case MATRIX_ID:
-			p.add_distmatrix(name, matrices[msg.read_matrix_ID()]);
+			msg.add_matrix_ID(p.get_matrix_info(name)->ID);
 			break;
 		}
+
+		dt = p.get_next_parameter();
 	}
 }
 

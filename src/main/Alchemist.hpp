@@ -140,9 +140,7 @@ struct MatrixInfo {
 	}
 	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols, bool _sparse, uint8_t _layout, uint8_t _num_partitions) :
 		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions), row_assignments(nullptr) {
-		std::cout << "SHFHSH" << std::endl;
 		row_assignments = new Worker_ID[num_rows]();
-		std::cout << "SHFHSH gg" << std::endl;
 	}
 
 	~MatrixInfo() {

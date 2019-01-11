@@ -337,8 +337,6 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 
 		deserialize_parameters(in, temp_in_msg);
 
-		log->info("Send {}", in.to_string());
-
 		libraries[lib_ID]->run(function_name, in, out);
 
 		MPI_Barrier(group);
@@ -363,7 +361,11 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 
-				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols)));
+				bool sparse = false;
+				uint8_t layout = 0;
+				uint8_t num_partitions = (uint8_t) workers.size();
+
+				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
 				matrix_IDs[i] = next_matrix_ID++;
 			}
 
