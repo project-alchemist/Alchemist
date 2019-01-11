@@ -34,8 +34,8 @@ public:
 
 	client_language cl;
 
-	int32_t body_length;
-	int32_t read_pos;
+	uint32_t body_length;
+	uint32_t read_pos;
 
 	// For writing data
 	datatype current_datatype;
@@ -198,68 +198,60 @@ public:
 		memcpy(&data[4], &cc, 1);
 	}
 
-	void add_string(const string & _data)
+	void add_string(const string & str)
 	{
 		switch(cl) {
 		case C:
 		case CPP:
-			add_string_(_data);
+			{
+				check_datatype(STRING);
+
+				uint32_t string_length = (uint32_t) str.length();
+				uint32_t new_string_length = htobe32(string_length);
+				memcpy(data + write_pos, &new_string_length, 4);
+				write_pos += 4;
+				auto cdata = str.c_str();
+				memcpy(data + write_pos, cdata, string_length);
+				write_pos += string_length;
+			}
 			break;
 		case SCALA:
 		case JAVA:
-			add_wstring(_data);
+			{
+				check_datatype(WSTRING);
+
+				std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter_1;
+				std::wstring wstr = converter_1.from_bytes(str);
+
+				std::wstring_convert<std::codecvt_utf16<wchar_t>> converter_2;
+				string str_u16 = converter_2.to_bytes(wstr);
+
+				int32_t string_length = (int32_t) str.length();
+				int32_t new_string_length = htobe32(string_length);
+				memcpy(data + write_pos, &new_string_length, 4);
+				write_pos += 4;
+				auto cdata = str_u16.c_str();
+				memcpy(data + write_pos, cdata, string_length);
+				write_pos += string_length;
+			}
 			break;
 		case PYTHON:
 		case JULIA:
-			add_string_(_data);
+			{
+				check_datatype(STRING);
+
+				int32_t string_length = (int32_t) str.length();
+				int32_t new_string_length = htobe32(string_length);
+				memcpy(data + write_pos, &new_string_length, 4);
+				write_pos += 4;
+				auto cdata = str.c_str();
+				memcpy(data + write_pos, cdata, string_length);
+				write_pos += string_length;
+			}
 			break;
 		}
-	}
 
-	void add_string_(const string & _data)
-	{
-		current_datatype = STRING;
-
-		update_datatype_count();
-
-		memcpy(data + write_pos, &current_datatype, 1);
-
-		current_datatype_count = 0;
-		current_datatype_count_pos = write_pos + 1;
-		write_pos += 5;
-
-		int32_t string_length = _data.length();
-		auto cdata = _data.c_str();
-
-		memcpy(data + write_pos, cdata, string_length);
-		write_pos += string_length;
-		current_datatype_count += string_length;
-	}
-
-	void add_wstring(const string & _data)
-	{
-		std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter_1;
-		std::wstring _data_wide = converter_1.from_bytes(_data);
-
-		std::wstring_convert<std::codecvt_utf16<wchar_t>> converter_2;
-		string data_u16 = converter_2.to_bytes(_data_wide);
-
-		current_datatype = WSTRING;
-
-		update_datatype_count();
-
-		memcpy(data + write_pos, &current_datatype, 1);
-
-		current_datatype_count = 0;
-		current_datatype_count_pos = write_pos + 1;
-		write_pos += 5;
-
-		int32_t string_length = data_u16.length();
-		auto cdata = data_u16.c_str();
-
-		memcpy(data + write_pos, cdata, string_length);
-		write_pos += string_length;
-		current_datatype_count += _data_wide.length();
+		current_datatype_count += 1;
 	}
 
 	void add_byte(const unsigned char * _data, uint32_t length)
@@ -776,8 +768,7 @@ public:
 	{
 		check_datatype(UINT32_T);
 
-		uint32_t temp_uint32 = _data;
-		temp_uint32 = htobe32(temp_uint32);
+		uint32_t temp_uint32 = htobe32(_data);
 		memcpy(data + write_pos, &temp_uint32, 4);
 		write_pos += 4;
 
@@ -850,8 +841,6 @@ public:
 	{
 		check_datatype(UINT64_T);
 
-		std::cout << "LLLL " << std::endl;
-
 		uint64_t temp_uint64 = _data;
 		temp_uint64 = htobe64(temp_uint64);
 		memcpy(data + write_pos, &temp_uint64, 8);
@@ -868,7 +857,7 @@ public:
 
 		for (uint32_t i = 0; i < length; i++) {
 			temp_float = _data[i];
-			temp_float = reverse_float(temp_float);
+			reverse_float(&temp_float);
 			memcpy(data + write_pos, &temp_float, 4);
 			write_pos += 4;
 		}
@@ -881,7 +870,7 @@ public:
 		check_datatype(FLOAT);
 
 		float temp_float = _data;
-		temp_float = reverse_float(temp_float);
+		reverse_float(&temp_float);
 		memcpy(data + write_pos, &temp_float, 4);
 		write_pos += 4;
 
@@ -896,7 +885,7 @@ public:
 
 		for (uint32_t i = 0; i < length; i++) {
 			temp_double = _data[i];
-			temp_double = reverse_double(temp_double);
+			reverse_double(&temp_double);
 			memcpy(data + write_pos, &temp_double, 8);
 			write_pos += 8;
 		}
@@ -904,32 +893,176 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_double(const double _data)
+	void add_double(const double & _data)
 	{
 		check_datatype(DOUBLE);
 
 		double temp_double = _data;
-		temp_double = reverse_double(temp_double);
+		reverse_double(&temp_double);
 		memcpy(data + write_pos, &temp_double, 8);
 		write_pos += 8;
 
 		current_datatype_count += 1;
 	}
 
-	void add_matrix_ID(const Matrix_ID & _data) {
+	void add_matrix_ID(const Matrix_ID & _data)
+	{
+		check_datatype(MATRIX_ID);
+
+		current_datatype_count += 1;
 
 		switch(cl) {
 		case C:
 		case CPP:
-			add_uint16((uint16_t) _data);
+			{
+				uint16_t temp_uint16 = htobe16((uint16_t) _data);
+				memcpy(data + write_pos, &temp_uint16, 2);
+			}
 			break;
 		case SCALA:
 		case JAVA:
-			add_int16((int16_t) _data);
+			{
+				int16_t temp_int16 = htobe16((int16_t) _data);
+				memcpy(data + write_pos, &temp_int16, 2);
+			}
 			break;
 		case PYTHON:
 		case JULIA:
-			add_int16((int16_t) _data);
+			{
+				int16_t temp_int16 = htobe16((int16_t) _data);
+				memcpy(data + write_pos, &temp_int16, 2);
+			}
+			break;
+		}
+		write_pos += 2;
+	}
+
+	void add_matrix_info(const MatrixInfo & matrix)
+	{
+		check_datatype(MATRIX_INFO);
+
+		current_datatype_count += 1;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			{
+				// Matrix ID
+				uint16_t matrix_ID = htobe16((uint16_t) matrix.ID);
+				memcpy(data + write_pos, &matrix_ID, 2);
+				write_pos += 2;
+				// Matrix name
+				uint32_t string_length = matrix.name.length();
+				uint32_t string_length_ = htobe32(string_length);
+				memcpy(data + write_pos, &string_length_, 4);
+				write_pos += 4;
+				auto name_c = matrix.name.c_str();
+				memcpy(data + write_pos, name_c, string_length);
+				write_pos += string_length;
+				// Matrix num rows
+				uint64_t num_rows = htobe64(matrix.num_rows);
+				memcpy(data + write_pos, &num_rows, 8);
+				write_pos += 8;
+				// Matrix num cols
+				uint64_t num_cols = htobe64(matrix.num_cols);
+				memcpy(data + write_pos, &num_cols, 8);
+				write_pos += 8;
+				// Matrix sparse
+				uint8_t sparse = (uint8_t) matrix.sparse;
+				memcpy(data + write_pos, &sparse, 1);
+				write_pos += 1;
+				// Matrix layout
+				memcpy(data + write_pos, &matrix.layout, 1);
+				write_pos += 1;
+				// Matrix num partitions
+				memcpy(data + write_pos, &matrix.num_partitions, 1);
+				write_pos += 1;
+				// Matrix row assignments
+				memcpy(data + write_pos, &matrix.row_assignments, matrix.num_rows);
+				write_pos += matrix.num_rows;
+			}
+			break;
+		case SCALA:
+		case JAVA:
+			{
+				// Matrix ID
+				int16_t matrix_ID = htobe16((int16_t) matrix.ID);
+				memcpy(data + write_pos, &matrix_ID, 2);
+				write_pos += 2;
+				// Matrix name
+				std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter_1;
+				std::wstring_convert<std::codecvt_utf16<wchar_t>> converter_2;
+
+				std::wstring name_wide = converter_1.from_bytes(matrix.name);
+				string name_u16 = converter_2.to_bytes(name_wide);
+
+				int32_t string_length = name_u16.length();
+				int32_t string_length_ = htobe32(string_length);
+				memcpy(data + write_pos, &string_length_, 4);
+				write_pos += 4;
+				auto name_c = matrix.name.c_str();
+				memcpy(data + write_pos, name_c, string_length);
+				write_pos += string_length;
+				// Matrix num rows
+				int64_t num_rows = htobe64(matrix.num_rows);
+				memcpy(data + write_pos, &num_rows, 8);
+				write_pos += 8;
+				// Matrix num cols
+				int64_t num_cols = htobe64(matrix.num_cols);
+				memcpy(data + write_pos, &num_cols, 8);
+				write_pos += 8;
+				// Matrix sparse
+				int8_t sparse = (int8_t) matrix.sparse;
+				memcpy(data + write_pos, &sparse, 1);
+				write_pos += 1;
+				// Matrix layout
+				memcpy(data + write_pos, &matrix.layout, 1);
+				write_pos += 1;
+				// Matrix num partitions
+				memcpy(data + write_pos, &matrix.num_partitions, 1);
+				write_pos += 1;
+				// Matrix row assignments
+				memcpy(data + write_pos, &matrix.row_assignments, matrix.num_rows);
+				write_pos += matrix.num_rows;
+			}
+			break;
+		case PYTHON:
+		case JULIA:
+			{
+				// Matrix ID
+				int16_t matrix_ID = htobe16((int16_t) matrix.ID);
+				memcpy(data + write_pos, &matrix_ID, 2);
+				write_pos += 2;
+				// Matrix name
+				int32_t string_length = matrix.name.length();
+				int32_t string_length_ = htobe32(string_length);
+				memcpy(data + write_pos, &string_length_, 4);
+				write_pos += 4;
+				auto name_c = matrix.name.c_str();
+				memcpy(data + write_pos, name_c, string_length);
+				write_pos += string_length;
+				// Matrix num rows
+				int64_t num_rows = htobe64(matrix.num_rows);
+				memcpy(data + write_pos, &num_rows, 8);
+				write_pos += 8;
+				// Matrix num cols
+				int64_t num_cols = htobe64(matrix.num_cols);
+				memcpy(data + write_pos, &num_cols, 8);
+				write_pos += 8;
+				// Matrix sparse
+				int8_t sparse = (int8_t) matrix.sparse;
+				memcpy(data + write_pos, &sparse, 1);
+				write_pos += 1;
+				// Matrix layout
+				memcpy(data + write_pos, &matrix.layout, 1);
+				write_pos += 1;
+				// Matrix num partitions
+				memcpy(data + write_pos, &matrix.num_partitions, 1);
+				write_pos += 1;
+				// Matrix row assignments
+				memcpy(data + write_pos, &matrix.row_assignments, matrix.num_rows);
+				write_pos += matrix.num_rows;
+			}
 			break;
 		}
 	}
@@ -1023,7 +1156,7 @@ public:
 	{
 		datatype dt;
 
-		memcpy(&dt, &data[read_pos], sizeof(datatype));
+		memcpy(&dt, data + read_pos, sizeof(datatype));
 
 		return dt;
 	}
@@ -1032,12 +1165,12 @@ public:
 	{
 		uint32_t data_length;
 
-		memcpy(&data_length, &data[read_pos + sizeof(datatype)], 4);
+		memcpy(&data_length, data + read_pos + sizeof(datatype), 4);
 
 		return be32toh(data_length);
 	}
 
-	inline void read_atom(const uint32_t & i, void * a, int psize)
+	inline void read_atom(uint32_t & i, void * a, int psize)
 	{
 		memcpy(a, data + i, psize);
 	}
@@ -1059,7 +1192,7 @@ public:
 		}
 	}
 
-	const char read_char(const uint32_t & i)
+	const char read_char(uint32_t & i)
 	{
 		char x;
 		read_atom(i, &x, 1);
@@ -1101,7 +1234,7 @@ public:
 		}
 	}
 
-	const signed char read_signed_char(const uint32_t & i)
+	const signed char read_signed_char(uint32_t & i)
 	{
 		signed char x;
 		read_atom(i, &x, 1);
@@ -1143,7 +1276,7 @@ public:
 		}
 	}
 
-	const unsigned char read_unsigned_char(const uint32_t & i)
+	const unsigned char read_unsigned_char(uint32_t & i)
 	{
 		unsigned char x;
 		read_atom(i, &x, 1);
@@ -1185,7 +1318,7 @@ public:
 		}
 	}
 
-	const char read_character(const uint32_t & i)
+	const char read_character(uint32_t & i)
 	{
 		char x;
 		read_atom(i, &x, 1);
@@ -1227,7 +1360,7 @@ public:
 		}
 	}
 
-	const wchar_t read_wchar(const uint32_t & i)
+	const wchar_t read_wchar(uint32_t & i)
 	{
 		wchar_t x;
 		read_atom(i, &x, 2);
@@ -1253,32 +1386,8 @@ public:
 		return (wchar_t) x;
 	}
 
-	const char read_byte()
-	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_byte_();
-		case SCALA:
-		case JAVA:
-			return (char) read_byte_();
-		case PYTHON:
-		case JULIA:
-			return (char) read_byte_();
-		default:
-			return (char) '0';
-		}
-	}
 
-	const char read_byte(const uint32_t & i)
-	{
-		char x;
-		read_atom(i, &x, 1);
-
-		return x;
-	}
-
-	const uint8_t read_byte_()
+	const uint8_t read_byte()
 	{
 		if (current_datatype != BYTE) {
 			current_datatype = BYTE;
@@ -1287,41 +1396,20 @@ public:
 			read_pos += 4;
 		}
 
-		uint8_t x;
+		return read_byte(read_pos);
+	}
 
-		memcpy(&x, &data[read_pos], 1);
-		read_pos += 1;
+	const uint8_t read_byte(uint32_t & i)
+	{
+		uint8_t x;
+		memcpy(&x, data + i, 1);
+		i += 1;
 
 		return x;
 	}
 
 	const bool read_bool()
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_bool_();
-		case SCALA:
-		case JAVA:
-			return read_bool_();
-		case PYTHON:
-		case JULIA:
-			return read_bool_();
-		default:
-			return true;
-		}
-	}
-
-	const bool read_bool(const uint32_t & i)
-	{
-		bool x;
-		read_atom(i, &x, 1);
-
-		return x;
-	}
-
-	const bool read_bool_()
-	{
 		if (current_datatype != BOOL) {
 			current_datatype = BOOL;
 
@@ -1330,309 +1418,109 @@ public:
 		}
 
 		bool x;
-
-		memcpy(&x, &data[read_pos], 1);
+		memcpy(&x, data + read_pos, 1);
 		read_pos += 1;
+
+		return x;
+	}
+
+	const bool read_bool(uint32_t & i)
+	{
+		bool x;
+		memcpy(&x, data + i, 1);
+		i += 1;
 
 		return x;
 	}
 
 	const bool read_logical()
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_logical_();
-		case SCALA:
-		case JAVA:
-			return read_logical_();
-		case PYTHON:
-		case JULIA:
-			return read_logical_();
-		default:
-			return true;
-		}
+		return read_bool();
 	}
 
-	const bool read_logical(const uint32_t & i)
+	const bool read_logical(uint32_t & i)
 	{
-		bool x;
-		read_atom(i, &x, 1);
-
-		return x;
-	}
-
-	const bool read_logical_()
-	{
-		if (current_datatype != BOOL) {
-			current_datatype = BOOL;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		bool x;
-
-		memcpy(&x, &data[read_pos], 1);
-		read_pos += 1;
-
-		return x;
+		return read_bool(i);
 	}
 
 	const short read_short()
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_short_();
-		case SCALA:
-		case JAVA:
-			return read_short_();
-		case PYTHON:
-		case JULIA:
-			return read_short_();
-		default:
-			return (short) 0;
-		}
+		return (short) read_int16();
 	}
 
-	const short read_short(const uint32_t & i)
+	const short read_short(uint32_t & i)
 	{
-		short x;
-		read_atom(i, &x, sizeof(short));
-
-		return x;
-	}
-
-	const short read_short_()
-	{
-		if (current_datatype != SHORT) {
-			current_datatype = SHORT;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		short x;
-
-		memcpy(&x, &data[read_pos], sizeof(short));
-		read_pos += sizeof(short);
-
-		return x;
+		return (short) read_int16(i);
 	}
 
 	const unsigned short read_unsigned_short()
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_unsigned_short_();
-		case SCALA:
-		case JAVA:
-			return read_unsigned_short_();
-		case PYTHON:
-		case JULIA:
-			return read_unsigned_short_();
-		default:
-			return (unsigned short) 0;
-		}
+		return (unsigned short) read_uint16();
 	}
 
-	const unsigned short read_unsigned_short(const uint32_t & i)
+	const unsigned short read_unsigned_short(uint32_t & i)
 	{
-		unsigned short x;
-		read_atom(i, &x, sizeof(unsigned short));
-
-		return x;
-	}
-
-	const unsigned short read_unsigned_short_()
-	{
-		if (current_datatype != UNSIGNED_SHORT) {
-			current_datatype = UNSIGNED_SHORT;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		unsigned short x;
-
-		memcpy(&x, &data[read_pos], sizeof(unsigned short));
-		read_pos += sizeof(unsigned short);
-
-		return x;
+		return (unsigned short) read_uint16(i);
 	}
 
 	const int read_integer()
 	{
-		return read_int();
+		return (int) read_int32();
 	}
 
-	const int read_integer(const uint32_t & i)
+	const int read_integer(uint32_t & i)
 	{
-		return read_int(i);
+		return (int) read_int32(i);
 	}
 
-	const short read_int()
+	const int read_int()
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_int_();
-		case SCALA:
-		case JAVA:
-			return read_int_();
-		case PYTHON:
-		case JULIA:
-			return read_int_();
-		default:
-			return (int) 0;
-		}
+		return (int) read_int32();
 	}
 
-	const int read_int(const uint32_t & i)
+	const int read_int(uint32_t & i)
 	{
-		int x;
-		read_atom(i, &x, sizeof(int));
-
-		return x;
-	}
-
-	const int read_int_()
-	{
-		if (current_datatype != INT) {
-			current_datatype = INT;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		int x;
-
-		memcpy(&x, &data[read_pos], sizeof(int));
-		read_pos += sizeof(int);
-
-		return x;
+		return (int) read_int32(i);
 	}
 
 	const unsigned int read_unsigned()
 	{
-		return read_unsigned_int();
+		return (unsigned int) read_uint32();
 	}
 
-	const unsigned int read_unsigned(const uint32_t & i)
+	const unsigned int read_unsigned(uint32_t & i)
 	{
-		return read_unsigned_int(i);
+		return (unsigned int) read_uint32(i);
 	}
 
 	const unsigned int read_unsigned_int()
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_unsigned_int_();
-		case SCALA:
-		case JAVA:
-			return read_unsigned_int_();
-		case PYTHON:
-		case JULIA:
-			return read_unsigned_int_();
-		default:
-			return (unsigned int) 0;
-		}
+		return (unsigned int) read_uint32();
 	}
 
-	const unsigned short read_unsigned_int(const uint32_t & i)
+	const unsigned int read_unsigned_int(uint32_t & i)
 	{
-		unsigned int x;
-		read_atom(i, &x, sizeof(unsigned int));
-
-		return x;
-	}
-
-	const unsigned int read_unsigned_int_()
-	{
-		if (current_datatype != UNSIGNED) {
-			current_datatype = UNSIGNED;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		unsigned int x;
-
-		memcpy(&x, &data[read_pos], sizeof(unsigned int));
-		read_pos += sizeof(unsigned int);
-
-		return x;
-	}
-
-	const long read_long(const uint32_t & i)
-	{
-		long x;
-		read_atom(i, &x, sizeof(long));
-
-		return x;
+		return (unsigned int) read_uint32(i);
 	}
 
 	const long read_long()
 	{
-		if (current_datatype != LONG) {
-			current_datatype = LONG;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		long x;
-
-		memcpy(&x, &data[read_pos], sizeof(long));
-		read_pos += sizeof(long);
-
-		return x;
+		return (long) read_int64();
 	}
 
-	const unsigned long read_unsigned_long(const uint32_t & i)
+	const long read_long(uint32_t & i)
 	{
-		unsigned long x;
-		read_atom(i, &x, sizeof(unsigned long));
-
-		return x;
+		return (long) read_int64(i);
 	}
 
 	const unsigned long read_unsigned_long()
 	{
-		if (current_datatype != UNSIGNED_LONG) {
-			current_datatype = UNSIGNED_LONG;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-
-		unsigned long x;
-
-		memcpy(&x, &data[read_pos], sizeof(unsigned long));
-		read_pos += sizeof(unsigned long);
-
-		return x;
+		return (unsigned long) read_uint64();
 	}
 
-	const long long read_long_long_int(const uint32_t & i)
+	const unsigned long read_unsigned_long(uint32_t & i)
 	{
-		return read_long_long_int(i);
-	}
-
-	const long long read_long_long_int()
-	{
-		return read_long_long_int();
-	}
-
-	const long long read_long_long(const uint32_t & i)
-	{
-		long long x;
-		read_atom(i, &x, sizeof(long long));
-
-		return x;
+		return (unsigned long) read_uint64(i);
 	}
 
 	const long long read_long_long()
@@ -1645,19 +1533,29 @@ public:
 		}
 
 		long long x;
-
-		memcpy(&x, &data[read_pos], sizeof(long long));
+		memcpy(&x, data + read_pos, sizeof(long long));
 		read_pos += sizeof(long long);
 
 		return x;
 	}
 
-	const unsigned long long read_unsigned_long_long(const uint32_t & i)
+	const long long read_long_long(uint32_t & i)
 	{
-		unsigned long long x;
-		read_atom(i, &x, sizeof(unsigned long long));
+		long long x;
+		memcpy(&x, data + i, sizeof(long long));
+		i + sizeof(long long);
 
 		return x;
+	}
+
+	const long long read_long_long_int()
+	{
+		return read_long_long();
+	}
+
+	const long long read_long_long_int(uint32_t & i)
+	{
+		return read_long_long(i);
 	}
 
 	const unsigned long long read_unsigned_long_long()
@@ -1670,14 +1568,22 @@ public:
 		}
 
 		unsigned long long x;
-
-		memcpy(&x, &data[read_pos], sizeof(unsigned long long));
+		memcpy(&x, data + read_pos, sizeof(unsigned long long));
 		read_pos += sizeof(unsigned long long);
 
 		return x;
 	}
 
-	const int8_t read_integer1(const uint32_t & i)
+	const unsigned long long read_unsigned_long_long(uint32_t & i)
+	{
+		unsigned long long x;
+		memcpy(&x, data + i, sizeof(unsigned long long));
+		i + sizeof(unsigned long long);
+
+		return x;
+	}
+
+	const int8_t read_integer1(uint32_t & i)
 	{
 		int8_t x;
 		read_atom(i, &x, 1);
@@ -1716,7 +1622,7 @@ public:
 		return x;
 	}
 
-	const int16_t read_integer2(const uint32_t & i)
+	const int16_t read_integer2(uint32_t & i)
 	{
 		int16_t x;
 		read_atom(i, &x, 2);
@@ -1755,7 +1661,7 @@ public:
 		return x;
 	}
 
-	const int32_t read_integer4(const uint32_t & i)
+	const int32_t read_integer4(uint32_t & i)
 	{
 		int32_t x;
 		read_atom(i, &x, 4);
@@ -1794,7 +1700,7 @@ public:
 		return x;
 	}
 
-	const int64_t read_integer8(const uint32_t & i)
+	const int64_t read_integer8(uint32_t & i)
 	{
 		int64_t x;
 		read_atom(i, &x, 8);
@@ -1833,14 +1739,6 @@ public:
 		return x;
 	}
 
-	const int8_t read_int8(const uint32_t & i)
-	{
-		int8_t x;
-		read_atom(i, &x, 1);
-
-		return x;
-	}
-
 	const void read_int8(int8_t * x)
 	{
 		uint32_t data_length;
@@ -1865,33 +1763,19 @@ public:
 		}
 
 		int8_t x;
-
-		memcpy(&x, &data[read_pos], 1);
+		memcpy(&x, data + read_pos, 1);
 		read_pos += 1;
 
 		return x;
 	}
 
-	const uint8_t read_uint8(const uint32_t & i)
+	const int8_t read_int8(uint32_t & i)
 	{
-		uint8_t x;
-		read_atom(i, &x, 1);
+		int8_t x;
+		memcpy(&x, data + i, 1);
+		i += 1;
 
 		return x;
-	}
-
-	const void read_uint8(uint8_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], data_length);
-
-		read_pos += data_length;
 	}
 
 	const uint8_t read_uint8()
@@ -1904,54 +1788,22 @@ public:
 		}
 
 		uint8_t x;
-
-		memcpy(&x, &data[read_pos], 1);
+		memcpy(&x, data + read_pos, 1);
 		read_pos += 1;
 
 		return x;
 	}
 
-	const int16_t read_int16()
+	const uint8_t read_uint8(uint32_t & i)
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_int16_();
-		case SCALA:
-		case JAVA:
-			return read_int16_();
-		case PYTHON:
-		case JULIA:
-			return read_int16_();
-		default:
-			return (int16_t) 0;
-		}
-	}
-
-	const int16_t read_int16(const uint32_t & i)
-	{
-		int16_t x;
-		read_atom(i, &x, 2);
-		x = be16toh(x);
+		uint8_t x;
+		memcpy(&x, data + i, 1);
+		i += 1;
 
 		return x;
 	}
 
-	const void read_int16(int16_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], 2*data_length);
-
-		read_pos += 2*data_length;
-	}
-
-	const int16_t read_int16_()
+	const int16_t read_int16()
 	{
 		if (current_datatype != INT16_T) {
 			current_datatype = INT16_T;
@@ -1960,56 +1812,65 @@ public:
 			read_pos += 4;
 		}
 
-		int16_t x;
+		return read_int16(read_pos);
+	}
 
-		memcpy(&x, &data[read_pos], 2);
+	const int16_t read_int16(uint32_t & i)
+	{
+		int16_t x;
+		memcpy(&x, data + i, 2);
 		x = be16toh(x);
-		read_pos += 2;
+		i += 2;
 
 		return x;
 	}
 
-	const uint16_t read_uint16()
+	const uint16_t read_uint16(uint32_t & i)
 	{
 		switch(cl) {
 		case C:
 		case CPP:
-			return read_uint16_();
+			{
+				uint16_t x;
+				memcpy(&x, data + i, 2);
+				x = be16toh(x);
+				i += 2;
+
+				return x;
+			}
 		case SCALA:
 		case JAVA:
-			return read_uint16_();
+			{
+				int16_t x;
+				memcpy(&x, data + i, 2);
+				x = be16toh(x);
+				i += 2;
+
+				return (uint16_t) x;
+			}
 		case PYTHON:
 		case JULIA:
-			return read_uint16_();
+			{
+				int16_t x;
+				memcpy(&x, data + i, 2);
+				x = be16toh(x);
+				i += 2;
+
+				return (uint16_t) x;
+			}
 		default:
-			return (uint16_t) 0;
+			{
+				uint16_t x;
+				memcpy(&x, data + i, 2);
+				x = be16toh(x);
+				i += 2;
+
+				return x;
+			}
 		}
 	}
 
-	const uint16_t read_uint16(const uint32_t & i)
-	{
-		uint16_t x;
-		read_atom(i, &x, 2);
-		x = be16toh(x);
-
-		return x;
-	}
-
-	const void read_uint16(uint16_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], 2*data_length);
-
-		read_pos += 2*data_length;
-	}
-
-	const uint16_t read_uint16_()
+	const uint16_t read_uint16()
 	{
 		if (current_datatype != UINT16_T) {
 			current_datatype = UINT16_T;
@@ -2018,56 +1879,10 @@ public:
 			read_pos += 4;
 		}
 
-		uint16_t x;
-
-		memcpy(&x, &data[read_pos], 2);
-		x = be16toh(x);
-		read_pos += 2;
-
-		return x;
+		return read_uint16(read_pos);
 	}
 
 	const int32_t read_int32()
-	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_int32_();
-		case SCALA:
-		case JAVA:
-			return read_int32_();
-		case PYTHON:
-		case JULIA:
-			return read_int32_();
-		default:
-			return (int32_t) 0;
-		}
-	}
-
-	const int32_t read_int32(const uint32_t & i)
-	{
-		int32_t x;
-		read_atom(i, &x, 4);
-		x = be32toh(x);
-
-		return x;
-	}
-
-	const void read_int32(int32_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], 4*data_length);
-
-		read_pos += 4*data_length;
-	}
-
-	const int32_t read_int32_()
 	{
 		if (current_datatype != INT32_T) {
 			current_datatype = INT32_T;
@@ -2076,114 +1891,77 @@ public:
 			read_pos += 4;
 		}
 
-		int32_t x;
+		return read_int32(read_pos);
+	}
 
-		memcpy(&x, &data[read_pos], 4);
+	const int32_t read_int32(uint32_t & i)
+	{
+		int32_t x;
+		memcpy(&x, data + i, 4);
 		x = be32toh(x);
-		read_pos += 4;
+		i += 4;
 
 		return x;
 	}
 
-	const uint32_t read_uint32()
+	const uint32_t read_uint32(uint32_t & i)
 	{
 		switch(cl) {
 		case C:
 		case CPP:
-			return read_uint16_();
+			{
+				uint32_t x;
+				memcpy(&x, data + i, 4);
+				x = be32toh(x);
+				i += 4;
+
+				return x;
+			}
 		case SCALA:
 		case JAVA:
-			return read_uint16_();
+			{
+				int32_t x;
+				memcpy(&x, data + i, 4);
+				x = be32toh(x);
+				i += 4;
+
+				return (uint32_t) x;
+			}
 		case PYTHON:
 		case JULIA:
-			return read_uint16_();
+			{
+				int32_t x;
+				memcpy(&x, data + i, 4);
+				x = be32toh(x);
+				i += 4;
+
+				return (uint32_t) x;
+			}
 		default:
-			return (uint32_t) 0;
+			{
+				uint32_t x;
+				memcpy(&x, data + i, 4);
+				x = be32toh(x);
+				i += 4;
+
+				return x;
+			}
 		}
 	}
 
-	const uint32_t read_uint32(const uint32_t & i)
+	const uint32_t read_uint32()
 	{
-		uint32_t x;
-		read_atom(i, &x, 4);
-		x = be32toh(x);
-
-		return x;
-	}
-
-	const void read_uint32(uint32_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], 4*data_length);
-
-		read_pos += 4*data_length;
-	}
-
-	const uint32_t read_uint32_()
-	{
-		if (current_datatype != UINT16_T) {
-			current_datatype = UINT16_T;
+		if (current_datatype != UINT32_T) {
+			current_datatype = UINT32_T;
 
 			read_pos += sizeof(datatype);
 			read_pos += 4;
 		}
 
-		uint32_t x;
-
-		memcpy(&x, &data[read_pos], 4);
-		x = be32toh(x);
-		read_pos += 4;
-
-		return x;
+		return read_uint32(read_pos);
 	}
 
 	const int64_t read_int64()
-	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_int64_();
-		case SCALA:
-		case JAVA:
-			return read_int64_();
-		case PYTHON:
-		case JULIA:
-			return read_int64_();
-		default:
-			return (int64_t) 0;
-		}
-	}
-
-	const int64_t read_int64(const uint32_t & i)
-	{
-		int64_t x;
-		read_atom(i, &x, 8);
-		x = be64toh(x);
-
-		return x;
-	}
-
-	const void read_int64(int64_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], 8*data_length);
-
-		read_pos += 8*data_length;
-	}
-
-	const int64_t read_int64_()
 	{
 		if (current_datatype != INT64_T) {
 			current_datatype = INT64_T;
@@ -2192,56 +1970,65 @@ public:
 			read_pos += 4;
 		}
 
-		int64_t x;
+		return read_int64(read_pos);
+	}
 
-		memcpy(&x, &data[read_pos], 8);
+	const int64_t read_int64(uint32_t & i)
+	{
+		int64_t x;
+		memcpy(&x, data + i, 8);
 		x = be64toh(x);
-		read_pos += 8;
+		i += 8;
 
 		return x;
 	}
 
-	const uint64_t read_uint64()
+	const uint64_t read_uint64(uint32_t & i)
 	{
 		switch(cl) {
 		case C:
 		case CPP:
-			return read_uint64_();
+			{
+				uint64_t x;
+				memcpy(&x, data + i, 8);
+				x = be64toh(x);
+				i += 8;
+
+				return x;
+			}
 		case SCALA:
 		case JAVA:
-			return read_uint64_();
+			{
+				int64_t x;
+				memcpy(&x, data + i, 8);
+				x = be64toh(x);
+				i += 8;
+
+				return (uint64_t) x;
+			}
 		case PYTHON:
 		case JULIA:
-			return read_uint64_();
+			{
+				int64_t x;
+				memcpy(&x, data + i, 8);
+				x = be64toh(x);
+				i += 8;
+
+				return (uint64_t) x;
+			}
 		default:
-			return (uint64_t) 0;
+			{
+				uint64_t x;
+				memcpy(&x, data + i, 8);
+				x = be64toh(x);
+				i += 8;
+
+				return x;
+			}
 		}
 	}
 
-	const int64_t read_uint64(const uint32_t & i)
-	{
-		uint64_t x;
-		read_atom(i, &x, 8);
-		x = be64toh(x);
-
-		return x;
-	}
-
-	const void read_uint64(uint64_t * x)
-	{
-		uint32_t data_length;
-
-		read_pos += sizeof(datatype);
-		memcpy(&data_length, &data[read_pos], 4);
-		data_length = be32toh(data_length);
-		read_pos += 4;
-
-		memcpy(x, &data[read_pos], 8*data_length);
-
-		read_pos += 8*data_length;
-	}
-
-	const uint64_t read_uint64_()
+	const uint64_t read_uint64()
 	{
 		if (current_datatype != UINT64_T) {
 			current_datatype = UINT64_T;
@@ -2250,13 +2037,7 @@ public:
 			read_pos += 4;
 		}
 
-		uint64_t x;
-
-		memcpy(&x, &data[read_pos], 8);
-		x = be64toh(x);
-		read_pos += 8;
-
-		return x;
+		return read_uint64(read_pos);
 	}
 
 	const float read_real4()
@@ -2264,21 +2045,17 @@ public:
 		return read_float();
 	}
 
-	const float read_real4(const uint32_t & i)
+	const float read_real4(uint32_t & i)
 	{
 		return read_float(i);
 	}
 
-	const float reverse_float(const float & x)
+	void reverse_float(float * x)
 	{
-		float y;
-		char *x_char = (char *) & x;
-		char *y_char = (char *) & y;
-
-		// swap the bytes into a temporary buffer
-		for (uint8_t i = 0; i < 4; i++) y_char[i] = x_char[3-i];
-
-		return y;
+		char * x_char = (char *) x;
+		char temp;
+		temp = x[0]; x[0] = x[3]; x[3] = x[0];
+		temp = x[1]; x[1] = x[2]; x[2] = x[1];
 	}
 
 	const float read_float()
@@ -2291,31 +2068,56 @@ public:
 		}
 
 		float x;
-
-		memcpy(&x, &data[read_pos], 4);
+		memcpy(&x, data + read_pos, 4);
 		read_pos += 4;
 
-		return big_endian ? x : reverse_float(x);
+		if (!big_endian) reverse_float(&x);
+
+		return x;
 	}
 
-	const float read_float(const uint32_t & i)
+	void read_float(float * x)
+	{
+		if (current_datatype != FLOAT) {
+			current_datatype = FLOAT;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
+
+		memcpy(x, data + read_pos, 4);
+		read_pos += 4;
+
+		if (!big_endian) reverse_float(x);
+	}
+
+	const float read_float(uint32_t & i)
 	{
 		float x;
-		read_atom(i, &x, 4);
+		memcpy(&x, data + i, 4);
+		i += 4;
 
-		return big_endian ? x : reverse_float(x);
+		if (!big_endian) reverse_float(&x);
+
+		return x;
 	}
 
-	const double reverse_double( const double x )
+	void read_float(uint32_t & i, float * x)
 	{
-		double y;
-		char *x_char = (char *) & x;
-		char *y_char = (char *) & y;
+		memcpy(x, data + i, 4);
+		i += 4;
 
-		// swap the bytes into a temporary buffer
-		for (uint8_t i = 0; i < 8; i++) y_char[i] = x_char[7-i];
+		if (!big_endian) reverse_float(x);
+	}
 
-		return y;
+	void reverse_double(double * x)
+	{
+		char * x_char = (char *) x;
+		char temp;
+		temp = x[0]; x[0] = x[7]; x[7] = x[0];
+		temp = x[1]; x[1] = x[6]; x[6] = x[1];
+		temp = x[2]; x[2] = x[5]; x[5] = x[2];
+		temp = x[3]; x[3] = x[4]; x[4] = x[3];
 	}
 
 	const double read_real()
@@ -2323,7 +2125,7 @@ public:
 		return read_double();
 	}
 
-	const double read_real(const uint32_t & i)
+	const double read_real(uint32_t & i)
 	{
 		return read_double(i);
 	}
@@ -2333,7 +2135,7 @@ public:
 		return read_double();
 	}
 
-	const double read_real8(const uint32_t & i)
+	const double read_real8(uint32_t & i)
 	{
 		return read_double(i);
 	}
@@ -2343,7 +2145,7 @@ public:
 		return read_double();
 	}
 
-	const double read_double_precision(const uint32_t & i)
+	const double read_double_precision(uint32_t & i)
 	{
 		return read_double(i);
 	}
@@ -2358,18 +2160,46 @@ public:
 		}
 
 		double x;
-		memcpy(&x, &data[read_pos], 8);
+		memcpy(&x, data + read_pos, 8);
 		read_pos += 8;
 
-		return big_endian ? x : reverse_double(x);
+		if (!big_endian) reverse_double(&x);
+
+		return x;
 	}
 
-	const double read_double(const uint32_t & i)
+	void read_double(double * x)
+	{
+		if (current_datatype != DOUBLE) {
+			current_datatype = DOUBLE;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
+
+		memcpy(x, data + read_pos, 8);
+		read_pos += 8;
+
+		if (!big_endian) reverse_double(x);
+	}
+
+	const double read_double(uint32_t & i)
 	{
 		double x;
-		read_atom(i, &x, 8);
+		memcpy(&x, data + i, 8);
+		i += 8;
 
-		return big_endian ? x : reverse_double(x);
+		if (!big_endian) reverse_double(&x);
+
+		return x;
+	}
+
+	void read_double(uint32_t & i, double * x)
+	{
+		memcpy(&x, data + i, 8);
+		i += 8;
+
+		if (!big_endian) reverse_double(x);
 	}
 
 	const string read_string()
@@ -2391,74 +2221,211 @@ public:
 
 	const string read_string_()
 	{
-		current_datatype = STRING;
+		if (current_datatype != STRING) {
+			current_datatype = STRING;
 
-		uint32_t data_length;
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
 
-		memcpy(&data_length, &data[read_pos + sizeof(datatype)], 4);
-		data_length = be32toh(data_length);
-
-		char cc[data_length+1];
-		memcpy(cc, &data[read_pos + sizeof(datatype) + 4], data_length);
-		cc[data_length] = '\0';
-		read_pos += sizeof(datatype) + 4 + data_length;
-
-		return string(cc);
+		return read_string(read_pos);
 	}
 
-	const string read_string(const uint32_t & i, const uint32_t & length)
+	const string read_string(uint32_t & i)
 	{
-		char cc[length];
-		memcpy(cc, &data[i], length);
+		switch(cl) {
+		case C:
+		case CPP:
+			{
+				uint32_t string_length;
+				memcpy(&string_length, data + i, 4);
+				i += 4;
+				string_length = be32toh(string_length);
+				char string_c[string_length+1];
+				memcpy(string_c, data + i, string_length);
+				i += string_length;
+				string_c[string_length] = '\0';
+				return string(string_c);
+			}
+			break;
+		case SCALA:
+		case JAVA:
+			{
+				int32_t string_length;
+				memcpy(&string_length, data + i, 4);
+				i += 4;
+				string_length = be32toh(string_length);
+				char string_c[string_length+1];
+				memcpy(string_c, data + i, string_length);
+				i += string_length;
+				string_c[string_length] = '\0';
+				return string(string_c);
+			}
+			break;
+		case PYTHON:
+		case JULIA:
+			{
+				int32_t string_length;
+				memcpy(&string_length, data + i, 4);
+				i += 4;
+				string_length = be32toh(string_length);
+				char string_c[string_length+1];
+				memcpy(string_c, data + i, string_length);
+				i += string_length;
+				string_c[string_length] = '\0';
+				return string(string_c);
+			}
+			break;
+		}
+		return string(" ");
+	}
 
-		return string(cc);
+	const std::wstring s2ws(const string & str)
+	{
+	    using convert_type = std::codecvt_utf8<wchar_t>;
+	    std::wstring_convert<convert_type, wchar_t> converter;
+
+	    return converter.from_bytes(str);
+	}
+
+	const string ws2s(const std::wstring & wstr)
+	{
+	    using convert_type = std::codecvt_utf8<wchar_t>;
+	    std::wstring_convert<convert_type, wchar_t> converter;
+
+	    return converter.to_bytes(wstr);
+	}
+
+	const string read_wstring(uint32_t & i)
+	{
+		uint32_t string_length;
+		memcpy(&string_length, data + i, 4);
+		i += 4;
+		string_length = be32toh(string_length);
+		wchar_t string_c[string_length+1];
+		memcpy(string_c, data + i, 2*string_length);
+		i += 2*string_length;
+		string_c[string_length] = L'\0';
+		std::wstring wstr = std::wstring(string_c);
+
+		return ws2s(wstr);
 	}
 
 	const string read_wstring()
 	{
-		current_datatype = WSTRING;
-		uint32_t data_length;
-		wchar_t x;
-		std::ostringstream stm;
-		const std::locale & loc = std::locale();
+		if (current_datatype != WSTRING) {
+			current_datatype = WSTRING;
 
-		memcpy(&data_length, &data[read_pos + sizeof(datatype)], 4);
-		data_length = be32toh(data_length);
-
-		for (uint32_t j = 0; j < data_length; j++) {
-			read_atom(read_pos + sizeof(datatype) + 4 + 2*j, &x, 2);
-			stm << std::use_facet< std::ctype<wchar_t> >(loc).narrow(be16toh(x), '?');
-		}
-		read_pos += sizeof(datatype) + 4 + 2*data_length;
-
-		return stm.str();
-	}
-
-	const string read_wstring(const uint32_t & i, const uint32_t & length, const bool update_read_pos = true)
-	{
-		wchar_t x;
-		std::ostringstream stm;
-		const std::locale & loc = std::locale();
-
-		for (uint32_t j = 0; j < length; j++) {
-			read_atom(i+2*j, &x, 2);
-			stm << std::use_facet< std::ctype<wchar_t> >(loc).narrow(be16toh(x), '?');
+			read_pos += sizeof(datatype);
+			read_pos += 4;
 		}
 
-		return stm.str();
+		return read_wstring(read_pos);
 	}
 
 	const Matrix_ID read_matrix_ID()
 	{
-		return (Matrix_ID) read_uint16();
+		Matrix_ID matrix_ID;
+		memcpy(&matrix_ID, &data[read_pos], 2);
+		matrix_ID = be16toh(matrix_ID);
+		read_pos += 2;
+
+		return matrix_ID;
 	}
 
-	const Matrix_ID read_matrix_ID(const uint32_t & i)
+	const Matrix_ID read_matrix_ID(uint32_t & i)
 	{
-		return (Matrix_ID) read_uint16(i);
+		Matrix_ID matrix_ID;
+		memcpy(&matrix_ID, &data[i], 2);
+		matrix_ID = be16toh(matrix_ID);
+		i += 2;
+
+		return matrix_ID;
 	}
 
-	const void read_next(stringstream & ss, uint32_t i, const datatype & dt)
+	const MatrixInfo read_matrix_info()
+	{
+		read_pos += sizeof(datatype);
+		read_pos += 4;
+
+		datatype dt;
+		uint32_t data_length = 0;
+
+		Matrix_ID matrix_ID;
+		uint32_t name_length;
+		string name;
+		uint64_t num_rows, num_cols;
+		bool sparse;
+		uint8_t layout, num_partitions;
+
+		memcpy(&matrix_ID, &data[read_pos], 2);
+		matrix_ID = be16toh(matrix_ID);
+		read_pos += 2;
+		memcpy(&name_length, &data[read_pos], 4);
+		name_length = be16toh(name_length);
+		read_pos += 4;
+		char name_c[name_length];
+		memcpy(name_c, &data[read_pos], name_length);
+		read_pos += name_length;
+		name = string(name_c);
+		memcpy(&num_rows, &data[read_pos], 4);
+		num_rows = be16toh(num_rows);
+		read_pos += 4;
+		memcpy(&sparse, &data[read_pos], 1);
+		read_pos += 1;
+		memcpy(&layout, &data[read_pos], 1);
+		read_pos += 1;
+		memcpy(&num_partitions, &data[read_pos], 1);
+		read_pos += 1;
+		MatrixInfo matrix(matrix_ID, name, num_rows, num_cols, sparse, layout, num_partitions);
+		memcpy(&matrix.row_assignments, &data[read_pos], num_rows);
+		read_pos += num_rows;
+
+		return matrix;
+	}
+
+	const MatrixInfo read_matrix_info(uint32_t & i)
+	{
+		i += sizeof(datatype);
+		i += 4;
+
+		datatype dt;
+		uint32_t data_length = 0;
+
+		Matrix_ID matrix_ID;
+		uint32_t name_length;
+		string name;
+		uint64_t num_rows, num_cols;
+		bool sparse;
+		uint8_t layout, num_partitions;
+
+		memcpy(&matrix_ID, &data[i], 2);
+		matrix_ID = be16toh(matrix_ID);
+		i += 2;
+		memcpy(&name_length, &data[i], 4);
+		name_length = be16toh(name_length);
+		i += 4;
+		char name_c[name_length];
+		memcpy(name_c, &data[i], name_length);
+		i += name_length;
+		name = string(name_c);
+		memcpy(&num_rows, &data[i], 4);
+		num_rows = be16toh(num_rows);
+		i += 4;
+		memcpy(&sparse, &data[i], 1);
+		i += 1;
+		memcpy(&layout, &data[i], 1);
+		i += 1;
+		memcpy(&num_partitions, &data[i], 1);
+		i += 1;
+		MatrixInfo matrix(matrix_ID, name, num_rows, num_cols, sparse, layout, num_partitions);
+		memcpy(&matrix.row_assignments, &data[i], num_rows);
+		i += num_rows;
+
+		return matrix;
+	}
+
+	const void read_next(stringstream & ss, uint32_t & i, const datatype & dt)
 	{
 		switch (dt) {
 			case BYTE:
@@ -2508,7 +2475,7 @@ public:
 				ss << (int16_t) read_int8(i);
 				break;
 			case UINT8_T:
-				ss << read_uint8(i);
+				ss << (int16_t) read_uint8(i);
 				break;
 			case INTEGER2:
 				ss << read_integer2(i);
@@ -2567,14 +2534,14 @@ public:
 		client_command _cc;
 		uint32_t _body_length;
 
-		int32_t i = 0;
+		uint32_t i = 0;
 
-		_client_ID = read_uint16(i); i += 2;
-		_session_ID = read_uint16(i); i += 2;
-		_cc = (client_command) read_uint8(i); i += sizeof(client_command);
-		_body_length = read_uint32(i); i += 4;
+		_client_ID = read_uint16(i);
+		_session_ID = read_uint16(i);
+		_cc = (client_command) read_uint8(i);
+		_body_length = read_uint32(i);
 
-		string space = "                                              ";
+		string space = "                                                  ";
 
 		ss << std::endl;
 		ss << space << "==============================================" << std::endl;
@@ -2585,40 +2552,36 @@ public:
 		ss << space << "----------------------------------------------" << std::endl;
 		ss << std::endl;
 
-		uint16_t datatype_length;
 		uint32_t data_length;
 		datatype dt;
 
-		for (int32_t i = 0; i < _body_length; ) {
-			memcpy(&dt, &data[header_length + i], sizeof(datatype));
+		for (uint32_t i = header_length; i < header_length + _body_length; ) {
+			memcpy(&dt, data + i, sizeof(datatype));
 			i += sizeof(datatype);
-			memcpy(&data_length, &data[header_length + i], 4);
+			memcpy(&data_length, data + i, 4);
 			data_length = be32toh(data_length);
+			i += 4;
 			if (data_length > _body_length) {
-				ss << space << "INVALID MESSAGE FORMAT " << dt << " " << data_length << std::endl << std::endl;
+				ss << space << "INVALID MESSAGE FORMAT " << dt << " " << i << " " << data_length << std::endl << std::endl;
 				break;
 			}
 			else {
-				i += 4;
-
 				ss << space << "Datatype (length):    " << get_datatype_name(dt) << " (" << data_length << ")" << std::endl;
 				ss << space << "Data:                 ";
 
-				if (dt == STRING) {
-					ss << read_string(header_length + i, data_length);
-					i += data_length;
-				}
-				else if (dt == WSTRING) {
-					ss << read_wstring(header_length + i, data_length);
-					i += 2*data_length;
-				}
-				else {
-					datatype_length = get_datatype_length(dt);
+				for (uint32_t j = 0; j < data_length; j++) {
 
-					for  (uint32_t j = 0; j < data_length; j++) {
-						read_next(ss, header_length + i, dt);
+					if (dt == STRING)
+						ss << read_string(i) << "\n" << space;
+					else if (dt == WSTRING)
+						ss << read_wstring(i) << "\n" << space;
+					else if (dt == PARAMETER)
+						ss << read_matrix_info(i).to_string();
+					else if (dt == MATRIX_INFO)
+						ss << read_matrix_info(i).to_string();
+					else {
+						read_next(ss, i, dt);
 						ss << " ";
-						i += datatype_length;
 					}
 				}
 				ss << std::endl << std::endl;

@@ -28,8 +28,8 @@ typedef enum _client_command : uint8_t {
 	LOAD_LIBRARY = 22,
 	UNLOAD_LIBRARY = 23,
 	// Matrices
-	MATRIX_INFO = 31,
-	MATRIX_LAYOUT = 32,
+	SEND_MATRIX_INFO = 31,
+	SEND_MATRIX_LAYOUT = 32,
 	SEND_MATRIX_BLOCKS = 33,
 	REQUEST_MATRIX_BLOCKS = 34,
 	// Tasks
@@ -93,10 +93,10 @@ inline const std::string get_command_name(const client_command & c)
 			return "LIST AVAILABLE LIBRARIES";
 		case UNLOAD_LIBRARY:
 			return "UNLOAD LIBRARY";
-		case MATRIX_INFO:
-			return "MATRIX INFO";
-		case MATRIX_LAYOUT:
-			return "MATRIX LAYOUT";
+		case SEND_MATRIX_INFO:
+			return "SEND MATRIX INFO";
+		case SEND_MATRIX_LAYOUT:
+			return "SEND MATRIX LAYOUT";
 		case SEND_MATRIX_BLOCKS:
 			return "SEND MATRIX BLOCKS";
 		case REQUEST_MATRIX_BLOCKS:

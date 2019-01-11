@@ -38,10 +38,12 @@ public:
 	string list_workers();
 	uint16_t get_num_workers();
 
+	MatrixInfo & get_matrix_info(const Matrix_ID matrix_ID);
+
 	string list_sessions();
 	Library_ID load_library(string library_name, string library_path);
-	Matrix_ID new_matrix(unsigned char type, unsigned char layout, uint64_t num_rows, uint64_t num_cols);
-	vector<uint16_t> & get_row_assignments(Matrix_ID & matrix_ID);
+	Matrix_ID new_matrix(string name, uint64_t num_rows, uint64_t num_cols, unsigned char sparse, unsigned char layout);
+	Worker_ID * get_row_assignments(Matrix_ID & matrix_ID);
 	void determine_row_assignments(Matrix_ID & matrix_ID);
 	vector<vector<vector<float> > > prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers);
 

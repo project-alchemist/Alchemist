@@ -900,7 +900,7 @@ protected:
 struct MatrixInfoParameter : Parameter {
 public:
 
-	MatrixInfoParameter(string _name, MatrixInfo _value) : Parameter(_name, MATRIX_ID), value(_value) { }
+	MatrixInfoParameter(string _name, MatrixInfo _value) : Parameter(_name, MATRIX_INFO), value(_value) { }
 
 	~MatrixInfoParameter() { }
 
@@ -1225,14 +1225,17 @@ public:
 	}
 
 	void add_matrix_info(string name, const MatrixInfo & value) {
+		matrix_info_names.push_back(name);
 		parameters.insert(std::make_pair(name, new MatrixInfoParameter(name, value)));
 	}
 
 	void add_distmatrix(string name, DistMatrix_ptr value) {
+		distmatrix_names.push_back(name);
 		parameters.insert(std::make_pair(name, new DistMatrixParameter(name, value)));
 	}
 
 	void add_ptr(string name, void * value) {
+		ptr_names.push_back(name);
 		parameters.insert(std::make_pair(name, new PointerParameter(name, value)));
 	}
 

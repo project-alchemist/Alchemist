@@ -403,10 +403,13 @@ int GroupWorker::new_matrix()
 	log->info("Creating new Elemental distributed matrix");
 
 	uint64_t num_rows, num_cols;
+	unsigned char sparse, layout;
 
 	MPI_Bcast(&current_matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
+	MPI_Bcast(&sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
+	MPI_Bcast(&layout, 1, MPI_UNSIGNED_CHAR, 0, group);
 
 	MPI_Barrier(group);
 
@@ -432,20 +435,14 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 	output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
 
-	log->info("ottp {}", distmatrix_name);
-
 	while (distmatrix_ptr != nullptr) {
 		distmatrix_names.push_back(distmatrix_name);
 		distmatrix_ptrs.push_back(distmatrix_ptr);
 
 		output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
-
-		log->info("ottp {}", distmatrix_name);
 	}
 
 	int num_distmatrices = (int) distmatrix_ptrs.size();
-
-	log->info("ottp {} {}", num_distmatrices, primary_group_worker);
 
 	if (primary_group_worker) MPI_Send(&num_distmatrices, 1, MPI_INT, 0, 0, group);
 
@@ -453,7 +450,7 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 		if (primary_group_worker) {
 			for (int i = 0; i < num_distmatrices; i++) {
-				uint16_t dmnl = distmatrix_names[i].length()+1;
+				uint16_t dmnl = (uint16_t) distmatrix_names[i].length()+1;
 
 				MPI_Send(&dmnl, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
 				MPI_Send(distmatrix_names[i].c_str(), dmnl, MPI_CHAR, 0, 0, group);
@@ -467,29 +464,24 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 		}
 
 		Matrix_ID matrix_IDs[num_distmatrices];
-		MPI_Bcast(&matrix_IDs, (int) num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
+		MPI_Bcast(&matrix_IDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
 
 		for (int i = 0; i < num_distmatrices; i++) {
 			matrices.insert(std::make_pair(matrix_IDs[i], distmatrix_ptrs[i]));
 
-			distmatrix_ptr = distmatrix_ptrs[i];
-
-			log->info("Creating vector of local rows");
+			log->info("Creating vector of local rows for matrix {}", distmatrix_names[i]);
 
 			MPI_Bcast(&matrix_IDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
 			MPI_Barrier(group);
 
-			DistMatrix_ptr matrix = matrices[matrix_IDs[i]];
-			uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
+			distmatrix_ptr = matrices[matrix_IDs[i]];
+			uint64_t num_local_rows = (uint64_t) distmatrix_ptr->LocalHeight();
 			uint64_t * local_rows = new uint64_t[num_local_rows];
 
-			for (uint64_t i = 0; i < num_local_rows; i++) {
-				local_rows[i] = (uint64_t) matrix->GlobalRow(i);
-			}
+			for (uint64_t i = 0; i < num_local_rows; i++) local_rows[i] = (uint64_t) distmatrix_ptr->GlobalRow(i);
 
 			MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
-			for (uint64_t i = 0; i < num_local_rows; i++)
-				MPI_Send(&local_rows[i], 1, MPI_UNSIGNED_LONG, 0, 0, group);\
+			MPI_Send(local_rows, (int) num_local_rows, MPI_UNSIGNED_LONG, 0, 0, group);
 
 			delete [] local_rows;
 		}

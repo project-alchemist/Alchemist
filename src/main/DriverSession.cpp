@@ -31,7 +31,7 @@ bool DriverSession::send_response_string()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
-//	log->info("IN: {}", read_msg.to_string());
+	log->info("IN: {}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
@@ -93,10 +93,10 @@ int DriverSession::handle_message()
 					handle_unload_library();
 					break;
 					// Matrices
-				case MATRIX_INFO:
+				case SEND_MATRIX_INFO:
 					handle_matrix_info();
 					break;
-				case MATRIX_LAYOUT:
+				case SEND_MATRIX_LAYOUT:
 					handle_matrix_layout();
 					break;
 				case SEND_MATRIX_BLOCKS:
@@ -435,12 +435,13 @@ void DriverSession::handle_unload_library()
 
 void DriverSession::handle_matrix_info()
 {
-	unsigned char type   = read_msg.read_unsigned_char();
-	unsigned char layout = read_msg.read_unsigned_char();
+	string name          = read_msg.read_string();
 	uint64_t num_rows    = read_msg.read_uint64();
 	uint64_t num_cols    = read_msg.read_uint64();
+	unsigned char sparse = read_msg.read_unsigned_char();
+	unsigned char layout = read_msg.read_unsigned_char();
 
-	send_matrix_info(group_driver.new_matrix(type, layout, num_rows, num_cols));
+	send_matrix_info(group_driver.new_matrix(name, num_rows, num_cols, sparse, layout));
 }
 
 void DriverSession::handle_matrix_layout()
@@ -529,22 +530,9 @@ void DriverSession::remove_session()
 
 void DriverSession::send_matrix_info(Matrix_ID matrix_ID)
 {
-	write_msg.start(client_ID, session_ID, MATRIX_INFO);
+	write_msg.start(client_ID, session_ID, SEND_MATRIX_INFO);
 	log->info("Sending back info for matrix {}", matrix_ID);
-	write_msg.add_uint16(matrix_ID);
-
-//	group_driver.determine_row_assignments(matrix_ID);
-	vector<uint16_t> & row_assignments = group_driver.get_row_assignments(matrix_ID);
-
-	uint64_t num_rows = row_assignments.size();
-	uint64_t num_cols = group_driver.get_num_cols(matrix_ID);
-//	uint16_t worker;
-
-	write_msg.add_uint64(num_rows);
-	write_msg.add_uint64(num_cols);
-
-	for (uint32_t row = 0; row < num_rows; row++)
-		write_msg.add_uint16(row_assignments[row]);
+	write_msg.add_matrix_info(group_driver.get_matrix_info(matrix_ID));
 
 	flush();
 }
@@ -554,7 +542,7 @@ void DriverSession::send_layout(vector<vector<uint32_t> > & rows_on_workers)
 	uint16_t num_workers = rows_on_workers.size();
 	uint32_t worker_num_rows, row;
 
-	write_msg.start(client_ID, session_ID, MATRIX_LAYOUT);
+	write_msg.start(client_ID, session_ID, SEND_MATRIX_LAYOUT);
 	write_msg.add_uint16(num_workers);
 
 	for (uint16_t i = 0; i < num_workers; i++) {
@@ -575,7 +563,7 @@ void DriverSession::send_layout(vector<uint16_t> & row_assignments)
 	uint32_t num_rows = row_assignments.size();
 	uint16_t worker;
 
-	write_msg.start(client_ID, session_ID, MATRIX_LAYOUT);
+	write_msg.start(client_ID, session_ID, SEND_MATRIX_LAYOUT);
 	write_msg.add_uint32(num_rows);
 
 	for (uint32_t row = 0; row < num_rows; row++)

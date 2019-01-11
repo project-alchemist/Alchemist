@@ -66,7 +66,7 @@ inline Log_ptr start_log(std::string name, std::string pattern, std::string form
 {
 	std::string logfile_name = name + ".log";
 
-	auto console_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_st>();
+	auto console_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
 	console_sink->set_level(spdlog::level::info);
 	console_sink->set_pattern(pattern);
 	console_sink->set_color(spdlog::level::info, format + fore_color + back_color);

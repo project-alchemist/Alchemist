@@ -72,7 +72,7 @@ const string get_Boost_version();
 
 typedef El::Matrix<double> Matrix;
 
-typedef uint16_t Worker_ID;
+typedef uint8_t Worker_ID;
 typedef uint16_t Client_ID;
 typedef uint16_t Group_ID;
 typedef uint16_t Session_ID;
@@ -119,29 +119,36 @@ struct MatrixInfo {
 	Matrix_ID ID;
 
 	string name;
-	uint64_t num_rows;
-	uint64_t num_cols;
+	uint64_t num_rows, num_cols;
+	bool sparse;
+	uint8_t layout, num_partitions;
 
-	vector<Worker_ID> row_assignments;
+	Worker_ID * row_assignments;
 
-	explicit MatrixInfo() : ID(0), num_rows(0), num_cols(0) { }
+	explicit MatrixInfo() : ID(0), num_rows(0), num_cols(0), sparse(false), layout(0), num_partitions(0) {
+		row_assignments = new Worker_ID[1];
+	}
 
 	MatrixInfo(Matrix_ID _ID, uint64_t _num_rows, uint64_t _num_cols) :
 		MatrixInfo(_ID, "", _num_rows, _num_cols) {
-		row_assignments.resize(num_rows);
+		row_assignments = new Worker_ID[num_rows];
 	}
 
 	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols) {
-		row_assignments.resize(num_rows);
+		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(false), layout(0), num_partitions(0) {
+		row_assignments = new Worker_ID[num_rows];
+	}
+	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols, bool _sparse, unsigned char _layout, unsigned char _num_partitions) :
+		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions) {
+		row_assignments = new Worker_ID[num_rows];
 	}
 
-	~MatrixInfo() { }
+	~MatrixInfo() { delete [] row_assignments; }
 
 	string to_string() const {
 		std::stringstream ss;
 
-		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ")";
+		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << sparse << ", # partitions: " << num_partitions << ")";
 
 		return ss.str();
 	}

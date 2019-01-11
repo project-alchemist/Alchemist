@@ -165,7 +165,7 @@ void Driver::set_group_communicator(const Group_ID & group_ID)
 			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
 			MPI_Send(&group_peer_IDs, (int) group_size, MPI_INT, worker_ID, 0, world);
 			MPI_Send(&primary_group_worker, 1, MPI_INT, worker_ID, 0, world);
-			if (primary_group_worker) primary_group_worker = 1;
+			if (primary_group_worker == 0) primary_group_worker = 1;
 		}
 	}
 	groups[group_ID]->set_group_comm(world, temp_group);
