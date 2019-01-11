@@ -433,8 +433,6 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 	std::vector<DistMatrix_ptr> distmatrix_ptrs;
 	string distmatrix_name = "";
 
-	log->info("OOO {}", output_parameters.to_string());
-
 	output_parameters.get_next_distmatrix(distmatrix_name, distmatrix_ptr);
 
 	while (distmatrix_ptr != nullptr) {
@@ -711,13 +709,11 @@ void GroupWorker::deserialize_parameters(Parameters & p, Message & msg)
 	while (!msg.eom()) {
 		dt = (datatype) msg.next_datatype();
 		data_length = msg.next_data_length();
-		log->info("Send {} {}", dt, data_length);
 		if (dt == PARAMETER) {
 			msg.read_parameter();
 			name = msg.read_string();
 			dt = (datatype) msg.next_datatype();
 			data_length = msg.next_data_length();
-			log->info("Se {} {} {}", name, dt, data_length);
 
 			switch(dt) {
 			case CHAR:
