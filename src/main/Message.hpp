@@ -905,6 +905,11 @@ public:
 		current_datatype_count += 1;
 	}
 
+	void add_parameter()
+	{
+		check_datatype(PARAMETER);
+	}
+
 	void add_matrix_ID(const Matrix_ID & _data)
 	{
 		check_datatype(MATRIX_ID);
@@ -978,7 +983,7 @@ public:
 				memcpy(data + write_pos, &matrix.num_partitions, 1);
 				write_pos += 1;
 				// Matrix row assignments
-				memcpy(data + write_pos, &matrix.row_assignments, matrix.num_rows);
+				memcpy(data + write_pos, matrix.row_assignments, matrix.num_rows);
 				write_pos += matrix.num_rows;
 			}
 			break;
@@ -1022,13 +1027,14 @@ public:
 				memcpy(data + write_pos, &matrix.num_partitions, 1);
 				write_pos += 1;
 				// Matrix row assignments
-				memcpy(data + write_pos, &matrix.row_assignments, matrix.num_rows);
+				memcpy(data + write_pos, matrix.row_assignments, matrix.num_rows);
 				write_pos += matrix.num_rows;
 			}
 			break;
 		case PYTHON:
 		case JULIA:
 			{
+				std::cout << matrix.to_string(true) << std::endl;
 				// Matrix ID
 				int16_t matrix_ID = htobe16((int16_t) matrix.ID);
 				memcpy(data + write_pos, &matrix_ID, 2);
@@ -1060,7 +1066,7 @@ public:
 				memcpy(data + write_pos, &matrix.num_partitions, 1);
 				write_pos += 1;
 				// Matrix row assignments
-				memcpy(data + write_pos, &matrix.row_assignments, matrix.num_rows);
+				memcpy(data + write_pos, matrix.row_assignments, matrix.num_rows);
 				write_pos += matrix.num_rows;
 			}
 			break;
@@ -2325,12 +2331,24 @@ public:
 
 	const Matrix_ID read_matrix_ID()
 	{
-		Matrix_ID matrix_ID;
-		memcpy(&matrix_ID, &data[read_pos], 2);
-		matrix_ID = be16toh(matrix_ID);
-		read_pos += 2;
+		if (current_datatype != MATRIX_ID) {
+			current_datatype = MATRIX_ID;
 
-		return matrix_ID;
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
+
+		return read_matrix_ID(read_pos);
+	}
+
+	void read_parameter()
+	{
+		if (current_datatype != PARAMETER) {
+			current_datatype = PARAMETER;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
 	}
 
 	const Matrix_ID read_matrix_ID(uint32_t & i)
@@ -2343,52 +2361,42 @@ public:
 		return matrix_ID;
 	}
 
-	const MatrixInfo read_matrix_info()
+	const Library_ID read_library_ID()
 	{
-		read_pos += sizeof(datatype);
-		read_pos += 4;
+		if (current_datatype != LIBRARY_ID) {
+			current_datatype = LIBRARY_ID;
 
-		datatype dt;
-		uint32_t data_length = 0;
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
 
-		Matrix_ID matrix_ID;
-		uint32_t name_length;
-		string name;
-		uint64_t num_rows, num_cols;
-		bool sparse;
-		uint8_t layout, num_partitions;
-
-		memcpy(&matrix_ID, &data[read_pos], 2);
-		matrix_ID = be16toh(matrix_ID);
-		read_pos += 2;
-		memcpy(&name_length, &data[read_pos], 4);
-		name_length = be16toh(name_length);
-		read_pos += 4;
-		char name_c[name_length];
-		memcpy(name_c, &data[read_pos], name_length);
-		read_pos += name_length;
-		name = string(name_c);
-		memcpy(&num_rows, &data[read_pos], 4);
-		num_rows = be16toh(num_rows);
-		read_pos += 4;
-		memcpy(&sparse, &data[read_pos], 1);
-		read_pos += 1;
-		memcpy(&layout, &data[read_pos], 1);
-		read_pos += 1;
-		memcpy(&num_partitions, &data[read_pos], 1);
-		read_pos += 1;
-		MatrixInfo matrix(matrix_ID, name, num_rows, num_cols, sparse, layout, num_partitions);
-		memcpy(&matrix.row_assignments, &data[read_pos], num_rows);
-		read_pos += num_rows;
-
-		return matrix;
+		return read_library_ID(read_pos);
 	}
 
-	const MatrixInfo read_matrix_info(uint32_t & i)
+	const Library_ID read_library_ID(uint32_t & i)
 	{
-		i += sizeof(datatype);
-		i += 4;
+		Library_ID library_ID;
+		memcpy(&library_ID, &data[i], 2);
+		library_ID = be16toh(library_ID);
+		i += 2;
 
+		return library_ID;
+	}
+
+	const MatrixInfo_ptr read_matrix_info()
+	{
+		if (current_datatype != MATRIX_INFO) {
+			current_datatype = MATRIX_INFO;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
+
+		return read_matrix_info(read_pos);
+	}
+
+	const MatrixInfo_ptr read_matrix_info(uint32_t & i)
+	{
 		datatype dt;
 		uint32_t data_length = 0;
 
@@ -2399,27 +2407,41 @@ public:
 		bool sparse;
 		uint8_t layout, num_partitions;
 
-		memcpy(&matrix_ID, &data[i], 2);
+		memcpy(&matrix_ID, data + i, 2);
 		matrix_ID = be16toh(matrix_ID);
+		std::cout << "TT 1 " << matrix_ID << std::endl;
 		i += 2;
-		memcpy(&name_length, &data[i], 4);
-		name_length = be16toh(name_length);
+		memcpy(&name_length, data + i, 4);
+		name_length = be32toh(name_length);
+		std::cout << "TT 2 " << name_length << std::endl;
 		i += 4;
-		char name_c[name_length];
-		memcpy(name_c, &data[i], name_length);
-		i += name_length;
-		name = string(name_c);
-		memcpy(&num_rows, &data[i], 4);
-		num_rows = be16toh(num_rows);
-		i += 4;
-		memcpy(&sparse, &data[i], 1);
+		if (name_length > 0) {
+			char name_c[name_length];
+			memcpy(name_c, data + i, name_length);
+			i += name_length;
+			name = string(name_c);
+		}
+		else name = "";
+		std::cout << "TT 3 " << name << std::endl;
+		memcpy(&num_rows, data + i, 8);
+		num_rows = be64toh(num_rows);
+		std::cout << "TT 4 " << num_rows << std::endl;
+		i += 8;
+		memcpy(&num_cols, data + i, 8);
+		num_cols = be64toh(num_cols);
+		std::cout << "TT 5 " << num_cols << std::endl;
+		i += 8;
+		memcpy(&sparse, data + i, 1);
+		std::cout << "TT 6 " << sparse << std::endl;
 		i += 1;
-		memcpy(&layout, &data[i], 1);
+		memcpy(&layout, data + i, 1);
+		std::cout << "TT 7 " << layout << std::endl;
 		i += 1;
 		memcpy(&num_partitions, &data[i], 1);
+		std::cout << "TT 8 " << num_partitions << " " << (uint16_t) data[i+1] << " " << (uint16_t) data[i+2] << " " << (uint16_t) data[i+3] << " " << (uint16_t) data[i+4] << std::endl;
 		i += 1;
-		MatrixInfo matrix(matrix_ID, name, num_rows, num_cols, sparse, layout, num_partitions);
-		memcpy(&matrix.row_assignments, &data[i], num_rows);
+		MatrixInfo_ptr matrix = std::make_shared<MatrixInfo>(matrix_ID, name, num_rows, num_cols, sparse, layout, num_partitions);
+		memcpy(matrix->row_assignments, data + i, num_rows);
 		i += num_rows;
 
 		return matrix;
@@ -2516,6 +2538,9 @@ public:
 			case MATRIX_ID:
 				ss << read_matrix_ID(i);
 				break;
+			case LIBRARY_ID:
+				ss << read_library_ID(i);
+				break;
 			default:
 				ss << "Invalid datatype";
 				break;
@@ -2576,9 +2601,11 @@ public:
 					else if (dt == WSTRING)
 						ss << read_wstring(i) << "\n" << space;
 					else if (dt == PARAMETER)
-						ss << read_matrix_info(i).to_string();
-					else if (dt == MATRIX_INFO)
-						ss << read_matrix_info(i).to_string();
+						ss << " ";
+					else if (dt == MATRIX_INFO) {
+						ss << read_matrix_info(i)->to_string(true);
+						std::cout << "iiiii " << i << std::endl;
+					}
 					else {
 						read_next(ss, i, dt);
 						ss << " ";

@@ -900,20 +900,20 @@ protected:
 struct MatrixInfoParameter : Parameter {
 public:
 
-	MatrixInfoParameter(string _name, MatrixInfo _value) : Parameter(_name, MATRIX_INFO), value(_value) { }
+	MatrixInfoParameter(string _name, MatrixInfo_ptr _value) : Parameter(_name, MATRIX_INFO), value(_value) { }
 
 	~MatrixInfoParameter() { }
 
-	MatrixInfo get_value() const {
+	MatrixInfo_ptr get_value() const {
 		return value;
 	}
 
 	string to_string() const {
-		return value.to_string();
+		return value->to_string();
 	}
 
 protected:
-	MatrixInfo value;
+	MatrixInfo_ptr value;
 };
 
 struct DistMatrixParameter : Parameter {
@@ -1224,7 +1224,7 @@ public:
 		parameters.insert(std::make_pair(name, new WStringParameter(name, value)));
 	}
 
-	void add_matrix_info(string name, const MatrixInfo & value) {
+	void add_matrix_info(string name, const MatrixInfo_ptr value) {
 		matrix_info_names.push_back(name);
 		parameters.insert(std::make_pair(name, new MatrixInfoParameter(name, value)));
 	}
@@ -1351,7 +1351,7 @@ public:
 		return std::dynamic_pointer_cast<StringParameter>(parameters.find(name)->second)->get_value();
 	}
 
-	MatrixInfo get_matrix_info(string name) const {
+	MatrixInfo_ptr get_matrix_info(string name) const {
 		return std::dynamic_pointer_cast<MatrixInfoParameter>(parameters.find(name)->second)->get_value();
 	}
 

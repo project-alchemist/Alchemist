@@ -42,7 +42,7 @@ public:
 
 	string list_sessions();
 	Library_ID load_library(string library_name, string library_path);
-	Matrix_ID new_matrix(string name, uint64_t num_rows, uint64_t num_cols, unsigned char sparse, unsigned char layout);
+	Matrix_ID new_matrix(string name, uint64_t num_rows, uint64_t num_cols, uint8_t sparse, uint8_t layout);
 	Worker_ID * get_row_assignments(Matrix_ID & matrix_ID);
 	void determine_row_assignments(Matrix_ID & matrix_ID);
 	vector<vector<vector<float> > > prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers);
@@ -90,7 +90,7 @@ private:
 	client_language cl;
 
 	map<Library_ID, Library *> libraries;
-	map<Matrix_ID, MatrixInfo> matrices;
+	map<Matrix_ID, MatrixInfo_ptr> matrices;
 
 	Driver & driver;
 

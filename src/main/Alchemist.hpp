@@ -125,34 +125,44 @@ struct MatrixInfo {
 
 	Worker_ID * row_assignments;
 
-	explicit MatrixInfo() : ID(0), num_rows(0), num_cols(0), sparse(false), layout(0), num_partitions(0) {
-		row_assignments = new Worker_ID[1];
+	explicit MatrixInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(false), layout(0), num_partitions(0), row_assignments(nullptr) {
+		row_assignments = new Worker_ID[num_rows]();
 	}
 
 	MatrixInfo(Matrix_ID _ID, uint64_t _num_rows, uint64_t _num_cols) :
-		MatrixInfo(_ID, "", _num_rows, _num_cols) {
-		row_assignments = new Worker_ID[num_rows];
+		ID(_ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(false), layout(0), num_partitions(0), row_assignments(nullptr) {
+		row_assignments = new Worker_ID[num_rows]();
 	}
 
 	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(false), layout(0), num_partitions(0) {
-		row_assignments = new Worker_ID[num_rows];
+		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(false), layout(0), num_partitions(0), row_assignments(nullptr) {
+		row_assignments = new Worker_ID[num_rows]();
 	}
-	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols, bool _sparse, unsigned char _layout, unsigned char _num_partitions) :
-		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions) {
-		row_assignments = new Worker_ID[num_rows];
+	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols, bool _sparse, uint8_t _layout, uint8_t _num_partitions) :
+		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions), row_assignments(nullptr) {
+		std::cout << "SHFHSH" << std::endl;
+		row_assignments = new Worker_ID[num_rows]();
+		std::cout << "SHFHSH gg" << std::endl;
 	}
 
-	~MatrixInfo() { delete [] row_assignments; }
+	~MatrixInfo() {
+		delete [] row_assignments; row_assignments = nullptr;
+	}
 
-	string to_string() const {
+	string to_string(bool display_layout=false) const {
 		std::stringstream ss;
 
-		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << sparse << ", # partitions: " << num_partitions << ")";
+		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ", # partitions: " << (uint16_t) num_partitions << ")";
+		if (display_layout) {
+			ss << std::endl << "Layout: " << std::endl;
+			for (uint64_t i = 0; i < num_rows; i++) ss << (uint16_t) row_assignments[i] << " ";
+		}
 
 		return ss.str();
 	}
 };
+
+typedef std::shared_ptr<MatrixInfo> MatrixInfo_ptr;
 
 //inline bool exist_test (const std::string & name) {
 //    struct stat buffer;
