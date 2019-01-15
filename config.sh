@@ -3,7 +3,7 @@
 # Configuration file for building Alchemist
 
 if [ "$SYSTEM" = "" ]; then
-  export SYSTEM="MacOS"
+  export SYSTEM="Linux"
 fi
 
 if [ "$SYSTEM" = "MacOS" ]; then
@@ -11,9 +11,11 @@ if [ "$SYSTEM" = "MacOS" ]; then
 	export ELEMENTAL_PATH=$HOME/Software/Elemental
 
 elif [ "$SYSTEM" = "Linux" ]; then
-	export ALCHEMIST_PATH=/usr/local/Alchemist
-	export ELEMENTAL_PATH=/usr/local/elemental
-	export SPDLOG_PATH=/usr/local/spdlog
+	export ALCHEMIST_PATH=$HOME/Projects/Alchemist2
+	export ELEMENTAL_PATH=$HOME/Software/Elemental
+#	export ALCHEMIST_PATH=/usr/local/Alchemist
+#	export ELEMENTAL_PATH=/usr/local/elemental
+#	export SPDLOG_PATH=/usr/local/spdlog
 
 elif [ "$SYSTEM" = "Cori" ]; then
 	export ALCHEMIST_PATH=$SCRATCH/Projects/Alchemist2

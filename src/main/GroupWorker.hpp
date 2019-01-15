@@ -54,6 +54,8 @@ public:
 	int get_transpose();
 	int matrix_multiply();
 
+	bool check_library_ID(Library_ID & lib_ID);
+
 	int get_matrix_rows();
 
 	void print_data(Matrix_ID ID);

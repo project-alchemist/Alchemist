@@ -575,12 +575,11 @@ public:
 		current_datatype_count += length;
 	}
 
-	void add_int8(const int8_t _data)
+	void add_int8(const int8_t & _data)
 	{
 		check_datatype(INT8_T);
 
-		int8_t temp_int8 = _data;
-		memcpy(data + write_pos, &temp_int8, 1);
+		memcpy(data + write_pos, &_data, 1);
 		write_pos += 1;
 
 		current_datatype_count += 1;
@@ -908,6 +907,35 @@ public:
 	void add_parameter()
 	{
 		check_datatype(PARAMETER);
+	}
+
+	void add_library_ID(const Library_ID & _data)
+	{
+		check_datatype(LIBRARY_ID);
+
+		current_datatype_count += 1;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			memcpy(data + write_pos, &_data, 1);
+			break;
+		case SCALA:
+		case JAVA:
+			{
+				int8_t temp = (int8_t) _data;
+				memcpy(data + write_pos, &temp, 1);
+			}
+			break;
+		case PYTHON:
+		case JULIA:
+			{
+				int8_t temp = (int8_t) _data;
+				memcpy(data + write_pos, &temp, 1);
+			}
+			break;
+		}
+		write_pos += 1;
 	}
 
 	void add_matrix_ID(const Matrix_ID & _data)
@@ -2376,9 +2404,8 @@ public:
 	const Library_ID read_library_ID(uint32_t & i)
 	{
 		Library_ID library_ID;
-		memcpy(&library_ID, &data[i], 2);
-		library_ID = be16toh(library_ID);
-		i += 2;
+		memcpy(&library_ID, &data[i], 1);
+		i += 1;
 
 		return library_ID;
 	}
@@ -2531,7 +2558,7 @@ public:
 				ss << read_matrix_ID(i);
 				break;
 			case LIBRARY_ID:
-				ss << read_library_ID(i);
+				ss << (int16_t) read_library_ID(i);
 				break;
 			default:
 				ss << "Invalid datatype";

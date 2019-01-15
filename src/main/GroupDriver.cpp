@@ -223,11 +223,9 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	uint16_t library_name_c_length = strlen(library_name_c);
 	uint16_t library_path_c_length = strlen(library_path_c);
 
-//	log->info("FGG {} {}", library_name_c, library_path_c);
-
 	next_library_ID++;
 
-	MPI_Bcast(&next_library_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+	MPI_Bcast(&next_library_ID, 1, MPI_BYTE, 0, group);
 	MPI_Bcast(&library_name_c_length, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(library_name_c, library_name_length+1, MPI_CHAR, 0, group);
 	MPI_Bcast(&library_path_c_length, 1, MPI_UNSIGNED_SHORT, 0, group);
@@ -235,7 +233,7 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 
 	MPI_Barrier(group);
 
-	char * cstr = new char [library_path.length()+1];
+	char cstr[library_path.length()+1];
 	std::strcpy(cstr, library_path.c_str());
 
 	log->info("Loading library {} located at {}", library_name, library_path);
@@ -244,7 +242,7 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	if (lib == NULL) {
 		log->info("dlopen failed: {}", dlerror());
 
-		return -1;
+		return 0;
 	}
 
 	dlerror();			// Reset errors
@@ -254,12 +252,11 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	create_t * create_library = (create_t*) dlsym(lib, "create");
 	const char * dlsym_error = dlerror();
 	if (dlsym_error) {
-//    		log->info("dlsym with command \"load\" failed: {}", dlerror());
+		log->info("dlsym with command \"create\" failed: {}", dlerror());
 
-//        	delete [] cstr;
-//        	delete dlsym_error;
+		delete dlsym_error;
 
-		return -1;
+		return 0;
 	}
 
 
@@ -285,7 +282,6 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	//		library->run("greet", input, output);
 	//	}
 
-	delete [] cstr;
 	delete dlsym_error;
 
 	MPI_Barrier(group);
@@ -330,7 +326,7 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 	temp_in_msg.copy_body(&in_data[0], in_data_length);
 	MPI_Barrier(group);
 
-	Library_ID lib_ID = temp_in_msg.read_uint16();
+	Library_ID lib_ID = temp_in_msg.read_uint8();
 
 	if (check_library_ID(lib_ID)) {
 		string function_name = temp_in_msg.read_string();
@@ -397,11 +393,6 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 				out.add_matrix_info(matrices[matrix_IDs[i]]->name, matrices[matrix_IDs[i]]);
 			}
 		}
-
-//		for (auto itt = matrices.begin(); itt != matrices.end(); itt++) {
-//			log->info("ott {}", itt->second.to_string());
-//			log->info("ott444 {} {} {}", itt->first, itt->second.row_assignments[0], itt->second.row_assignments[1]);
-//		}
 
 		MPI_Barrier(group);
 

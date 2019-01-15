@@ -424,7 +424,7 @@ void DriverSession::handle_load_library()
 	Library_ID lib_ID = group_driver.load_library(lib_name, lib_path);
 
 	write_msg.start(client_ID, session_ID, LOAD_LIBRARY);
-	write_msg.add_uint16(lib_ID);
+	write_msg.add_library_ID(lib_ID);
 	flush();
 }
 

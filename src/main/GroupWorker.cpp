@@ -292,7 +292,7 @@ int GroupWorker::load_library()
 	uint16_t library_name_length = 0;
 	uint16_t library_path_length = 0;
 
-	MPI_Bcast(&library_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+	MPI_Bcast(&library_ID, 1, MPI_BYTE, 0, group);
 
 	MPI_Bcast(&library_name_length, 1, MPI_UNSIGNED_SHORT, 0, group);
 	char library_name_c[library_name_length+1];
@@ -307,7 +307,7 @@ int GroupWorker::load_library()
 	string library_name = string(library_name_c);
 	string library_path = string(library_path_c);
 
-	char * cstr = new char [library_path.length()+1];
+	char cstr[library_path.length()+1];
 	std::strcpy(cstr, library_path.c_str());
 
 	log->info("Loading library {} located at {}", library_name, library_path);
@@ -316,7 +316,7 @@ int GroupWorker::load_library()
 	if (lib == NULL) {
 		log->info("dlopen failed: {}", dlerror());
 
-		return -1;
+		return 0;
 	}
 
 	dlerror();			// Reset errors
@@ -325,12 +325,11 @@ int GroupWorker::load_library()
 	create_t * create_library = (create_t*) dlsym(lib, "create");
 	const char * dlsym_error = dlerror();
 	if (dlsym_error) {
-//    		log->info("dlsym with command \"load\" failed: {}", dlerror());
+		log->info("dlsym with command \"create\" failed: {}", dlerror());
 
-//        	delete [] cstr;
-//        	delete dlsym_error;
+		delete dlsym_error;
 
-		return -1;
+		return 0;
 	}
 
 //	Library * library = reinterpret_cast<Library*>(create_library(group));
@@ -391,7 +390,7 @@ int GroupWorker::load_library()
 //	}
 
 //	delete [] cstr;
-//	delete dlsym_error;
+	delete dlsym_error;
 
 	MPI_Barrier(group);
 
@@ -559,7 +558,7 @@ string GroupWorker::list_sessions()
 
 }
 
-bool check_library_ID(Library_ID)
+bool GroupWorker::check_library_ID(Library_ID & lib_ID)
 {
 	return true;
 }
@@ -580,7 +579,7 @@ void GroupWorker::run_task()
 	temp_in_msg.copy_body(&data[0], data_length);
 	MPI_Barrier(group);
 
-	Library_ID lib_ID = temp_in_msg.read_uint16();
+	Library_ID lib_ID = temp_in_msg.read_uint8();
 	if (check_library_ID(lib_ID)) {
 		string function_name = temp_in_msg.read_string();
 

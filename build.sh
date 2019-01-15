@@ -20,7 +20,7 @@ echo " "
 echo "Creating Alchemist executable:"
 echo " "
 cd ./build/$SYSTEM/
-nice make -j8
+nice make -j4
 cd ../..
 echo " "
 echo $LINE
@@ -28,7 +28,7 @@ echo " "
 echo "Building process for Alchemist has completed"
 echo " "
 echo "If no issues occurred during build:"
-echo "  Alchemist executable located at:    $ALCHEMIST_PATH/target/alchemist.exe"
+echo "  Alchemist executable located at:    $ALCHEMIST_EXE"
 echo " "
 echo "  Run './start.sh' to start Alchemist"
 echo " "
