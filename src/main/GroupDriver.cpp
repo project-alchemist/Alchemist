@@ -239,22 +239,31 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	log->info("Loading library {} located at {}", library_name, library_path);
 
 	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
-	if (lib == NULL) {
-		log->info("dlopen failed: {}", dlerror());
+	log->info("L 1");
+	const char * dlopen_error = dlerror();
+	log->info("L 2");
+	if (dlopen_error != NULL) {
+		log->info("L 3");
+		log->info("dlopen failed: {}", string(dlopen_error));
+		log->info("L 4");
 
 		return 0;
 	}
 
+	log->info("L 6");
 	dlerror();			// Reset errors
 
 //	void * create_library = dlsym(lib, "create");
 
+	log->info("L 7");
 	create_t * create_library = (create_t*) dlsym(lib, "create");
+	log->info("L 8");
 	const char * dlsym_error = dlerror();
-	if (dlsym_error) {
-		log->info("dlsym with command \"create\" failed: {}", dlerror());
-
-		delete dlsym_error;
+	log->info("L 9");
+	if (dlsym_error != NULL) {
+		log->info("L 10");
+		log->info("dlsym with command \"create\" failed: {}", string(dlsym_error));
+		log->info("L 11");
 
 		return 0;
 	}

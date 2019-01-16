@@ -2,7 +2,7 @@
 
 # Configuration file for building Alchemist
 
-# export SYSTEM="MacOS"                # Options: MacOS, Cori, Linux
+export SYSTEM="MacOS"                # Options: MacOS, Cori, Linux
 if [ "$SYSTEM" = "" ]; then
   export SYSTEM="Linux"
 fi
