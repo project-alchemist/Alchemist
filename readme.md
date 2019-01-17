@@ -1,4 +1,4 @@
-Alchemist is a framework for easily and efficiently calling MPI-based codes from Apache Spark. 
+Alchemist is a framework for easily and efficiently calling HPC codes from Apache Spark and other data analysis frameworks. 
 
 # Alchemist Framework Structure
 
