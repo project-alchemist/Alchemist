@@ -256,7 +256,7 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 //	void * create_library = dlsym(lib, "create");
 
 	log->info("L 7");
-	create_t * create_library = reinterpret_cast<create_t *>(dlsym(lib, "create"));
+	create_t * create_library = reinterpret_cast<create_t *>(dlsym(lib, "create_library"));
 	log->info("L 8");
 	const char * dlsym_error = dlerror();
 	log->info("L 9");
