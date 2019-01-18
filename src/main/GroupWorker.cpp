@@ -330,7 +330,7 @@ int GroupWorker::load_library()
 //	void * create_library = dlsym(lib, "create");
 
 	log->info("L 7");
-	create_t create_library = reinterpret_cast<create_t>(dlsym(lib, "create"));
+	create_t * create_library = reinterpret_cast<create_t *>(dlsym(lib, "create"));
 	log->info("L 8");
 	const char * dlsym_error = dlerror();
 	log->info("L 9");
