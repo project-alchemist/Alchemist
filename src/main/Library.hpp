@@ -21,7 +21,7 @@ struct Library {
 	virtual int run(string & task_name, Parameters & in, Parameters & out) = 0;
 };
 
-typedef void (* create_t)(MPI_Comm &);
+typedef void * create_t(MPI_Comm &);
 typedef void destroy_t(void *);
 
 typedef std::shared_ptr<Library> Library_ptr;
