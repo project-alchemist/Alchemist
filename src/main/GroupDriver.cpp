@@ -1,4 +1,5 @@
 #include "GroupDriver.hpp"
+#include "arpackpp/arrssym.h"
 
 namespace alchemist {
 
