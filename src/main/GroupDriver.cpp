@@ -349,8 +349,11 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 		deserialize_parameters(in, temp_in_msg);
 		log->info("L 19");
 
-		libraries[lib_ID]->run(function_name, in, out);
+		ARrcSymStdEig<double> prob(400, 20, "LM");
 		log->info("L 20");
+
+		libraries[lib_ID]->run(function_name, in, out);
+		log->info("L 21");
 
 		MPI_Barrier(group);
 
