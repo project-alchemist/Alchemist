@@ -13,7 +13,7 @@ CXXFLAGS += "-I$(ASIO_PATH)/include"
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
-LDFLAGS += "-Wl,-rpath,$(ARPACK_PATH)/lib" -larpack
+LDFLAGS += "-Wl,-rpath,$(ARPACK_PATH)/lib"
 LDFLAGS += -lmpi -ldl
 
 OBJ_FILES = \
