@@ -22,7 +22,7 @@ Worker::Worker(io_context & _io_context, const unsigned int _port) :
 
 	int world_rank;
 	MPI_Comm_rank(world, &world_rank);
-	ID = (uint16_t) world_rank;
+	ID = (uint8_t) world_rank;
 
 	char buffer[12];
 	sprintf(buffer, "worker-%03d", ID);
