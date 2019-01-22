@@ -8,10 +8,12 @@ CXXFLAGS += $(EL_COMPILE_FLAGS) -fdiagnostics-color=always
 CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++11 -fext-numeric-literals
 CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 CXXFLAGS += "-I$(SPDLOG_PATH)/include"
+CXXFLAGS += "-I$(ARPACK_PATH)/include"
 CXXFLAGS += "-I$(ASIO_PATH)/include"
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
+LDFLAGS += "-Wl,-rpath,$(ARPACK_PATH)/lib"
 LDFLAGS += -lmpi -ldl
 
 OBJ_FILES = \
