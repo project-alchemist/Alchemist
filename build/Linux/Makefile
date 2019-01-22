@@ -11,10 +11,11 @@ CXXFLAGS += "-I$(SPDLOG_PATH)/include"
 CXXFLAGS += "-I$(ARPACK_PATH)/include"
 CXXFLAGS += "-I$(ASIO_PATH)/include"
 
+LDLIBS = -lmpi -ldl
+
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
-LDFLAGS += "-Wl,-rpath,$(ARPACK_PATH)/lib" -larpack
-LDFLAGS += -lmpi -ldl
+LDFLAGS += $(ARPACK_PATH)/lib/libarpack.so $(ARPACK_PATH)/lib/libparpack.so #"-Wl,-rpath,$(ARPACK_PATH)/lib"
 
 OBJ_FILES = \
 	$(TARGET_PATH)/main.o \
@@ -34,7 +35,7 @@ $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
 default: $(TARGET_PATH)/alchemist
 
 $(TARGET_PATH)/alchemist: $(TARGET_PATH) $(OBJ_FILES)
-	$(CXX) $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 -o $@ $(OBJ_FILES) -rdynamic $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 -o $@ $(OBJ_FILES) -rdynamic $(LDLIBS) $(LDFLAGS)
 
 $(TARGET_PATH):
 	mkdir -p $(TARGET_PATH)
