@@ -358,10 +358,12 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 		string distmatrix_name;
 		uint16_t dmnl;
 		uint64_t num_rows, num_cols;
+		log->info("L 21");
 
 		Worker_ID primary_worker = workers.begin()->first;
 
 		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
+		log->info("L 22");
 
 		if (num_distmatrices > 0) {
 			Matrix_ID matrix_IDs[num_distmatrices];
