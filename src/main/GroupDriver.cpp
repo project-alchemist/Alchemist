@@ -238,7 +238,7 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 
 	log->info("Loading library {} located at {}", library_name, library_path);
 
-	void * lib = dlopen(library_path.c_str(), RTLD_GLOBAL);
+	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
 	log->info("L 1");
 	const char * dlopen_error = dlerror();
 	log->info("L 2");
