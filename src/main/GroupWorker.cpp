@@ -343,9 +343,12 @@ int GroupWorker::load_library()
 	}
 
 //	Library * library = reinterpret_cast<Library*>(create_library(group));
+	log->info("L 12");
 	Library * library_ptr = reinterpret_cast<Library*>(create_library(group));
+	log->info("L 13");
 
 	libraries.insert(std::make_pair(library_ID, library_ptr));
+	log->info("L 14");
 //	Library_ptr library_ptr = std::make_shared<Library>(reinterpret_cast<Library*>(create_library(group)));
 //
 //	libraries.insert(std::make_pair(next_library_ID, library_ptr));
@@ -401,6 +404,7 @@ int GroupWorker::load_library()
 
 //	delete [] cstr;
 	delete dlsym_error;
+	log->info("L 16");
 
 	MPI_Barrier(group);
 
@@ -591,11 +595,15 @@ void GroupWorker::run_task()
 
 	Library_ID lib_ID = temp_in_msg.read_uint8();
 	if (check_library_ID(lib_ID)) {
+		log->info("L 17");
 		string function_name = temp_in_msg.read_string();
 
+		log->info("L 18");
 		deserialize_parameters(in, temp_in_msg);
 
+		log->info("L 19");
 		libraries[lib_ID]->run(function_name, in, out);
+		log->info("L 20");
 
 		MPI_Barrier(group);
 
