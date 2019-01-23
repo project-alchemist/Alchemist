@@ -420,7 +420,7 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 		log->info("L 26");
 
 		serialize_parameters(out, temp_out_msg);
-		log->info("L 27");
+		log->info("L 27 {}", out.to_string());
 	}
 
 	log->info("L 28");
@@ -432,7 +432,7 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 	out_data = temp_out_msg.body();
 	log->info("L 31");
 	out_data_length = temp_out_msg.get_body_length();
-	log->info("L 32");
+	log->info("L 32 {}", out_data_length);
 }
 
 void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
