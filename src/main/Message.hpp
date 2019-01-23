@@ -93,7 +93,7 @@ public:
 
 	void copy_body(const char * _body, const uint32_t _body_length)
 	{
-		std::cout << "Y 1" << std::endl;
+		std::cout << "Y 1 " << _body_length << " " << header_length << std::endl;
 		for (uint32_t i = 0; i < _body_length; i++) {
 			data[header_length + i] = _body[i];
 		}
