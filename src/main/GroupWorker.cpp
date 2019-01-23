@@ -595,15 +595,11 @@ void GroupWorker::run_task()
 
 	Library_ID lib_ID = temp_in_msg.read_uint8();
 	if (check_library_ID(lib_ID)) {
-		log->info("L 17");
 		string function_name = temp_in_msg.read_string();
 
-		log->info("L 18");
 		deserialize_parameters(in, temp_in_msg);
 
-		log->info("L 19");
 		libraries[lib_ID]->run(function_name, in, out);
-		log->info("L 20");
 
 		MPI_Barrier(group);
 
@@ -632,7 +628,22 @@ int GroupWorker::process_output_parameters(Parameters & output_parameters) {
 // -----------------------------------------   Library   -----------------------------------------
 
 
-
+void GroupWorker::print_matrix(Matrix_ID mid)
+{
+	log->info("gg {}", worker_ID);
+		if (worker_ID == 2) {
+			std::stringstream ss;
+			for (auto i = 1; i < 10; i+=2) {
+				log->info(" {}", i);
+				for (auto j = 0; j < 10; j++) {
+					log->info("         {} {} {}", j, matrices[mid]->Height(), matrices[mid]->Width());
+					ss << matrices[mid]->Get(i, j) << " ";
+				}
+				ss << std::endl;
+			}
+			log->info("BB {}", ss.str());
+		}
+}
 
 int GroupWorker::print_num_sessions()
 {

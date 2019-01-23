@@ -32,7 +32,6 @@ int WorkerSession::handle_message()
 {
 //	log->info("{}", read_msg.to_string());
 
-
 	client_command command = read_msg.cc;
 
 	if (command == HANDSHAKE) {
@@ -111,7 +110,7 @@ bool WorkerSession::receive_matrix_blocks()
 	uint32_t num_blocks = 0;
 	uint64_t i, j, row_start, row_end, col_start, col_end;
 
-	Matrix_ID matrix_ID = read_msg.read_uint16();
+	Matrix_ID matrix_ID = read_msg.read_matrix_ID();
 
 	while (!read_msg.eom()) {
 
@@ -127,6 +126,8 @@ bool WorkerSession::receive_matrix_blocks()
 		num_blocks++;
 		log->info("{} Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrix_ID, row_start, row_end, col_start, col_end);
 	}
+
+	group_worker.print_matrix(matrix_ID);
 
 	write_msg.start(client_ID, session_ID, SEND_MATRIX_BLOCKS);
 	write_msg.add_uint16(matrix_ID);

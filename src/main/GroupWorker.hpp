@@ -75,6 +75,8 @@ public:
 	int load_library();
 	void run_task();
 
+	void print_matrix(Matrix_ID mid);
+
 private:
 	MPI_Comm group;
 	MPI_Comm group_peers;

@@ -2090,8 +2090,9 @@ public:
 	{
 		char * x_char = (char *) x;
 		char temp;
-		temp = x[0]; x[0] = x[3]; x[3] = x[0];
-		temp = x[1]; x[1] = x[2]; x[2] = x[1];
+		temp = x_char[0]; x_char[0] = x_char[3]; x_char[3] = temp;
+		temp = x_char[1]; x_char[1] = x_char[2]; x_char[2] = temp;
+		x = (float *) x_char;
 	}
 
 	const float read_float()
@@ -2150,10 +2151,11 @@ public:
 	{
 		char * x_char = (char *) x;
 		char temp;
-		temp = x[0]; x[0] = x[7]; x[7] = x[0];
-		temp = x[1]; x[1] = x[6]; x[6] = x[1];
-		temp = x[2]; x[2] = x[5]; x[5] = x[2];
-		temp = x[3]; x[3] = x[4]; x[4] = x[3];
+		temp = x_char[0]; x_char[0] = x_char[7]; x_char[7] = temp;
+		temp = x_char[1]; x_char[1] = x_char[6]; x_char[6] = temp;
+		temp = x_char[2]; x_char[2] = x_char[5]; x_char[5] = temp;
+		temp = x_char[3]; x_char[3] = x_char[4]; x_char[4] = temp;
+		x = (double *) x_char;
 	}
 
 	const double read_real()
@@ -2195,13 +2197,7 @@ public:
 			read_pos += 4;
 		}
 
-		double x;
-		memcpy(&x, data + read_pos, 8);
-		read_pos += 8;
-
-		if (!big_endian) reverse_double(&x);
-
-		return x;
+		return read_double(read_pos);
 	}
 
 	void read_double(double * x)
