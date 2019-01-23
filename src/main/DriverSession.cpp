@@ -470,10 +470,14 @@ void DriverSession::handle_run_task()
 	uint32_t out_data_length;
 
 	group_driver.run_task(in_data, in_data_length, out_data, out_data_length, read_msg.get_client_language());
+	log->info("L 33");
 
 	write_msg.start(client_ID, session_ID, RUN_TASK);
+	log->info("L 34");
 	write_msg.copy_body(&out_data[0], out_data_length);
+	log->info("L 35");
 	flush();
+	log->info("L 36");
 
 
 //	string parameter_name = "";
