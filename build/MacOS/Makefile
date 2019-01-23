@@ -8,8 +8,9 @@ CXXFLAGS += $(EL_COMPILE_FLAGS) -fdiagnostics-color=always
 CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++11 -fext-numeric-literals
 CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 
+LDLIBS += -lmpi
+
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
-LDFLAGS += -lmpi
 
 OBJ_FILES = \
 	$(TARGET_PATH)/main.o \
@@ -29,7 +30,7 @@ $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
 default: $(TARGET_PATH)/alchemist
 
 $(TARGET_PATH)/alchemist: $(TARGET_PATH) $(OBJ_FILES)
-	$(CXX) -dynamic $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 -o $@ $(OBJ_FILES) $(LDFLAGS)
+	$(CXX) -dynamic $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 -o $@ $(OBJ_FILES) $(LDLIBS) $(LDFLAGS)
 
 $(TARGET_PATH):
 	mkdir -p $(TARGET_PATH)

@@ -15,7 +15,6 @@ LDLIBS = -lmpi -ldl
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
-LDFLAGS += $(ARPACK_PATH)/lib/libarpack.so $(ARPACK_PATH)/lib/libparpack.so #"-Wl,-rpath,$(ARPACK_PATH)/lib"
 
 OBJ_FILES = \
 	$(TARGET_PATH)/main.o \

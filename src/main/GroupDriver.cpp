@@ -1,5 +1,4 @@
 #include "GroupDriver.hpp"
-#include "arpackpp/arrssym.h"
 
 namespace alchemist {
 
@@ -239,7 +238,7 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 
 	log->info("Loading library {} located at {}", library_name, library_path);
 
-	void * lib = dlopen(library_path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+	void * lib = dlopen(library_path.c_str(), RTLD_LAZY);
 	log->info("L 1");
 	const char * dlopen_error = dlerror();
 	log->info("L 2");
@@ -350,11 +349,8 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 		deserialize_parameters(in, temp_in_msg);
 		log->info("L 19");
 
-		ARrcSymStdEig<double> prob(400, 20, "LM");
-		log->info("L 20");
-
 		libraries[lib_ID]->run(function_name, in, out);
-		log->info("L 21");
+		log->info("L 20");
 
 		MPI_Barrier(group);
 
@@ -367,7 +363,7 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 		Worker_ID primary_worker = workers.begin()->first;
 
 		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
-		log->info("L 22");
+		log->info("L 22 {}", num_distmatrices);
 
 		if (num_distmatrices > 0) {
 			Matrix_ID matrix_IDs[num_distmatrices];
@@ -387,8 +383,10 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
 				matrix_IDs[i] = next_matrix_ID++;
 			}
+			log->info("L 23");
 
 			MPI_Bcast(&matrix_IDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
+			log->info("L 24");
 
 			uint64_t worker_num_rows;
 			uint64_t * row_indices;
@@ -416,17 +414,25 @@ void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, ch
 				out.add_matrix_info(matrices[matrix_IDs[i]]->name, matrices[matrix_IDs[i]]);
 			}
 		}
+		log->info("L 25");
 
 		MPI_Barrier(group);
+		log->info("L 26");
 
 		serialize_parameters(out, temp_out_msg);
+		log->info("L 27");
 	}
 
+	log->info("L 28");
 	temp_out_msg.update_body_length();
+	log->info("L 29");
 	temp_out_msg.update_datatype_count();
+	log->info("L 30");
 
 	out_data = temp_out_msg.body();
+	log->info("L 31");
 	out_data_length = temp_out_msg.get_body_length();
+	log->info("L 32");
 }
 
 void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
