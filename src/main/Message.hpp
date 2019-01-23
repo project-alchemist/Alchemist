@@ -93,17 +93,15 @@ public:
 
 	void copy_body(const char * _body, const uint32_t _body_length)
 	{
-		log->info("Y 1");
+		std::cout << "Y 1" << std::endl;
 		for (uint32_t i = 0; i < _body_length; i++) {
 			data[header_length + i] = _body[i];
 		}
-		log->info("Y 2");
+		std::cout << "Y 2" << std::endl;
 
 		data_copied = true;
 		body_length = _body_length;
-		log->info("Y 3");
 		write_pos = body_length + header_length;
-		log->info("Y 4");
 	}
 
 	void copy_data(const char * _data, const uint32_t _data_length)
