@@ -469,13 +469,16 @@ void DriverSession::handle_run_task()
 	char * out_data = nullptr;
 	uint32_t out_data_length;
 
-	group_driver.run_task(in_data, in_data_length, out_data, out_data_length, read_msg.get_client_language());
-	log->info("L 33");
 
 	write_msg.start(client_ID, session_ID, RUN_TASK);
-	log->info("L 34 {}", out_data_length);
-	write_msg.copy_body(&out_data[0], out_data_length);
-	log->info("L 35");
+
+//	group_driver.run_task(in_data, in_data_length, out_data, out_data_length, read_msg.get_client_language());
+	group_driver.run_task(read_msg, write_msg);
+	log->info("L 33");
+
+//	log->info("L 34 {}", out_data_length);
+//	write_msg.copy_body(&out_data[0], out_data_length);
+//	log->info("L 35");
 	flush();
 	log->info("L 36");
 

@@ -314,6 +314,125 @@ void GroupDriver::remove_worker(const Worker_ID & worker_ID)
 					log->info("_____________ {}", it->first);
 }
 
+void GroupDriver::run_task(Message & in_msg, Message & out_msg)
+{
+	alchemist_command command = _AM_WORKER_RUN_TASK;
+
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+	MPI_Wait(&req, &status);
+
+	uint32_t in_data_length = in_msg.get_body_length();
+
+	MPI_Bcast(&in_data_length, 1, MPI_UNSIGNED, 0, group);
+	MPI_Bcast(in_msg.body(), in_data_length, MPI_CHAR, 0, group);
+
+	MPI_Barrier(group);
+
+	Parameters in, out;
+
+	MPI_Barrier(group);
+
+	Library_ID lib_ID = in_msg.read_library_ID();
+
+	if (check_library_ID(lib_ID)) {
+		log->info("L 17");
+		string function_name = in_msg.read_string();
+		log->info("L 18");
+
+		deserialize_parameters(in, in_msg);
+		log->info("L 19");
+
+		libraries[lib_ID]->run(function_name, in, out);
+		log->info("L 20");
+
+		MPI_Barrier(group);
+
+		int num_distmatrices;
+		string distmatrix_name;
+		uint16_t dmnl;
+		uint64_t num_rows, num_cols;
+		log->info("L 21");
+
+		Worker_ID primary_worker = workers.begin()->first;
+
+		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
+		log->info("L 22 {}", num_distmatrices);
+
+		if (num_distmatrices > 0) {
+			Matrix_ID matrix_IDs[num_distmatrices];
+			for (int i = 0; i < num_distmatrices; i++) {
+				MPI_Recv(&dmnl, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
+				char distmatrix_name_c[dmnl];
+				MPI_Recv(distmatrix_name_c, dmnl, MPI_CHAR, primary_worker, 0, group, &status);
+				distmatrix_name = string(distmatrix_name_c);
+
+				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
+				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
+
+				bool sparse = false;
+				uint8_t layout = 0;
+				uint8_t num_partitions = (uint8_t) workers.size();
+
+				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
+				matrix_IDs[i] = next_matrix_ID++;
+			}
+			log->info("L 23");
+
+			MPI_Bcast(&matrix_IDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
+			log->info("L 24");
+
+			uint64_t worker_num_rows;
+			uint64_t * row_indices;
+
+			for (int i = 0; i < num_distmatrices; i++) {
+
+				std::clock_t start;
+
+				MPI_Bcast(&matrix_IDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
+				MPI_Barrier(group);
+
+				for (auto it = workers.begin(); it != workers.end(); it++) {
+
+					Worker_ID id = it->first;
+					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
+
+					row_indices = new uint64_t[worker_num_rows];
+
+					MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
+					for (uint64_t j = 0; j < worker_num_rows; j++)
+						matrices[matrix_IDs[i]]->row_assignments[row_indices[j]] = id;
+
+					delete [] row_indices;
+				}
+				out.add_matrix_info(matrices[matrix_IDs[i]]->name, matrices[matrix_IDs[i]]);
+			}
+		}
+		log->info("L 25");
+
+		MPI_Barrier(group);
+		log->info("L 26");
+
+		serialize_parameters(out, out_msg);
+		log->info("L 27 {}", out.to_string());
+	}
+
+	log->info("L 28");
+	out_msg.update_body_length();
+	log->info("L 29");
+	out_msg.update_datatype_count();
+	log->info("L 30 {}", out_msg.to_string());
+
+//	out_data = temp_out_msg.body();
+//	log->info("L 31");
+//	out_data_length = temp_out_msg.get_body_length();
+//	log->info("L 32 {}", out_data_length);
+
+}
+
 void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, char * & out_data, uint32_t & out_data_length, client_language cl)
 {
 	alchemist_command command = _AM_WORKER_RUN_TASK;
