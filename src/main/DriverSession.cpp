@@ -31,7 +31,7 @@ bool DriverSession::send_response_string()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
-	log->info("IN: {}", read_msg.to_string());
+//	log->info("IN: {}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
@@ -417,7 +417,6 @@ void DriverSession::handle_list_available_libraries()
 
 void DriverSession::handle_load_library()
 {
-//	string path = "/Users/kai/Projects/AlLib/target/testlib.dylib";
 	string lib_name = read_msg.read_string();
 	string lib_path = read_msg.read_string();
 
@@ -461,58 +460,11 @@ void DriverSession::handle_request_matrix_blocks()
 
 void DriverSession::handle_run_task()
 {
-//	Library_ID lib_ID = read_msg.read_uint16();
-//	string function_name = read_msg.read_string();
-
-	const char * in_data = read_msg.body();
-	uint32_t in_data_length = read_msg.get_body_length();
-	char * out_data = nullptr;
-	uint32_t out_data_length;
-
-
 	write_msg.start(client_ID, session_ID, RUN_TASK);
 
-//	group_driver.run_task(in_data, in_data_length, out_data, out_data_length, read_msg.get_client_language());
 	group_driver.run_task(read_msg, write_msg);
-	log->info("L 33");
 
-//	log->info("L 34 {}", out_data_length);
-//	write_msg.copy_body(&out_data[0], out_data_length);
-//	log->info("L 35");
 	flush();
-	log->info("L 36");
-
-
-//	string parameter_name = "";
-//	datatype dt = NONE;
-//	while (!read_msg.eom()) {
-//		if
-//	}
-//	Matrix_ID matrix_ID = read_msg.read_uint16();
-//	uint32_t rank = read_msg.read_uint32();
-//	uint8_t method = read_msg.read_uint8();
-//
-////	group_driver.run_task(name, matrix_ID, rank, method);
-//
-//	write_msg.start(client_ID, session_ID, RUN_TASK);
-//
-//	for (int i = 0; i < 3; i++) {
-//		matrix_ID++;
-//		write_msg.add_uint16(matrix_ID);
-//
-//		group_driver.determine_row_assignments(matrix_ID);
-//		vector<uint16_t> & row_assignments = group_driver.get_row_assignments(matrix_ID);
-//
-//		uint64_t num_rows = row_assignments.size();
-//		uint64_t num_cols = group_driver.get_num_cols(matrix_ID);
-//		uint16_t worker;
-//
-//		write_msg.add_uint64(num_rows);
-//		write_msg.add_uint64(num_cols);
-//
-//		for (uint32_t row = 0; row < num_rows; row++)
-//			write_msg.add_uint16(row_assignments[row]);
-//	}
 }
 
 void DriverSession::handle_invalid_command()

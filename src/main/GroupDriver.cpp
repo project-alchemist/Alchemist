@@ -213,13 +213,9 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	char library_name_c[library_name_length+1];
 	char library_path_c[library_path_length+1];
 
-	    // copying the contents of the
-	    // string to char array
 	strcpy(library_name_c, library_name.c_str());
 	strcpy(library_path_c, library_path.c_str());
 
-//	auto library_name_c = library_name.c_str();
-//	auto library_path_c = library_path.c_str();
 	uint16_t library_name_c_length = strlen(library_name_c);
 	uint16_t library_path_c_length = strlen(library_path_c);
 
@@ -239,64 +235,31 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	log->info("Loading library {} located at {}", library_name, library_path);
 
 	void * lib = dlopen(library_path.c_str(), RTLD_LAZY);
-	log->info("L 1");
 	const char * dlopen_error = dlerror();
-	log->info("L 2");
 	if (dlopen_error != NULL) {
-		log->info("L 3");
 		log->info("dlopen failed: {}", string(dlopen_error));
-		log->info("L 4");
 
 		return 0;
 	}
 
-	log->info("L 6");
 	dlerror();			// Reset errors
 
-//	void * create_library = dlsym(lib, "create");
-
-	log->info("L 7");
 	create_t * create_library = reinterpret_cast<create_t *>(dlsym(lib, "create_library"));
-	log->info("L 8");
 	const char * dlsym_error = dlerror();
-	log->info("L 9");
 	if (dlsym_error != NULL) {
-		log->info("L 10");
 		log->info("dlsym with command \"create\" failed: {}", string(dlsym_error));
-		log->info("L 11");
 
 		return 0;
 	}
 
-
-//		Library * library = create_library(group);
-	log->info("L 12");
 	Library * library_ptr = reinterpret_cast<Library*>(create_library(group));
 
-	log->info("L 13");
 	libraries.insert(std::make_pair(next_library_ID, library_ptr));
 
-//	string task_name = "greet";
-//	Parameters in, out;
-
-	log->info("L 14");
 	library_ptr->load();
-//	library_ptr->run(task_name, in, out);
-
-	//    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
-
-	//	if (!library->load()) {
-	//		log->info("Library {} loaded", library_name);
-	//
-	//		Parameters input;
-	//		Parameters output;
-	//
-	//		library->run("greet", input, output);
-	//	}
 
 	delete dlsym_error;
 
-	log->info("L 16");
 	MPI_Barrier(group);
 
 	return next_library_ID;
@@ -310,8 +273,6 @@ void GroupDriver::add_worker(const Worker_ID & worker_ID, const WorkerInfo & inf
 void GroupDriver::remove_worker(const Worker_ID & worker_ID)
 {
 	workers.erase(workers.find(worker_ID));
-	for (auto it = workers.begin(); it != workers.end(); it++)
-					log->info("_____________ {}", it->first);
 }
 
 void GroupDriver::run_task(Message & in_msg, Message & out_msg)
@@ -339,15 +300,11 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 	Library_ID lib_ID = in_msg.read_library_ID();
 
 	if (check_library_ID(lib_ID)) {
-		log->info("L 17");
 		string function_name = in_msg.read_string();
-		log->info("L 18");
 
 		deserialize_parameters(in, in_msg);
-		log->info("L 19");
 
 		libraries[lib_ID]->run(function_name, in, out);
-		log->info("L 20");
 
 		MPI_Barrier(group);
 
@@ -355,12 +312,10 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 		string distmatrix_name;
 		uint16_t dmnl;
 		uint64_t num_rows, num_cols;
-		log->info("L 21");
 
 		Worker_ID primary_worker = workers.begin()->first;
 
 		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
-		log->info("L 22 {}", num_distmatrices);
 
 		if (num_distmatrices > 0) {
 			Matrix_ID matrix_IDs[num_distmatrices];
@@ -380,10 +335,8 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
 				matrix_IDs[i] = next_matrix_ID++;
 			}
-			log->info("L 23");
 
 			MPI_Bcast(&matrix_IDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
-			log->info("L 24");
 
 			uint64_t worker_num_rows;
 			uint64_t * row_indices;
@@ -411,147 +364,14 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 				out.add_matrix_info(matrices[matrix_IDs[i]]->name, matrices[matrix_IDs[i]]);
 			}
 		}
-		log->info("L 25");
 
 		MPI_Barrier(group);
-		log->info("L 26");
 
 		serialize_parameters(out, out_msg);
-		log->info("L 27 {}", out.to_string());
 	}
 
-	log->info("L 28");
 	out_msg.update_body_length();
-	log->info("L 29");
 	out_msg.update_datatype_count();
-	log->info("L 30 {}", out_msg.to_string());
-
-//	out_data = temp_out_msg.body();
-//	log->info("L 31");
-//	out_data_length = temp_out_msg.get_body_length();
-//	log->info("L 32 {}", out_data_length);
-
-}
-
-void GroupDriver::run_task(const char * & in_data, uint32_t & in_data_length, char * & out_data, uint32_t & out_data_length, client_language cl)
-{
-	alchemist_command command = _AM_WORKER_RUN_TASK;
-
-	log->info("Sending command {} to workers", get_command_name(command));
-
-	MPI_Request req;
-	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
-	MPI_Wait(&req, &status);
-
-	MPI_Bcast(&in_data_length, 1, MPI_UNSIGNED, 0, group);
-	MPI_Bcast((char *) in_data, in_data_length, MPI_CHAR, 0, group);
-
-	MPI_Barrier(group);
-
-	Message temp_in_msg(in_data_length), temp_out_msg;
-	temp_out_msg.clear();
-	temp_in_msg.set_client_language(cl);
-	temp_out_msg.set_client_language(cl);
-	Parameters in, out;
-
-	temp_in_msg.copy_body(&in_data[0], in_data_length);
-	MPI_Barrier(group);
-
-	Library_ID lib_ID = temp_in_msg.read_uint8();
-
-	if (check_library_ID(lib_ID)) {
-		log->info("L 17");
-		string function_name = temp_in_msg.read_string();
-		log->info("L 18");
-
-		deserialize_parameters(in, temp_in_msg);
-		log->info("L 19");
-
-		libraries[lib_ID]->run(function_name, in, out);
-		log->info("L 20");
-
-		MPI_Barrier(group);
-
-		int num_distmatrices;
-		string distmatrix_name;
-		uint16_t dmnl;
-		uint64_t num_rows, num_cols;
-		log->info("L 21");
-
-		Worker_ID primary_worker = workers.begin()->first;
-
-		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
-		log->info("L 22 {}", num_distmatrices);
-
-		if (num_distmatrices > 0) {
-			Matrix_ID matrix_IDs[num_distmatrices];
-			for (int i = 0; i < num_distmatrices; i++) {
-				MPI_Recv(&dmnl, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
-				char distmatrix_name_c[dmnl];
-				MPI_Recv(distmatrix_name_c, dmnl, MPI_CHAR, primary_worker, 0, group, &status);
-				distmatrix_name = string(distmatrix_name_c);
-
-				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
-				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
-
-				bool sparse = false;
-				uint8_t layout = 0;
-				uint8_t num_partitions = (uint8_t) workers.size();
-
-				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
-				matrix_IDs[i] = next_matrix_ID++;
-			}
-			log->info("L 23");
-
-			MPI_Bcast(&matrix_IDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
-			log->info("L 24");
-
-			uint64_t worker_num_rows;
-			uint64_t * row_indices;
-
-			for (int i = 0; i < num_distmatrices; i++) {
-
-				std::clock_t start;
-
-				MPI_Bcast(&matrix_IDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
-				MPI_Barrier(group);
-
-				for (auto it = workers.begin(); it != workers.end(); it++) {
-
-					Worker_ID id = it->first;
-					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
-
-					row_indices = new uint64_t[worker_num_rows];
-
-					MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
-					for (uint64_t j = 0; j < worker_num_rows; j++)
-						matrices[matrix_IDs[i]]->row_assignments[row_indices[j]] = id;
-
-					delete [] row_indices;
-				}
-				out.add_matrix_info(matrices[matrix_IDs[i]]->name, matrices[matrix_IDs[i]]);
-			}
-		}
-		log->info("L 25");
-
-		MPI_Barrier(group);
-		log->info("L 26");
-
-		serialize_parameters(out, temp_out_msg);
-		log->info("L 27 {}", out.to_string());
-	}
-
-	log->info("L 28");
-	temp_out_msg.update_body_length();
-	log->info("L 29");
-	temp_out_msg.update_datatype_count();
-	log->info("L 30");
-
-	out_data = temp_out_msg.body();
-	log->info("L 31");
-	out_data_length = temp_out_msg.get_body_length();
-	log->info("L 32 {}", out_data_length);
 }
 
 void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
@@ -1024,12 +844,6 @@ vector<vector<vector<float> > > GroupDriver::prepare_data_layout_table(uint16_t 
 				if (layout_rr[i][j][1] >= 0.99) break;
 			}
 		}
-
-//	for (int i = 0; i < num_client_workers; i++) {
-//			for (int j = 0; j < num_alchemist_workers; j++)
-//				std::cout << layout_rr[i][j][0] << "," << layout_rr[i][j][1] << " ";
-//		std::cout << std::endl;
-//	}
 
 	return layout_rr;
 }

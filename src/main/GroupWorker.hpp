@@ -75,13 +75,11 @@ public:
 	int load_library();
 	void run_task();
 
-	void print_matrix(Matrix_ID mid);
-
+	Worker_ID worker_ID;
 private:
 	MPI_Comm group;
 	MPI_Comm group_peers;
 
-	Worker_ID worker_ID;
 	Group_ID group_ID;
 	Matrix_ID current_matrix_ID;
 	Session_ID next_session_ID;

@@ -72,34 +72,37 @@ int WorkerSession::handle_message()
 bool WorkerSession::send_matrix_blocks()
 {
 	uint32_t num_blocks = 0;
-	uint64_t row_start, row_end, col_start, col_end;
+	uint64_t i, j;
 	double temp;
+	DoubleArrayBlock_ptr in_block, out_block;
 
 	Matrix_ID matrix_ID = read_msg.read_uint16();
+
+	log->info("{} Sending data blocks for array {}", session_preamble(), matrix_ID);
+
+	clock_t start = clock();
 
 	write_msg.start(client_ID, session_ID, REQUEST_MATRIX_BLOCKS);
 	write_msg.add_uint16(matrix_ID);
 
 	while (!read_msg.eom()) {
 
-		row_start = read_msg.read_uint64();
-		row_end   = read_msg.read_uint64();
-		col_start = read_msg.read_uint64();
-		col_end   = read_msg.read_uint64();
+		in_block = read_msg.read_array_block();
+		out_block = std::make_shared<ArrayBlock<double>>(*in_block);
 
-		write_msg.add_uint64(row_start);
-		write_msg.add_uint64(row_end);
-		write_msg.add_uint64(col_start);
-		write_msg.add_uint64(col_end);
+		write_msg.add_array_block(out_block);
 
-		for (auto i = row_start; i <= row_end; i++)
-			for (auto j = col_start; j <= col_end; j++) {
+		for (i = in_block->dims[0][0]; i < in_block->dims[1][0]; i += in_block->dims[2][0])
+			for (j = in_block->dims[0][1]; j < in_block->dims[1][1]; j += in_block->dims[2][1]) {
 				group_worker.get_value(matrix_ID, i, j, temp);
-				write_msg.add_double(temp);
+				out_block->write_next(&temp);
 			}
 
 		num_blocks++;
 	}
+
+	clock_t end = clock();
+	log->info("{} Sending data blocks took {}ms", session_preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));
 	flush();
 
 	return true;
@@ -108,30 +111,35 @@ bool WorkerSession::send_matrix_blocks()
 bool WorkerSession::receive_matrix_blocks()
 {
 	uint32_t num_blocks = 0;
-	uint64_t i, j, row_start, row_end, col_start, col_end;
+	uint64_t i, j;
+	double temp;
 
 	Matrix_ID matrix_ID = read_msg.read_matrix_ID();
 
+	log->info("{} Receiving data blocks for array {}", session_preamble(), matrix_ID);
+
+	clock_t start = clock();
+
 	while (!read_msg.eom()) {
 
-		row_start = read_msg.read_uint64();
-		row_end   = read_msg.read_uint64();
-		col_start = read_msg.read_uint64();
-		col_end   = read_msg.read_uint64();
+		DoubleArrayBlock_ptr block = read_msg.read_array_block();
 
-		for (i = row_start; i <= row_end; i++)
-			for (j = col_start; j <= col_end; j++)
-				group_worker.set_value(matrix_ID, i, j, read_msg.read_double());
+		for (i = block->dims[0][0]; i < block->dims[1][0]; i += block->dims[2][0])
+			for (j = block->dims[0][1]; j < block->dims[1][1]; j += block->dims[2][1]) {
+				block->read_next(&temp);
+				group_worker.set_value(matrix_ID, i, j, temp);
+			}
 
 		num_blocks++;
-		log->info("{} Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrix_ID, row_start, row_end, col_start, col_end);
+//		log->info("{} Array {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrix_ID, row_start, row_end, col_start, col_end);
 	}
-
-	group_worker.print_matrix(matrix_ID);
 
 	write_msg.start(client_ID, session_ID, SEND_MATRIX_BLOCKS);
 	write_msg.add_uint16(matrix_ID);
 	write_msg.add_uint32(num_blocks);
+
+	clock_t end = clock();
+	log->info("{} Receiving data blocks took {}ms", session_preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));
 	flush();
 
 	return true;

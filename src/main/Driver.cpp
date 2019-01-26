@@ -72,11 +72,6 @@ void Driver::print_welcome_message()
 	#else
 	log->info(message.c_str(), get_Alchemist_version(), hostname, address, port);
 	#endif
-
-//	int16_t i = 1;
-//	int8_t *ptr;
-//	ptr  = (int8_t*) &i;
-//	(*ptr) ? std::cout << "little endian" << std::endl : std::cout << "big endian" << std::endl;
 }
 
 void Driver::print_ready_message()

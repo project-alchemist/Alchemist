@@ -103,7 +103,7 @@ const string get_Boost_version()
 //}
 
 struct WorkerInfo {
-	WorkerInfo(Worker_ID _ID):
+	WorkerInfo(Worker_ID _ID) :
 		ID(_ID), hostname(string("0")), address(string("0")), port(0), active(false), group_ID(0) { }
 	WorkerInfo(Worker_ID _ID, string _hostname, string _address, uint16_t _port) :
 		ID(_ID), hostname(_hostname), address(_address), port(_port), active(false), group_ID(0)  { }
@@ -160,7 +160,89 @@ struct MatrixInfo {
 	}
 };
 
+template <typename T>
+struct ArrayBlock {
+	ArrayBlock(uint8_t _ndims) : i(0), size(0), ndims(_ndims), start(nullptr), reverse_floats(false), T_length(sizeof(T))
+	{
+		for (int j = 0; j < 3; j++)
+			dims[j] = new uint64_t[ndims];
+	}
+
+	ArrayBlock(ArrayBlock<T> & block) : i(0), size(block.size), ndims(block.ndims), start(nullptr), reverse_floats(block.reverse_floats), T_length(sizeof(T))
+	{
+		for (int j = 0; j < 3; j++) {
+			dims[j] = new uint64_t[ndims];
+			for (int i = 0; i < ndims; i++)
+				dims[j][i] = block.dims[j][i];
+		}
+
+		size = 1;
+		for (int i = 0; i < ndims; i++)
+			size *= std::ceil((1.0*dims[1][i] - dims[0][i])/dims[2][i]);
+	}
+
+	~ArrayBlock()
+	{
+		for (int j = 0; j < 3; j++)
+			delete [] dims[j];
+	}
+
+	uint64_t i, size, ndims;
+	uint64_t* dims[3];
+	bool reverse_floats;
+	size_t T_length = sizeof(T);
+
+	char* start;
+
+	void read_next(T* value)
+	{
+		if (i < size) {
+			memcpy(value, start + T_length*i, T_length);
+			i += 1;
+		}
+		else value = nullptr;
+	}
+
+	void write_next(T * value)
+	{
+		if (i < size) {
+			memcpy(start + T_length*i, value, T_length);
+			i += 1;
+		}
+		else value = nullptr;
+	}
+
+	void reset_counter() {
+		i = 0;
+	}
+
+	string to_string() const {
+		std::stringstream ss;
+		T temp;
+
+		ss << "Size = " << size << std::endl;
+		for (uint8_t j = 0; j < ndims; j++)
+			ss << "Dim " << j+1 << ": start = " << dims[0][j] << ", end = " << dims[1][j] << ", skip = " << dims[2][j] << std::endl;
+//		ss << "Data: ";
+//		uint64_t m = 0;
+//		if (size > 0) {
+//			for (uint64_t j = 0; j < std::ceil((1.0*dims[1][0] - dims[0][0])/dims[2][0]); j++) {
+//				for (uint64_t k = 0; k < std::ceil((1.0*dims[1][1] - dims[0][1])/dims[2][1]); k++) {
+//
+//					memcpy(&temp, start + T_length*m, T_length);
+//					ss << m << " " << temp << " ";
+//					m++;
+//				}
+//				ss << std::endl;
+//			}
+//		}
+
+		return ss.str();
+	}
+};
+
 typedef std::shared_ptr<MatrixInfo> MatrixInfo_ptr;
+typedef std::shared_ptr<ArrayBlock<double>> DoubleArrayBlock_ptr;
 
 //inline bool exist_test (const std::string & name) {
 //    struct stat buffer;

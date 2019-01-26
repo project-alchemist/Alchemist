@@ -124,9 +124,15 @@ bool Session::handle_handshake()
 	read_msg.set_client_language(cl);
 
 	if (read_msg.read_uint16() == 1234 && read_msg.read_string().compare(string("ABCD")) == 0) {
-		log->info("{} Received handshake", preamble());
-		log->info("{} Client Language is {}", preamble(), get_client_language_name(cl));
-		return valid_handshake();
+		double * temp = new double[12];
+		for (auto i = 0; i < 12; i++) temp[i] = 1.11*(i+3);
+		DoubleArrayBlock_ptr block = read_msg.read_array_block();
+		if (read_msg.compare_array_block(block, temp)) {
+
+			log->info("{} Received handshake", preamble());
+			log->info("{} Client Language is {}", preamble(), get_client_language_name(cl));
+			return valid_handshake();
+		}
 	}
 
 	invalid_handshake();
@@ -191,9 +197,8 @@ void Session::read_body()
 
 void Session::flush()
 {
-	write_msg.update_body_length();
-	write_msg.update_datatype_count();
-	log->info("OUT: {}", write_msg.to_string());
+	write_msg.finish();
+//	log->info("OUT: {}", write_msg.to_string());
 	auto self(shared_from_this());
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),

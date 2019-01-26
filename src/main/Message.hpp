@@ -1,12 +1,6 @@
 #ifndef ALCHEMIST__MESSAGE_HPP
 #define ALCHEMIST__MESSAGE_HPP
 
-// Structure of Message:
-//
-//  client_command code (4 bytes)
-//  Header (4 bytes - contains length of data format section)
-//  Body (Variable bytes - contains data)
-
 #include <codecvt>
 #include <locale>
 #include <sstream>
@@ -45,12 +39,13 @@ public:
 	int32_t write_pos;
 
 	bool data_copied;
+	bool reverse_array_doubles;
 
-	Message() : Message(10000000) { }
+	Message() : Message(100000000) { }
 
 	Message(uint32_t _max_body_length) : cc(WAIT), client_ID(0), session_ID(0), body_length(0), cl(C), read_pos(header_length), current_datatype(NONE),
 				current_datatype_count(0), current_datatype_count_max(0), max_body_length(_max_body_length), current_datatype_count_pos(header_length+1),
-				write_pos(header_length), data_copied(false) {
+				write_pos(header_length), data_copied(false), reverse_array_doubles(false) {
 
 		data = new char[header_length + max_body_length]();
 
@@ -93,11 +88,7 @@ public:
 
 	void copy_body(const char * _body, const uint32_t _body_length)
 	{
-		std::cout << "Y 1 " << _body_length << " " << header_length << std::endl;
-		for (uint32_t i = 0; i < _body_length; i++) {
-			data[header_length + i] = _body[i];
-		}
-		std::cout << "Y 2" << std::endl;
+		memcpy(data + header_length, _body, _body_length);
 
 		data_copied = true;
 		body_length = _body_length;
@@ -1064,7 +1055,6 @@ public:
 		case PYTHON:
 		case JULIA:
 			{
-				std::cout << matrix.to_string(true) << std::endl;
 				// Matrix ID
 				int16_t matrix_ID = htobe16((int16_t) matrix.ID);
 				memcpy(data + write_pos, &matrix_ID, 2);
@@ -1101,6 +1091,54 @@ public:
 			}
 			break;
 		}
+	}
+
+	void add_array_block(const DoubleArrayBlock_ptr & block)
+	{
+		check_datatype(MATRIX_BLOCK);
+
+		current_datatype_count += 1;
+
+		switch(cl) {
+		case C:
+		case CPP:
+			{
+
+			}
+			break;
+		case SCALA:
+		case JAVA:
+			{
+
+			}
+			break;
+		case PYTHON:
+		case JULIA:
+			{
+				int64_t temp;
+				int8_t ndims = (int8_t) block->ndims;
+				memcpy(data + write_pos, &ndims, 1);
+				write_pos += 1;
+				int64_t size = htobe64((int64_t) block->size);
+				memcpy(data + write_pos, &size, 8);
+				write_pos += 8;
+				for (int8_t i = 0; i < 3; i++)
+					for (int8_t j = 0; j < ndims; j++) {
+						temp = htobe64((int64_t) block->dims[i][j]);
+						memcpy(data + write_pos, &temp, 8);
+						write_pos += 8;
+					}
+				block->start = data + write_pos;
+				write_pos += 8*block->size;
+			}
+			break;
+		}
+	}
+
+	void finish()
+	{
+		update_body_length();
+		update_datatype_count();
 	}
 
 	void update_body_length()
@@ -1421,7 +1459,6 @@ public:
 
 		return (wchar_t) x;
 	}
-
 
 	const uint8_t read_byte()
 	{
@@ -2147,7 +2184,7 @@ public:
 		if (!big_endian) reverse_float(x);
 	}
 
-	void reverse_double(double * x)
+	double reverse_double(double * x)
 	{
 		char * x_char = (char *) x;
 		char temp;
@@ -2156,6 +2193,8 @@ public:
 		temp = x_char[2]; x_char[2] = x_char[5]; x_char[5] = temp;
 		temp = x_char[3]; x_char[3] = x_char[4]; x_char[4] = temp;
 		x = (double *) x_char;
+
+		return *x;
 	}
 
 	const double read_real()
@@ -2367,16 +2406,6 @@ public:
 		return read_matrix_ID(read_pos);
 	}
 
-	void read_parameter()
-	{
-		if (current_datatype != PARAMETER) {
-			current_datatype = PARAMETER;
-
-			read_pos += sizeof(datatype);
-			read_pos += 4;
-		}
-	}
-
 	const Matrix_ID read_matrix_ID(uint32_t & i)
 	{
 		Matrix_ID matrix_ID;
@@ -2385,6 +2414,56 @@ public:
 		i += 2;
 
 		return matrix_ID;
+	}
+
+	bool compare_array_block(DoubleArrayBlock_ptr block, double * temp)
+	{
+		double local;
+		for (uint64_t i = 0; i < block->size; i++) {
+			memcpy(&local, block->start + 8*i, 8);
+			if (local != temp[i]) {
+				reverse_double(&local);
+				block->reverse_floats = true;
+				if (local != temp[i]) return false;
+			}
+		}
+		return true;
+	}
+
+	const DoubleArrayBlock_ptr read_array_block()
+	{
+		if (current_datatype != MATRIX_BLOCK) {
+			current_datatype = MATRIX_BLOCK;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
+
+		return read_array_block(read_pos);
+	}
+
+	const DoubleArrayBlock_ptr read_array_block(uint32_t & i)
+	{
+		uint8_t ndims = read_uint8(i);
+		DoubleArrayBlock_ptr block = std::make_shared<ArrayBlock<double>>(ndims);
+		block->size = read_uint64(i);
+		for (uint8_t k = 0; k < 3; k++)
+			for (uint8_t j = 0; j < ndims; j++)
+				block->dims[k][j] = read_uint64(i);
+		block->start = data + i;
+		i += 8*block->size;
+
+		return block;
+	}
+
+	void read_parameter()
+	{
+		if (current_datatype != PARAMETER) {
+			current_datatype = PARAMETER;
+
+			read_pos += sizeof(datatype);
+			read_pos += 4;
+		}
 	}
 
 	const Library_ID read_library_ID()
@@ -2555,6 +2634,9 @@ public:
 			case MATRIX_ID:
 				ss << read_matrix_ID(i);
 				break;
+			case MATRIX_BLOCK:
+				ss << read_array_block(i);
+				break;
 			case LIBRARY_ID:
 				ss << (int16_t) read_library_ID(i);
 				break;
@@ -2621,6 +2703,8 @@ public:
 						ss << " ";
 					else if (dt == MATRIX_INFO)
 						ss << read_matrix_info(i)->to_string(true);
+					else if (dt == MATRIX_BLOCK)
+						ss << read_array_block(i)->to_string();
 					else {
 						read_next(ss, i, dt);
 						ss << " ";

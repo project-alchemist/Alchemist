@@ -313,98 +313,30 @@ int GroupWorker::load_library()
 	log->info("Loading library {} located at {}", library_name, library_path);
 
 	void * lib = dlopen(library_path.c_str(), RTLD_LAZY);
-	log->info("L 1");
 	const char * dlopen_error = dlerror();
-	log->info("L 2");
 	if (dlopen_error != NULL) {
-		log->info("L 3");
 		log->info("dlopen failed: {}", string(dlopen_error));
-		log->info("L 4");
 
 		return 0;
 	}
 
-	log->info("L 6");
 	dlerror();			// Reset errors
 
-//	void * create_library = dlsym(lib, "create");
-
-	log->info("L 7");
 	create_t * create_library = reinterpret_cast<create_t *>(dlsym(lib, "create_library"));
-	log->info("L 8");
 	const char * dlsym_error = dlerror();
-	log->info("L 9");
 	if (dlsym_error != NULL) {
-		log->info("L 10");
 		log->info("dlsym with command \"create\" failed: {}", string(dlsym_error));
-		log->info("L 11");
 
 		return 0;
 	}
 
-//	Library * library = reinterpret_cast<Library*>(create_library(group));
-	log->info("L 12");
 	Library * library_ptr = reinterpret_cast<Library*>(create_library(group));
-	log->info("L 13");
 
 	libraries.insert(std::make_pair(library_ID, library_ptr));
-	log->info("L 14");
-//	Library_ptr library_ptr = std::make_shared<Library>(reinterpret_cast<Library*>(create_library(group)));
-//
-//	libraries.insert(std::make_pair(next_library_ID, library_ptr));
-
-//	string task_name = "greet";
-//	Parameters in, out;
 
 	library_ptr->load();
-//	library_ptr->run(task_name, in, out);
-//
-//	void * lib = dlopen(library_path.c_str(), RTLD_NOW);
-//	if (lib == NULL) {
-//		log->info("dlopen failed: {}", dlerror());
-//
-//		return -1;
-//	}
-//
-//	dlerror();			// Reset errors
-//
-//	create_t * create_library = (create_t*) dlsym(lib, "create");
-//	const char * dlsym_error = dlerror();
-//	if (dlsym_error) {
-////    		log->info("dlsym with command \"load\" failed: {}", dlerror());
-//
-////        	delete [] cstr;
-////        	delete dlsym_error;
-//
-//		return -1;
-//	}
 
-
-//
-//	void (*register_function)(void(*)());
-//	void *handle = dlopen("libmylib.so");
-//
-//	register_function = dlsym(handle, "register_function");
-//
-//	register_function(in_main_func);
-
-
-//	library = create_library(group);
-
-//    	libraries.insert(std::make_pair(library_name, LibraryInfo(library_name, library_path, lib, library)));
-
-//	if (!library->load()) {
-//		log->info("Library {} loaded", library_name);
-//
-//		Parameters input;
-//		Parameters output;
-//
-//		library->run("greet", input, output);
-//	}
-
-//	delete [] cstr;
 	delete dlsym_error;
-	log->info("L 16");
 
 	MPI_Barrier(group);
 
@@ -505,8 +437,6 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 int GroupWorker::get_matrix_layout()
 {
-//	std::clock_t start = std::clock();
-
 	log->info("Creating vector of local rows");
 
 	Matrix_ID ID;
@@ -532,22 +462,23 @@ int GroupWorker::get_matrix_layout()
 
 void GroupWorker::set_value(Matrix_ID ID, uint64_t row, uint64_t col, float value)
 {
-	matrices[ID]->Set(row, col, value);
+	matrices[ID]->SetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col), value);
 }
 
 void GroupWorker::set_value(Matrix_ID ID, uint64_t row, uint64_t col, double value)
 {
-	matrices[ID]->Set(row, col, value);
+	matrices[ID]->SetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col), value);
 }
 
 void GroupWorker::get_value(Matrix_ID ID, uint64_t row, uint64_t col, float & value)
 {
-	value = matrices[ID]->Get(row, col);
+	value = matrices[ID]->GetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col));
 }
 
 void GroupWorker::get_value(Matrix_ID ID, uint64_t row, uint64_t col, double & value)
 {
-	value = matrices[ID]->Get(row, col);
+//	clock_t start1 = clock();
+	value = matrices[ID]->GetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col));
 }
 
 void GroupWorker::print_data(Matrix_ID ID)
@@ -626,24 +557,6 @@ int GroupWorker::process_output_parameters(Parameters & output_parameters) {
 }
 
 // -----------------------------------------   Library   -----------------------------------------
-
-
-void GroupWorker::print_matrix(Matrix_ID mid)
-{
-	log->info("gg {}", worker_ID);
-		if (worker_ID == 2) {
-			std::stringstream ss;
-			for (auto i = 1; i < 10; i+=2) {
-				log->info(" {}", i);
-				for (auto j = 0; j < 10; j++) {
-					log->info("         {} {} {}", j, matrices[mid]->Height(), matrices[mid]->Width());
-					ss << matrices[mid]->Get(i, j) << " ";
-				}
-				ss << std::endl;
-			}
-			log->info("BB {}", ss.str());
-		}
-}
 
 int GroupWorker::print_num_sessions()
 {
