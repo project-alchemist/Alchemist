@@ -136,7 +136,7 @@ bool WorkerSession::receive_matrix_blocks()
 
 	write_msg.start(client_ID, session_ID, SEND_MATRIX_BLOCKS);
 	write_msg.add_uint16(matrix_ID);
-	write_msg.add_uint32(num_blocks);
+	write_msg.write_uint32(num_blocks);
 
 	clock_t end = clock();
 	log->info("{} Receiving data blocks took {}ms", session_preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));

@@ -39,13 +39,14 @@ public:
 	int32_t write_pos;
 
 	bool data_copied;
+	bool reverse_floats;
 	bool reverse_array_doubles;
 
 	Message() : Message(100000000) { }
 
 	Message(uint32_t _max_body_length) : cc(WAIT), client_ID(0), session_ID(0), body_length(0), cl(C), read_pos(header_length), current_datatype(NONE),
 				current_datatype_count(0), current_datatype_count_max(0), max_body_length(_max_body_length), current_datatype_count_pos(header_length+1),
-				write_pos(header_length), data_copied(false), reverse_array_doubles(false) {
+				write_pos(header_length), data_copied(false), reverse_floats(false), reverse_array_doubles(false) {
 
 		data = new char[header_length + max_body_length]();
 
@@ -193,56 +194,27 @@ public:
 
 	void add_string(const string & str)
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			{
-				check_datatype(STRING);
+		uint32_t string_length = (uint32_t) str.length();
+		write_uint32(string_length);
+		auto cdata = str.c_str();
+		memcpy(data + write_pos, cdata, string_length);
+		write_pos += string_length;
+	}
 
-				uint32_t string_length = (uint32_t) str.length();
-				uint32_t new_string_length = htobe32(string_length);
-				memcpy(data + write_pos, &new_string_length, 4);
-				write_pos += 4;
-				auto cdata = str.c_str();
-				memcpy(data + write_pos, cdata, string_length);
-				write_pos += string_length;
-			}
-			break;
-		case SCALA:
-		case JAVA:
-			{
-				check_datatype(WSTRING);
+	void put_string(const string & str)
+	{
+		uint32_t string_length = (uint32_t) str.length();
+		put_uint32(string_length);
+		auto cdata = str.c_str();
+		memcpy(data + write_pos, cdata, string_length);
+		write_pos += string_length;
+	}
 
-				std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter_1;
-				std::wstring wstr = converter_1.from_bytes(str);
+	void write_string(const string & str)
+	{
+		check_datatype(STRING);
 
-				std::wstring_convert<std::codecvt_utf16<wchar_t>> converter_2;
-				string str_u16 = converter_2.to_bytes(wstr);
-
-				int32_t string_length = (int32_t) str.length();
-				int32_t new_string_length = htobe32(string_length);
-				memcpy(data + write_pos, &new_string_length, 4);
-				write_pos += 4;
-				auto cdata = str_u16.c_str();
-				memcpy(data + write_pos, cdata, string_length);
-				write_pos += string_length;
-			}
-			break;
-		case PYTHON:
-		case JULIA:
-			{
-				check_datatype(STRING);
-
-				int32_t string_length = (int32_t) str.length();
-				int32_t new_string_length = htobe32(string_length);
-				memcpy(data + write_pos, &new_string_length, 4);
-				write_pos += 4;
-				auto cdata = str.c_str();
-				memcpy(data + write_pos, cdata, string_length);
-				write_pos += string_length;
-			}
-			break;
-		}
+		put_string(str);
 
 		current_datatype_count += 1;
 	}
@@ -712,8 +684,8 @@ public:
 
 	void add_int32(const int32_t _data)
 	{
-		check_datatype(INT32_T);
 
+		check_datatype(INT32_T);
 		int32_t temp_int32 = _data;
 		temp_int32 = htobe32(temp_int32);
 		memcpy(data + write_pos, &temp_int32, 4);
@@ -722,22 +694,51 @@ public:
 		current_datatype_count += 1;
 	}
 
-	void add_uint32(const uint32_t & _data) {
-
+	void write_uint32(const uint32_t & _data)
+	{
 		switch(cl) {
-		case C:
-		case CPP:
-			add_uint32_(_data);
-			break;
 		case SCALA:
 		case JAVA:
-			add_int32((int32_t) _data);
-			break;
 		case PYTHON:
 		case JULIA:
-			add_int32((int32_t) _data);
+			write_int32((int32_t) _data);
+			break;
+		default:
+			write_uint32_(_data);
 			break;
 		}
+	}
+
+	void write_uint32_(const uint32_t & _data)
+	{
+		check_datatype(UINT32_T);
+
+		put_uint32(_data);
+
+		current_datatype_count += 1;
+	}
+
+	void put_uint32(const uint32_t & _data)
+	{
+		uint32_t temp_uint32 = htobe32(_data);
+		memcpy(data + write_pos, &temp_uint32, 4);
+		write_pos += 4;
+	}
+
+	void write_int32(const int32_t & _data)
+	{
+		check_datatype(INT32_T);
+
+		put_uint32(_data);
+
+		current_datatype_count += 1;
+	}
+
+	void put_int32(const int32_t & _data)
+	{
+		int32_t temp_int32 = htobe32(_data);
+		memcpy(data + write_pos, &temp_int32, 4);
+		write_pos += 4;
 	}
 
 	void add_uint32(const uint32_t * _data, uint32_t length)
@@ -754,17 +755,6 @@ public:
 		}
 
 		current_datatype_count += length;
-	}
-
-	void add_uint32_(const uint32_t & _data)
-	{
-		check_datatype(UINT32_T);
-
-		uint32_t temp_uint32 = htobe32(_data);
-		memcpy(data + write_pos, &temp_uint32, 4);
-		write_pos += 4;
-
-		current_datatype_count += 1;
 	}
 
 	void add_int64(const int64_t * _data, uint32_t length)
@@ -877,7 +867,7 @@ public:
 
 		for (uint32_t i = 0; i < length; i++) {
 			temp_double = _data[i];
-			reverse_double(&temp_double);
+			if (reverse_floats) reverse_double(&temp_double);
 			memcpy(data + write_pos, &temp_double, 8);
 			write_pos += 8;
 		}
@@ -885,12 +875,29 @@ public:
 		current_datatype_count += length;
 	}
 
+	void write_double(const double & _data)
+	{
+		check_datatype(DOUBLE);
+
+		put_double(_data);
+
+		current_datatype_count += 1;
+	}
+
+	void put_double(const double & _data)
+	{
+		double temp_double = _data;
+		if (reverse_floats) reverse_double(&temp_double);
+		memcpy(data + write_pos, &temp_double, 8);
+		write_pos += 8;
+	}
+
 	void add_double(const double & _data)
 	{
 		check_datatype(DOUBLE);
 
 		double temp_double = _data;
-		reverse_double(&temp_double);
+		if (reverse_floats) reverse_double(&temp_double);
 		memcpy(data + write_pos, &temp_double, 8);
 		write_pos += 8;
 
@@ -1835,11 +1842,7 @@ public:
 			read_pos += 4;
 		}
 
-		int8_t x;
-		memcpy(&x, data + read_pos, 1);
-		read_pos += 1;
-
-		return x;
+		return read_int8(read_pos);
 	}
 
 	const int8_t read_int8(uint32_t & i)
@@ -1860,20 +1863,48 @@ public:
 			read_pos += 4;
 		}
 
-		uint8_t x;
-		memcpy(&x, data + read_pos, 1);
-		read_pos += 1;
-
-		return x;
+		return read_uint8(read_pos);
 	}
 
 	const uint8_t read_uint8(uint32_t & i)
 	{
-		uint8_t x;
-		memcpy(&x, data + i, 1);
-		i += 1;
+		switch(cl) {
+		case C:
+		case CPP:
+			{
+				uint8_t x;
+				memcpy(&x, data + i, 1);
+				i += 1;
 
-		return x;
+				return x;
+			}
+		case SCALA:
+		case JAVA:
+			{
+				int8_t x;
+				memcpy(&x, data + i, 1);
+				i += 1;
+
+				return (uint8_t) x;
+			}
+		case PYTHON:
+		case JULIA:
+			{
+				int8_t x;
+				memcpy(&x, data + i, 1);
+				i += 1;
+
+				return (uint8_t) x;
+			}
+		default:
+			{
+				uint8_t x;
+				memcpy(&x, data + i, 1);
+				i += 1;
+
+				return x;
+			}
+		}
 	}
 
 	const int16_t read_int16()
@@ -2059,26 +2090,8 @@ public:
 	const uint64_t read_uint64(uint32_t & i)
 	{
 		switch(cl) {
-		case C:
-		case CPP:
-			{
-				uint64_t x;
-				memcpy(&x, data + i, 8);
-				x = be64toh(x);
-				i += 8;
-
-				return x;
-			}
 		case SCALA:
 		case JAVA:
-			{
-				int64_t x;
-				memcpy(&x, data + i, 8);
-				x = be64toh(x);
-				i += 8;
-
-				return (uint64_t) x;
-			}
 		case PYTHON:
 		case JULIA:
 			{
@@ -2251,7 +2264,7 @@ public:
 		memcpy(x, data + read_pos, 8);
 		read_pos += 8;
 
-		if (!big_endian) reverse_double(x);
+		if (reverse_floats) reverse_double(x);
 	}
 
 	const double read_double(uint32_t & i)
@@ -2260,7 +2273,7 @@ public:
 		memcpy(&x, data + i, 8);
 		i += 8;
 
-		if (!big_endian) reverse_double(&x);
+		if (reverse_floats) reverse_double(&x);
 
 		return x;
 	}
@@ -2270,27 +2283,10 @@ public:
 		memcpy(&x, data + i, 8);
 		i += 8;
 
-		if (!big_endian) reverse_double(x);
+		if (reverse_floats) reverse_double(x);
 	}
 
 	const string read_string()
-	{
-		switch(cl) {
-		case C:
-		case CPP:
-			return read_string_();
-		case SCALA:
-		case JAVA:
-			return read_wstring();
-		case PYTHON:
-		case JULIA:
-			return read_string_();
-		default:
-			return read_string_();
-		}
-	}
-
-	const string read_string_()
 	{
 		if (current_datatype != STRING) {
 			current_datatype = STRING;
@@ -2304,51 +2300,12 @@ public:
 
 	const string read_string(uint32_t & i)
 	{
-		switch(cl) {
-		case C:
-		case CPP:
-			{
-				uint32_t string_length;
-				memcpy(&string_length, data + i, 4);
-				i += 4;
-				string_length = be32toh(string_length);
-				char string_c[string_length+1];
-				memcpy(string_c, data + i, string_length);
-				i += string_length;
-				string_c[string_length] = '\0';
-				return string(string_c);
-			}
-			break;
-		case SCALA:
-		case JAVA:
-			{
-				int32_t string_length;
-				memcpy(&string_length, data + i, 4);
-				i += 4;
-				string_length = be32toh(string_length);
-				char string_c[string_length+1];
-				memcpy(string_c, data + i, string_length);
-				i += string_length;
-				string_c[string_length] = '\0';
-				return string(string_c);
-			}
-			break;
-		case PYTHON:
-		case JULIA:
-			{
-				int32_t string_length;
-				memcpy(&string_length, data + i, 4);
-				i += 4;
-				string_length = be32toh(string_length);
-				char string_c[string_length+1];
-				memcpy(string_c, data + i, string_length);
-				i += string_length;
-				string_c[string_length] = '\0';
-				return string(string_c);
-			}
-			break;
-		}
-		return string(" ");
+		uint32_t string_length = read_uint32(i);
+		char string_c[string_length+1];
+		memcpy(string_c, data + i, string_length);
+		i += string_length;
+		string_c[string_length] = '\0';
+		return string(string_c);
 	}
 
 	const std::wstring s2ws(const string & str)
@@ -2369,10 +2326,7 @@ public:
 
 	const string read_wstring(uint32_t & i)
 	{
-		uint32_t string_length;
-		memcpy(&string_length, data + i, 4);
-		i += 4;
-		string_length = be32toh(string_length);
+		uint32_t string_length = read_uint32(i);
 		wchar_t string_c[string_length+1];
 		memcpy(string_c, data + i, 2*string_length);
 		i += 2*string_length;
@@ -2422,8 +2376,7 @@ public:
 		for (uint64_t i = 0; i < block->size; i++) {
 			memcpy(&local, block->start + 8*i, 8);
 			if (local != temp[i]) {
-				reverse_double(&local);
-				block->reverse_floats = true;
+				if (reverse_floats) reverse_double(&local);
 				if (local != temp[i]) return false;
 			}
 		}
@@ -2447,10 +2400,15 @@ public:
 		uint8_t ndims = read_uint8(i);
 		DoubleArrayBlock_ptr block = std::make_shared<ArrayBlock<double>>(ndims);
 		block->size = read_uint64(i);
-		for (uint8_t k = 0; k < 3; k++)
-			for (uint8_t j = 0; j < ndims; j++)
+		for (uint8_t j = 0; j < ndims; j++)
+			for (uint8_t k = 0; k < 3; k++)
 				block->dims[k][j] = read_uint64(i);
 		block->start = data + i;
+		double tr = read_double(i);
+		double local;
+		memcpy(&local, block->start, 8);
+		if (!big_endian) reverse_double(&local);
+
 		i += 8*block->size;
 
 		return block;
@@ -2561,13 +2519,13 @@ public:
 			case CHARACTER:
 				ss << read_character(i);
 				break;
-			case WCHAR: {
-					std::wstring str = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(read_wchar(i));
-					std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-
-					ss << converter.to_bytes(str);
-				}
-				break;
+//			case WCHAR: {
+//					std::wstring str = std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(read_wchar(i));
+//					std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+//
+//					ss << converter.to_bytes(str);
+//				}
+//				break;
 			case BOOL:
 				ss << read_bool(i);
 				break;
@@ -2696,9 +2654,7 @@ public:
 				for (uint32_t j = 0; j < data_length; j++) {
 
 					if (dt == STRING)
-						ss << read_string(i) << "\n" << space;
-					else if (dt == WSTRING)
-						ss << read_wstring(i) << "\n" << space;
+						ss << read_string(i) << space;
 					else if (dt == PARAMETER)
 						ss << " ";
 					else if (dt == MATRIX_INFO)

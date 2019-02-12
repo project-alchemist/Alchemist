@@ -933,7 +933,7 @@ void GroupWorker::serialize_parameters(Parameters & p, Message & msg) {
 			msg.add_uint16(p.get_uint16(name));
 			break;
 		case UINT32_T:
-			msg.add_uint32(p.get_uint32(name));
+			msg.write_uint32(p.get_uint32(name));
 			break;
 		case UINT64_T:
 			msg.add_uint64(p.get_uint64(name));

@@ -31,7 +31,7 @@ bool DriverSession::send_response_string()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
-//	log->info("IN: {}", read_msg.to_string());
+	log->info("IN: {}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
@@ -507,10 +507,10 @@ void DriverSession::send_layout(vector<vector<uint32_t> > & rows_on_workers)
 	for (uint16_t i = 0; i < num_workers; i++) {
 		write_msg.add_uint16(i);
 		worker_num_rows = rows_on_workers[i].size();
-		write_msg.add_uint32(worker_num_rows);
+		write_msg.write_uint32(worker_num_rows);
 		for (uint32_t j = 0; j < worker_num_rows; j++) {
 			row = rows_on_workers[i][j];
-			write_msg.add_uint32(row);
+			write_msg.write_uint32(row);
 		}
 	}
 
@@ -523,7 +523,7 @@ void DriverSession::send_layout(vector<uint16_t> & row_assignments)
 	uint16_t worker;
 
 	write_msg.start(client_ID, session_ID, SEND_MATRIX_LAYOUT);
-	write_msg.add_uint32(num_rows);
+	write_msg.write_uint32(num_rows);
 
 	for (uint32_t row = 0; row < num_rows; row++)
 		write_msg.add_uint16(row_assignments[row]);

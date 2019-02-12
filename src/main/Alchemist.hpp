@@ -162,13 +162,13 @@ struct MatrixInfo {
 
 template <typename T>
 struct ArrayBlock {
-	ArrayBlock(uint8_t _ndims) : i(0), size(0), ndims(_ndims), start(nullptr), reverse_floats(false), T_length(sizeof(T))
+	ArrayBlock(uint8_t _ndims) : i(0), size(0), nnz(0), ndims(_ndims), start(nullptr), T_length(sizeof(T))
 	{
 		for (int j = 0; j < 3; j++)
 			dims[j] = new uint64_t[ndims];
 	}
 
-	ArrayBlock(ArrayBlock<T> & block) : i(0), size(block.size), ndims(block.ndims), start(nullptr), reverse_floats(block.reverse_floats), T_length(sizeof(T))
+	ArrayBlock(ArrayBlock<T> & block) : i(0), size(block.size), nnz(block.nnz), ndims(block.ndims), start(nullptr), T_length(sizeof(T))
 	{
 		for (int j = 0; j < 3; j++) {
 			dims[j] = new uint64_t[ndims];
@@ -178,7 +178,7 @@ struct ArrayBlock {
 
 		size = 1;
 		for (int i = 0; i < ndims; i++)
-			size *= std::ceil((1.0*dims[1][i] - dims[0][i])/dims[2][i]);
+			size *= std::ceil((1.0*dims[1][i] - dims[0][i] + 1.0)/dims[2][i]);
 	}
 
 	~ArrayBlock()
@@ -187,14 +187,13 @@ struct ArrayBlock {
 			delete [] dims[j];
 	}
 
-	uint64_t i, size, ndims;
+	uint64_t i, nnz, size, ndims;
 	uint64_t* dims[3];
-	bool reverse_floats;
 	size_t T_length = sizeof(T);
 
 	char* start;
 
-	void read_next(T* value)
+	void read_next(T * value)
 	{
 		if (i < size) {
 			memcpy(value, start + T_length*i, T_length);
@@ -212,8 +211,16 @@ struct ArrayBlock {
 		else value = nullptr;
 	}
 
-	void reset_counter() {
-		i = 0;
+	void reset_counter() { i = 0; }
+
+	bool compare(T * A)
+	{
+		T temp;
+		for (uint64_t i = 0; i < size; i++) {
+			memcpy(&temp, start + T_length*i, T_length);
+			if (temp != A[i]) return false;
+		}
+		return true;
 	}
 
 	string to_string() const {
@@ -226,8 +233,8 @@ struct ArrayBlock {
 //		ss << "Data: ";
 //		uint64_t m = 0;
 //		if (size > 0) {
-//			for (uint64_t j = 0; j < std::ceil((1.0*dims[1][0] - dims[0][0])/dims[2][0]); j++) {
-//				for (uint64_t k = 0; k < std::ceil((1.0*dims[1][1] - dims[0][1])/dims[2][1]); k++) {
+//			for (uint64_t j = 0; j < std::ceil((1.0*dims[1][0] - dims[0][0] + 1)/dims[2][0]); j++) {
+//				for (uint64_t k = 0; k < std::ceil((1.0*dims[1][1] - dims[0][1] + 1)/dims[2][1]); k++) {
 //
 //					memcpy(&temp, start + T_length*m, T_length);
 //					ss << m << " " << temp << " ";
