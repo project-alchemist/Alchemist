@@ -154,7 +154,7 @@ bool WorkerSession::send_test_string()
 //	test_str << "This is a test string from Alchemist worker " << buffer;
 //
 //	write_msg.start(client_ID, ID, REQUEST_TEST_STRING);
-//	write_msg.add_string(test_str.str());
+//	write_msg.write_string(test_str.str());
 //	flush();
 
 	return true;
@@ -184,7 +184,7 @@ bool WorkerSession::send_response_string()
 	test_str += "'";
 
 	write_msg.start(client_ID, session_ID, SEND_TEST_STRING);
-	write_msg.add_string(test_str);
+	write_msg.write_string(test_str);
 	flush();
 
 	return true;

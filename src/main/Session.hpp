@@ -52,6 +52,8 @@ public:
 	string session_preamble();
 	string address_preamble();
 
+	Session_ID assign_session_ID();
+
 	void set_client_language(client_language _cl);
 
 //	void assign_workers();

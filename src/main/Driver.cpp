@@ -325,7 +325,6 @@ vector<Worker_ID> Driver::deallocate_workers(const Group_ID group_ID, const vect
 	vector<Worker_ID> deallocated_workers;
 
 	for (auto it = selected_workers.begin(); it != selected_workers.end(); it++) {
-		log->info("MMMMMMMMMMMMMMMMMMMMM {}", *it);
 		unallocated_workers.push_back(*it);
 		deallocated_workers.push_back(*it);
 		workers.find(*it)->second.active = false;

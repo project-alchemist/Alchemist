@@ -137,7 +137,7 @@ void DriverSession::handle_client_info()
 	response_str += log_dir;
 
 	write_msg.start(client_ID, session_ID, CLIENT_INFO);
-	write_msg.add_string(response_str);
+	write_msg.write_string(response_str);
 	flush();
 
 	log->info(response_str);
@@ -153,7 +153,7 @@ void DriverSession::handle_send_test_string()
 
 	// Send response
 	write_msg.start(client_ID, session_ID, SEND_TEST_STRING);
-	write_msg.add_string(test_str);
+	write_msg.write_string(test_str);
 	flush();
 }
 
@@ -164,7 +164,7 @@ void DriverSession::handle_request_test_string()
 	test_str += ".";
 
 	write_msg.start(client_ID, session_ID, REQUEST_TEST_STRING);
-	write_msg.add_string(test_str);
+	write_msg.write_string(test_str);
 	flush();
 }
 
@@ -187,19 +187,19 @@ void DriverSession::handle_request_workers()
 			write_msg.add_uint16(num_allocated_workers);
 			for (auto it = allocated_workers.begin(); it != allocated_workers.end(); it++) {
 				write_msg.add_uint16(it->first);
-				write_msg.add_string(it->second.hostname);
-				write_msg.add_string(it->second.address);
+				write_msg.write_string(it->second.hostname);
+				write_msg.write_string(it->second.address);
 				write_msg.add_uint16(it->second.port);
 			}
 		}
 		else {
 			write_msg.add_uint16(0);
-			write_msg.add_string(string("ERROR: No Alchemist workers currently available, try again later."));
+			write_msg.write_string(string("ERROR: No Alchemist workers currently available, try again later."));
 		}
 	}
 	else {
 		write_msg.add_uint16(0);
-		write_msg.add_string(string("ERROR: Number of requested workers must be positive."));
+		write_msg.write_string(string("ERROR: Number of requested workers must be positive."));
 	}
 
 	flush();
@@ -244,7 +244,7 @@ void DriverSession::handle_yield_workers()
 //
 //	deallocate_workers();
 //	write_msg.start(client_ID, session_ID, YIELD_WORKERS);
-//	write_msg.add_string(string("Alchemist workers have been deallocated"));
+//	write_msg.write_string(string("Alchemist workers have been deallocated"));
 //	flush();
 //		write_msg.start(client_ID, session_ID, YIELD_WORKERS);
 //
@@ -259,15 +259,15 @@ void DriverSession::handle_yield_workers()
 //				write_msg.add_uint16(group_size);
 //				for (auto it = allocated_group.begin(); it != allocated_group.end(); it++) {
 //					write_msg.add_uint16(it->first);
-//					write_msg.add_string(it->second.hostname);
-//					write_msg.add_string(it->second.address);
+//					write_msg.write_string(it->second.hostname);
+//					write_msg.write_string(it->second.address);
 //					write_msg.add_uint16(it->second.port);
 //				}
 //			}
 //			else {
 //				write_msg.add_uint16(0);
-//				write_msg.add_string(string("ERROR: Insufficient number of Alchemist workers available"));
-//				write_msg.add_string(string("       Try again later or request fewer workers"));
+//				write_msg.write_string(string("ERROR: Insufficient number of Alchemist workers available"));
+//				write_msg.write_string(string("       Try again later or request fewer workers"));
 //			}
 //
 //
@@ -298,8 +298,8 @@ void DriverSession::handle_yield_workers()
 //	////			group_IDs[i+1] = peer_ID;
 //	//
 //	//			add_uint16(it->first);
-//	//			add_string(it->second.hostname);
-//	//			add_string(it->second.address);
+//	//			write_string(it->second.hostname);
+//	//			write_string(it->second.address);
 //	//			add_uint16(it->second.port);
 //	//		}
 //
@@ -350,7 +350,7 @@ void DriverSession::handle_yield_workers()
 //		}
 //		else {
 //			write_msg.add_uint16(0);
-//			write_msg.add_string(string("ERROR: Number of requested workers must be positive"));
+//			write_msg.write_string(string("ERROR: Number of requested workers must be positive"));
 //		}
 
 
@@ -369,7 +369,7 @@ void DriverSession::handle_list_all_workers()
 	string pre = read_msg.read_string();
 
 	write_msg.start(client_ID, session_ID, LIST_ALL_WORKERS);
-	write_msg.add_string(group_driver.list_all_workers(pre));
+	write_msg.write_string(group_driver.list_all_workers(pre));
 	flush();
 }
 
@@ -381,19 +381,19 @@ void DriverSession::handle_list_active_workers()
 
 	write_msg.start(client_ID, session_ID, LIST_ACTIVE_WORKERS);
 //	write_msg.add_uint16(group_driver.get_num_workers());
-	write_msg.add_string(group_driver.list_active_workers(pre));
+	write_msg.write_string(group_driver.list_active_workers(pre));
 	flush();
 }
 
 void DriverSession::handle_list_inactive_workers()
 {
-	log->info("{} Sending list of all workers", preamble());
+	log->info("{} Sending list of inactive workers", preamble());
 
 	string pre = read_msg.read_string();
 
 	write_msg.start(client_ID, session_ID, LIST_INACTIVE_WORKERS);
 //	write_msg.add_uint16(group_driver.get_num_workers());
-	write_msg.add_string(group_driver.list_inactive_workers(pre));
+	write_msg.write_string(group_driver.list_inactive_workers(pre));
 	flush();
 }
 
@@ -405,7 +405,7 @@ void DriverSession::handle_list_assigned_workers()
 
 	write_msg.start(client_ID, session_ID, LIST_ASSIGNED_WORKERS);
 //	write_msg.add_uint16(group_driver.get_num_workers());
-	write_msg.add_string(group_driver.list_allocated_workers(pre));
+	write_msg.write_string(group_driver.list_allocated_workers(pre));
 	flush();
 
 }

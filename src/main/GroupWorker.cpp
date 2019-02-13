@@ -793,7 +793,7 @@ void GroupWorker::deserialize_parameters(Parameters & p, Message & msg)
 	//					p.add_long_double_int(name, msg.read_long_double_int());
 	//					break;
 			case STRING:
-				p.add_string(name, msg.read_string());
+				p.write_string(name, msg.read_string());
 				break;
 			case WSTRING:
 				p.add_wstring(name, msg.read_wstring());
@@ -814,7 +814,7 @@ void GroupWorker::serialize_parameters(Parameters & p, Message & msg) {
 	while (dt != NONE) {
 		msg.add_parameter();
 		name = p.get_name();
-		msg.add_string(name);
+		msg.write_string(name);
 
 		switch(dt) {
 		case CHAR:
@@ -954,7 +954,7 @@ void GroupWorker::serialize_parameters(Parameters & p, Message & msg) {
 //					p.add_long_double_int(name, msg.read_long_double_int());
 //					break;
 		case STRING:
-			msg.add_string(p.get_string(name));
+			msg.write_string(p.get_string(name));
 			break;
 		case WSTRING:
 //			msg.add_wstring(p.get_wstring(name));

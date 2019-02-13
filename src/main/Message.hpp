@@ -169,10 +169,15 @@ public:
 
 	void start(const uint16_t & _client_id, const uint16_t & _session_id, const client_command & cc)
 	{
+		std::cout << "A 1" << std::endl;
 		clear();
+		std::cout << "A 2" << std::endl;
 		add_client_id(_client_id);
+		std::cout << "A 3" << std::endl;
 		add_session_id(_session_id);
+		std::cout << "A 4" << std::endl;
 		add_client_command(cc);
+		std::cout << "A 5" << std::endl;
 	}
 
 	void add_client_id(const uint16_t _client_id)

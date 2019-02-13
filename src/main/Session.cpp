@@ -80,6 +80,11 @@ bool Session::get_admin_privilege() const
 //	if (!write_in_progress) write();
 //}
 
+Session_ID Session::assign_session_ID()
+{
+	return ++session_ID;
+}
+
 void Session::wait()
 {
 	log->info(string("Waiting for command ..."));
@@ -150,6 +155,8 @@ bool Session::handle_handshake()
 
 bool Session::valid_handshake()
 {
+	assign_session_ID();
+
 	write_msg.start(client_ID, session_ID, HANDSHAKE);
 
 	write_msg.add_uint16(4321);
