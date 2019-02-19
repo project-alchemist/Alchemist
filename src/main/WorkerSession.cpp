@@ -9,16 +9,16 @@ namespace alchemist {
 WorkerSession::WorkerSession(tcp::socket _socket, GroupWorker & _group_worker) :
 		Session(std::move(_socket)), group_worker(_group_worker) { }
 
-WorkerSession::WorkerSession(tcp::socket _socket, GroupWorker & _group_worker, Session_ID _ID, Client_ID _client_ID) :
-		Session(std::move(_socket), _ID, _client_ID), group_worker(_group_worker) { }
+WorkerSession::WorkerSession(tcp::socket _socket, GroupWorker & _group_worker, SessionID ID, ClientID _clientID) :
+		Session(std::move(_socket), ID, _clientID), group_worker(_group_worker) { }
 
-WorkerSession::WorkerSession(tcp::socket _socket, GroupWorker & _group_worker, Session_ID _ID, Client_ID _client_ID, Log_ptr & _log) :
-		Session(std::move(_socket), _ID, _client_ID, _log), group_worker(_group_worker) { }
+WorkerSession::WorkerSession(tcp::socket _socket, GroupWorker & _group_worker, SessionID ID, ClientID _clientID, Log_ptr & _log) :
+		Session(std::move(_socket), ID, _clientID, _log), group_worker(_group_worker) { }
 
 void WorkerSession::start()
 {
 	log->info("{} Connection established", session_preamble());
-//	worker.add_session(shared_from_this());
+//	worker.write_session(shared_from_this());
 	read_header();
 }
 
@@ -39,10 +39,10 @@ int WorkerSession::handle_message()
 		read_header();
 	}
 	else {
-		Client_ID _client_ID = read_msg.client_ID;
-		Session_ID _session_ID = read_msg.session_ID;
+		ClientID _clientID = read_msg.clientID;
+		SessionID _sessionID = read_msg.sessionID;
 
-		if (session_ID != _session_ID) {
+		if (sessionID != _sessionID) {
 			log->info("{} Error in WorkerSession: Wrong session ID", session_preamble());
 		}
 
@@ -76,25 +76,25 @@ bool WorkerSession::send_matrix_blocks()
 	double temp;
 	DoubleArrayBlock_ptr in_block, out_block;
 
-	Matrix_ID matrix_ID = read_msg.read_uint16();
+	ArrayID matrixID = read_msg.read_uint16();
 
-	log->info("{} Sending data blocks for array {}", session_preamble(), matrix_ID);
+	log->info("{} Sending data blocks for array {}", session_preamble(), matrixID);
 
 	clock_t start = clock();
 
-	write_msg.start(client_ID, session_ID, REQUEST_MATRIX_BLOCKS);
-	write_msg.add_uint16(matrix_ID);
+	write_msg.start(clientID, sessionID, REQUEST_MATRIX_BLOCKS);
+	write_msg.write_uint16(matrixID);
 
 	while (!read_msg.eom()) {
 
-		in_block = read_msg.read_array_block();
+		in_block = read_msg.read_DoubleArrayBlock();
 		out_block = std::make_shared<ArrayBlock<double>>(*in_block);
 
-		write_msg.add_array_block(out_block);
+		write_msg.write_DoubleArrayBlock(out_block);
 
 		for (i = in_block->dims[0][0]; i < in_block->dims[1][0]; i += in_block->dims[2][0])
 			for (j = in_block->dims[0][1]; j < in_block->dims[1][1]; j += in_block->dims[2][1]) {
-				group_worker.get_value(matrix_ID, i, j, temp);
+				group_worker.get_value(matrixID, i, j, temp);
 				out_block->write_next(&temp);
 			}
 
@@ -114,28 +114,28 @@ bool WorkerSession::receive_matrix_blocks()
 	uint64_t i, j;
 	double temp;
 
-	Matrix_ID matrix_ID = read_msg.read_matrix_ID();
+	ArrayID matrixID = read_msg.read_ArrayID();
 
-	log->info("{} Receiving data blocks for array {}", session_preamble(), matrix_ID);
+	log->info("{} Receiving data blocks for array {}", session_preamble(), matrixID);
 
 	clock_t start = clock();
 
 	while (!read_msg.eom()) {
 
-		DoubleArrayBlock_ptr block = read_msg.read_array_block();
+		DoubleArrayBlock_ptr block = read_msg.read_DoubleArrayBlock();
 
 		for (i = block->dims[0][0]; i < block->dims[1][0]; i += block->dims[2][0])
 			for (j = block->dims[0][1]; j < block->dims[1][1]; j += block->dims[2][1]) {
 				block->read_next(&temp);
-				group_worker.set_value(matrix_ID, i, j, temp);
+				group_worker.set_value(matrixID, i, j, temp);
 			}
 
 		num_blocks++;
-//		log->info("{} Array {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrix_ID, row_start, row_end, col_start, col_end);
+//		log->info("{} Array {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrixID, row_start, row_end, col_start, col_end);
 	}
 
-	write_msg.start(client_ID, session_ID, SEND_MATRIX_BLOCKS);
-	write_msg.add_uint16(matrix_ID);
+	write_msg.start(clientID, sessionID, SEND_MATRIX_BLOCKS);
+	write_msg.write_uint16(matrixID);
 	write_msg.write_uint32(num_blocks);
 
 	clock_t end = clock();
@@ -150,10 +150,10 @@ bool WorkerSession::send_test_string()
 //	char buffer[4];
 //	std::stringstream test_str;
 //
-//	sprintf(buffer, "%03d", worker.get_ID());
+//	sprintf(buffer, "%03d", worker.getID());
 //	test_str << "This is a test string from Alchemist worker " << buffer;
 //
-//	write_msg.start(client_ID, ID, REQUEST_TEST_STRING);
+//	write_msg.start(clientID, ID, REQUEST_TEST_STRING);
 //	write_msg.write_string(test_str.str());
 //	flush();
 
@@ -183,7 +183,7 @@ bool WorkerSession::send_response_string()
 	test_str += read_msg.read_string();
 	test_str += "'";
 
-	write_msg.start(client_ID, session_ID, SEND_TEST_STRING);
+	write_msg.start(clientID, sessionID, SEND_TEST_STRING);
 	write_msg.write_string(test_str);
 	flush();
 

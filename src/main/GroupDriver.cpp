@@ -5,10 +5,10 @@ namespace alchemist {
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver): ID(_ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), next_matrix_ID(1), next_library_ID(2) { }
+GroupDriver::GroupDriver(GroupID ID, Driver & _driver): ID(ID), driver(_driver), group(MPI_COMM_NULL), cl(SCALA), next_matrixID(1), next_libraryID(2) { }
 
-GroupDriver::GroupDriver(Group_ID _ID, Driver & _driver, Log_ptr & _log): ID(_ID), driver(_driver), group(MPI_COMM_NULL),
-		log(_log), cl(SCALA), next_matrix_ID(1), next_library_ID(2) { }
+GroupDriver::GroupDriver(GroupID ID, Driver & _driver, Log_ptr & _log): ID(ID), driver(_driver), group(MPI_COMM_NULL),
+		log(_log), cl(SCALA), next_matrixID(1), next_libraryID(2) { }
 
 GroupDriver::~GroupDriver() { }
 
@@ -94,14 +94,14 @@ void GroupDriver::print_info()
 	MPI_Barrier(group);
 }
 
-const map<Worker_ID, WorkerInfo> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
+const map<WorkerID, WorkerInfo> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
 {
 	driver.allocate_workers(ID, num_requested_workers);
 
 	return workers;
 }
 
-vector<Worker_ID> GroupDriver::deallocate_workers(const vector<Worker_ID> & yielded_workers)
+vector<WorkerID> GroupDriver::deallocate_workers(const vector<WorkerID> & yielded_workers)
 {
 	return driver.deallocate_workers(ID, yielded_workers);
 }
@@ -111,14 +111,14 @@ uint16_t GroupDriver::get_num_workers()
 	return (uint16_t) workers.size();
 }
 
-uint64_t GroupDriver::get_num_rows(Matrix_ID & matrix_ID)
+uint64_t GroupDriver::get_num_rows(ArrayID & matrixID)
 {
-	return matrices[matrix_ID]->num_rows;
+	return matrices[matrixID]->num_rows;
 }
 
-uint64_t GroupDriver::get_num_cols(Matrix_ID & matrix_ID)
+uint64_t GroupDriver::get_num_cols(ArrayID & matrixID)
 {
-	return matrices[matrix_ID]->num_cols;
+	return matrices[matrixID]->num_cols;
 }
 
 void GroupDriver::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
@@ -196,7 +196,7 @@ string GroupDriver::list_allocated_workers(const string & preamble)
 	return driver.list_allocated_workers(ID, preamble);
 }
 
-Library_ID GroupDriver::load_library(string library_name, string library_path)
+LibraryID GroupDriver::load_library(string library_name, string library_path)
 {
 	alchemist_command command = _AM_WORKER_LOAD_LIBRARY;
 
@@ -219,9 +219,9 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 	uint16_t library_name_c_length = strlen(library_name_c);
 	uint16_t library_path_c_length = strlen(library_path_c);
 
-	next_library_ID++;
+	next_libraryID++;
 
-	MPI_Bcast(&next_library_ID, 1, MPI_BYTE, 0, group);
+	MPI_Bcast(&next_libraryID, 1, MPI_BYTE, 0, group);
 	MPI_Bcast(&library_name_c_length, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(library_name_c, library_name_length+1, MPI_CHAR, 0, group);
 	MPI_Bcast(&library_path_c_length, 1, MPI_UNSIGNED_SHORT, 0, group);
@@ -254,7 +254,7 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 
 	Library * library_ptr = reinterpret_cast<Library*>(create_library(group));
 
-	libraries.insert(std::make_pair(next_library_ID, library_ptr));
+	libraries.insert(std::make_pair(next_libraryID, library_ptr));
 
 	library_ptr->load();
 
@@ -262,17 +262,17 @@ Library_ID GroupDriver::load_library(string library_name, string library_path)
 
 	MPI_Barrier(group);
 
-	return next_library_ID;
+	return next_libraryID;
 }
 
-void GroupDriver::add_worker(const Worker_ID & worker_ID, const WorkerInfo & info)
+void GroupDriver::add_worker(const WorkerID & workerID, const WorkerInfo & info)
 {
-	workers.insert(std::make_pair(worker_ID, info));
+	workers.insert(std::make_pair(workerID, info));
 }
 
-void GroupDriver::remove_worker(const Worker_ID & worker_ID)
+void GroupDriver::remove_worker(const WorkerID & workerID)
 {
-	workers.erase(workers.find(worker_ID));
+	workers.erase(workers.find(workerID));
 }
 
 void GroupDriver::run_task(Message & in_msg, Message & out_msg)
@@ -297,14 +297,14 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 
 	MPI_Barrier(group);
 
-	Library_ID lib_ID = in_msg.read_library_ID();
+	LibraryID libID = in_msg.read_LibraryID();
 
-	if (check_library_ID(lib_ID)) {
+	if (check_libraryID(libID)) {
 		string function_name = in_msg.read_string();
 
 		deserialize_parameters(in, in_msg);
 
-		libraries[lib_ID]->run(function_name, in, out);
+		libraries[libID]->run(function_name, in, out);
 
 		MPI_Barrier(group);
 
@@ -313,12 +313,12 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 		uint16_t dmnl;
 		uint64_t num_rows, num_cols;
 
-		Worker_ID primary_worker = workers.begin()->first;
+		WorkerID primary_worker = workers.begin()->first;
 
 		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
 
 		if (num_distmatrices > 0) {
-			Matrix_ID matrix_IDs[num_distmatrices];
+			ArrayID matrixIDs[num_distmatrices];
 			for (int i = 0; i < num_distmatrices; i++) {
 				MPI_Recv(&dmnl, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
 				char distmatrix_name_c[dmnl];
@@ -332,11 +332,11 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 				uint8_t layout = 0;
 				uint8_t num_partitions = (uint8_t) workers.size();
 
-				matrices.insert(std::make_pair(next_matrix_ID, std::make_shared<MatrixInfo>(next_matrix_ID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
-				matrix_IDs[i] = next_matrix_ID++;
+				matrices.insert(std::make_pair(next_matrixID, std::make_shared<ArrayInfo>(next_matrixID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
+				matrixIDs[i] = next_matrixID++;
 			}
 
-			MPI_Bcast(&matrix_IDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
+			MPI_Bcast(&matrixIDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
 
 			uint64_t worker_num_rows;
 			uint64_t * row_indices;
@@ -345,23 +345,23 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 
 				std::clock_t start;
 
-				MPI_Bcast(&matrix_IDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
+				MPI_Bcast(&matrixIDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
 				MPI_Barrier(group);
 
 				for (auto it = workers.begin(); it != workers.end(); it++) {
 
-					Worker_ID id = it->first;
+					WorkerID id = it->first;
 					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
 
 					row_indices = new uint64_t[worker_num_rows];
 
 					MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
 					for (uint64_t j = 0; j < worker_num_rows; j++)
-						matrices[matrix_IDs[i]]->row_assignments[row_indices[j]] = id;
+						matrices[matrixIDs[i]]->worker_assignments[row_indices[j]] = id;
 
 					delete [] row_indices;
 				}
-				out.add_matrix_info(matrices[matrix_IDs[i]]->name, matrices[matrix_IDs[i]]);
+//				out.write_ArrayInfo(matrices[matrixIDs[i]]->name, matrices[matrixIDs[i]]);
 			}
 		}
 
@@ -370,8 +370,8 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 		serialize_parameters(out, out_msg);
 	}
 
-	out_msg.update_body_length();
-	out_msg.update_datatype_count();
+//	out_msg.update_body_length();
+//	out_msg.update_datatype_count();
 }
 
 void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
@@ -379,330 +379,330 @@ void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
 	string name = "";
 	datatype dt = NONE;
 	uint32_t data_length;
-	while (!msg.eom()) {
-		dt = (datatype) msg.next_datatype();
-		data_length = msg.next_data_length();
-		if (dt == PARAMETER) {
-			msg.read_parameter();
-			name = msg.read_string();
-			dt = (datatype) msg.next_datatype();
-			data_length = msg.next_data_length();
-
-			switch (dt) {
-			case CHAR:
-				p.add_char(name, msg.read_char());
-				break;
-			case SIGNED_CHAR:
-				p.add_signed_char(name, msg.read_signed_char());
-				break;
-			case UNSIGNED_CHAR:
-				p.add_unsigned_char(name, msg.read_unsigned_char());
-				break;
-			case CHARACTER:
-				p.add_character(name, msg.read_char());
-				break;
-			case WCHAR:
-				p.add_wchar(name, msg.read_wchar());
-				break;
-			case SHORT:
-				p.add_short(name, msg.read_short());
-				break;
-			case UNSIGNED_SHORT:
-				p.add_unsigned_short(name, msg.read_unsigned_short());
-				break;
-			case INT:
-				p.add_int(name, msg.read_int());
-				break;
-			case UNSIGNED:
-				p.add_unsigned(name, msg.read_unsigned());
-				break;
-			case LONG:
-				p.add_long(name, msg.read_long());
-				break;
-			case UNSIGNED_LONG:
-				p.add_unsigned_long(name, msg.read_unsigned_long());
-				break;
-			case LONG_LONG_INT:
-				p.add_long_long_int(name, msg.read_long_long_int());
-				break;
-			case LONG_LONG:
-				p.add_long_long(name, msg.read_long_long());
-				break;
-			case UNSIGNED_LONG_LONG:
-				p.add_unsigned_long_long(name, msg.read_unsigned_long_long());
-				break;
-			case FLOAT:
-				p.add_float(name, msg.read_float());
-				break;
-			case DOUBLE:
-				p.add_double(name, msg.read_double());
-				break;
-	//				case LONG_DOUBLE:
-	//					p.add_long_double(name, msg.read_long_double());
-	//					break;
-			case BYTE:
-				p.add_byte(name, msg.read_byte());
-				break;
-			case BOOL:
-				p.add_bool(name, msg.read_bool());
-				break;
-			case INTEGER:
-				p.add_integer(name, msg.read_integer());
-				break;
-			case REAL:
-				p.add_real(name, msg.read_real());
-				break;
-			case LOGICAL:
-				p.add_logical(name, msg.read_logical());
-				break;
-	//				case COMPLEX:
-	//					p.add_complex(name, msg.read_complex());
-	//					break;
-			case DOUBLE_PRECISION:
-				p.add_double_precision(name, msg.read_double_precision());
-				break;
-			case REAL4:
-				p.add_real4(name, msg.read_real4());
-				break;
-	//				case COMPLEX8:
-	//					p.add_complex8(name, msg.read_complex8());
-	//					break;
-			case REAL8:
-				p.add_real8(name, msg.read_real8());
-				break;
-	//				case COMPLEX16:
-	//					p.add_complex16(name, msg.read_complex16());
-	//					break;
-			case INTEGER1:
-				p.add_integer1(name, msg.read_integer1());
-				break;
-			case INTEGER2:
-				p.add_integer2(name, msg.read_integer2());
-				break;
-			case INTEGER4:
-				p.add_integer4(name, msg.read_integer4());
-				break;
-			case INTEGER8:
-				p.add_integer8(name, msg.read_integer8());
-				break;
-			case INT8_T:
-				p.add_int8(name, msg.read_int8());
-				break;
-			case INT16_T:
-				p.add_int16(name, msg.read_int16());
-				break;
-			case INT32_T:
-				p.add_int32(name, msg.read_int32());
-				break;
-			case INT64_T:
-				p.add_int64(name, msg.read_int64());
-				break;
-			case UINT8_T:
-				p.add_uint8(name, msg.read_uint8());
-				break;
-			case UINT16_T:
-				p.add_uint16(name, msg.read_uint16());
-				break;
-			case UINT32_T:
-				p.add_uint32(name, msg.read_uint32());
-				break;
-			case UINT64_T:
-				p.add_uint64(name, msg.read_uint64());
-				break;
-	//				case FLOAT_INT:
-	//					p.add_float_int(name, msg.read_float_int());
-	//					break;
-	//				case DOUBLE_INT:
-	//					p.add_double_int(name, msg.read_double_int());
-	//					break;
-	//				case LONG_INT:
-	//					p.add_long_int(name, msg.read_long_int());
-	//					break;
-	//				case SHORT_INT:
-	//					p.add_short_int(name, msg.read_short_int());
-	//					break;
-	//				case LONG_DOUBLE_INT:
-	//					p.add_long_double_int(name, msg.read_long_double_int());
-	//					break;
-			case STRING:
-				p.add_string(name, msg.read_string());
-				break;
-			case WSTRING:
-				p.add_wstring(name, msg.read_wstring());
-				break;
-			case MATRIX_ID:
-				p.add_matrix_info(name, matrices[msg.read_matrix_ID()]);
-				break;
-			}
-		}
-	}
+//	while (!msg.eom()) {
+//		dt = (datatype) msg.next_datatype();
+//		data_length = msg.next_data_length();
+//		if (dt == PARAMETER) {
+//			msg.read_parameter();
+//			name = msg.read_string();
+//			dt = (datatype) msg.next_datatype();
+//			data_length = msg.next_data_length();
+//
+//			switch (dt) {
+//			case CHAR:
+//				p.write_char(name, msg.read_char());
+//				break;
+//			case SIGNED_CHAR:
+//				p.write_signed_char(name, msg.read_signed_char());
+//				break;
+//			case UNSIGNED_CHAR:
+//				p.write_unsigned_char(name, msg.read_unsigned_char());
+//				break;
+//			case CHARACTER:
+//				p.write_character(name, msg.read_char());
+//				break;
+//			case WCHAR:
+//				p.write_wchar(name, msg.read_wchar());
+//				break;
+//			case SHORT:
+//				p.write_short(name, msg.read_short());
+//				break;
+//			case UNSIGNED_SHORT:
+//				p.write_unsigned_short(name, msg.read_unsigned_short());
+//				break;
+//			case INT:
+//				p.write_int(name, msg.read_int());
+//				break;
+//			case UNSIGNED:
+//				p.write_unsigned(name, msg.read_unsigned());
+//				break;
+//			case LONG:
+//				p.write_long(name, msg.read_long());
+//				break;
+//			case UNSIGNED_LONG:
+//				p.write_unsigned_long(name, msg.read_unsigned_long());
+//				break;
+//			case LONG_LONG_INT:
+//				p.write_long_long_int(name, msg.read_long_long_int());
+//				break;
+//			case LONG_LONG:
+//				p.write_long_long(name, msg.read_long_long());
+//				break;
+//			case UNSIGNED_LONG_LONG:
+//				p.write_unsigned_long_long(name, msg.read_unsigned_long_long());
+//				break;
+//			case FLOAT:
+//				p.write_float(name, msg.read_float());
+//				break;
+//			case DOUBLE:
+//				p.write_double(name, msg.read_double());
+//				break;
+//	//				case LONG_DOUBLE:
+//	//					p.write_long_double(name, msg.read_long_double());
+//	//					break;
+//			case BYTE:
+//				p.write_byte(name, msg.read_byte());
+//				break;
+//			case BOOL:
+//				p.write_bool(name, msg.read_bool());
+//				break;
+//			case INTEGER:
+//				p.write_integer(name, msg.read_integer());
+//				break;
+//			case REAL:
+//				p.write_real(name, msg.read_real());
+//				break;
+//			case LOGICAL:
+//				p.write_logical(name, msg.read_logical());
+//				break;
+//	//				case COMPLEX:
+//	//					p.write_complex(name, msg.read_complex());
+//	//					break;
+//			case DOUBLE_PRECISION:
+//				p.write_double_precision(name, msg.read_double_precision());
+//				break;
+//			case REAL4:
+//				p.write_real4(name, msg.read_real4());
+//				break;
+//	//				case COMPLEX8:
+//	//					p.write_complex8(name, msg.read_complex8());
+//	//					break;
+//			case REAL8:
+//				p.write_real8(name, msg.read_real8());
+//				break;
+//	//				case COMPLEX16:
+//	//					p.write_complex16(name, msg.read_complex16());
+//	//					break;
+//			case INTEGER1:
+//				p.write_integer1(name, msg.read_integer1());
+//				break;
+//			case INTEGER2:
+//				p.write_integer2(name, msg.read_integer2());
+//				break;
+//			case INTEGER4:
+//				p.write_integer4(name, msg.read_integer4());
+//				break;
+//			case INTEGER8:
+//				p.write_integer8(name, msg.read_integer8());
+//				break;
+//			case INT8_T:
+//				p.write_int8(name, msg.read_int8());
+//				break;
+//			case INT16_T:
+//				p.write_int16(name, msg.read_int16());
+//				break;
+//			case INT32_T:
+//				p.write_int32(name, msg.read_int32());
+//				break;
+//			case INT64_T:
+//				p.write_int64(name, msg.read_int64());
+//				break;
+//			case UINT8_T:
+//				p.write_uint8(name, msg.read_uint8());
+//				break;
+//			case UINT16_T:
+//				p.write_uint16(name, msg.read_uint16());
+//				break;
+//			case UINT32_T:
+//				p.write_uint32(name, msg.read_uint32());
+//				break;
+//			case UINT64_T:
+//				p.write_uint64(name, msg.read_uint64());
+//				break;
+//	//				case FLOAT_INT:
+//	//					p.write_float_int(name, msg.read_float_int());
+//	//					break;
+//	//				case DOUBLE_INT:
+//	//					p.write_double_int(name, msg.read_double_int());
+//	//					break;
+//	//				case LONG_INT:
+//	//					p.write_long_int(name, msg.read_long_int());
+//	//					break;
+//	//				case SHORT_INT:
+//	//					p.write_short_int(name, msg.read_short_int());
+//	//					break;
+//	//				case LONG_DOUBLE_INT:
+//	//					p.write_long_double_int(name, msg.read_long_double_int());
+//	//					break;
+//			case STRING:
+//				p.write_string(name, msg.read_string());
+//				break;
+//			case WSTRING:
+//				p.write_wstring(name, msg.read_wstring());
+//				break;
+//			case MATRIXID:
+//				p.write_matrix_info(name, matrices[msg.read_matrixID()]);
+//				break;
+//			}
+//		}
+//	}
 }
 
 void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 {
 	string name = "";
 	datatype dt = p.get_next_parameter();
-	while (dt != NONE) {
-		msg.add_parameter();
-		name = p.get_name();
-		msg.add_string(name);
-
-		switch(dt) {
-		case CHAR:
-			msg.add_char(p.get_char(name));
-			break;
-		case SIGNED_CHAR:
-//			msg.add_signed_char(p.get_signed_char(name));
-			break;
-		case UNSIGNED_CHAR:
-//			unsigned char value = p.get_unsigned_char(name);
-//			msg.add_unsigned_char();
-			break;
-		case CHARACTER:
-//			msg.add_character(p.get_char(name));
-			break;
-		case WCHAR:
-//			msg.add_wchar(p.read_wchar(name));
-			break;
-		case SHORT:
-//			msg.add_short(p.read_short(name));
-			break;
-		case UNSIGNED_SHORT:
-//			msg.add_unsigned_short(p.read_unsigned_short(name));
-			break;
-		case INT:
-			msg.add_int(p.get_int(name));
-			break;
-		case UNSIGNED:
-//			msg.add_unsigned(p.get_unsigned(name));
-			break;
-		case LONG:
-//			msg.add_long(p.get_long(name));
-			break;
-		case UNSIGNED_LONG:
-//			msg.add_unsigned_long(p.get_unsigned_long(name));
-			break;
-		case LONG_LONG_INT:
-//			msg.add_long_long_int(p.get_long_long_int(name));
-			break;
-		case LONG_LONG:
-//			msg.add_long_long(p.get_long_long(name));
-			break;
-		case UNSIGNED_LONG_LONG:
-//			msg.add_unsigned_long_long(p.get_unsigned_long_long(name));
-			break;
-		case FLOAT:
-			msg.add_float(p.get_float(name));
-			break;
-		case DOUBLE:
-			msg.add_double(p.get_double(name));
-			break;
-//				case LONG_DOUBLE:
-//					p.add_long_double(name, msg.read_long_double());
-//					break;
-		case BYTE:
-			msg.add_byte(p.get_byte(name));
-			break;
-		case BOOL:
-			msg.add_bool(p.get_bool(name));
-			break;
-		case INTEGER:
-//			msg.add_integer(p.get_integer(name));
-			break;
-		case REAL:
-//			msg.add_real(p.get_real(name));
-			break;
-		case LOGICAL:
-			msg.add_logical(p.get_logical(name));
-			break;
-//				case COMPLEX:
-//					p.add_complex(name, msg.read_complex());
-//					break;
-		case DOUBLE_PRECISION:
-//			msg.add_double_precision(p.get_double_precision(name));
-			break;
-		case REAL4:
-//			msg.add_real4(p.get_real4(name));
-			break;
-//				case COMPLEX8:
-//					p.add_complex8(name, msg.read_complex8());
-//					break;
-		case REAL8:
-//			msg.add_real8(p.get_real8(name));
-			break;
-//				case COMPLEX16:
-//					p.add_complex16(name, msg.read_complex16());
-//					break;
-		case INTEGER1:
-			msg.add_integer1(p.get_integer1(name));
-			break;
-		case INTEGER2:
-			msg.add_integer2(p.get_integer2(name));
-			break;
-		case INTEGER4:
-			msg.add_integer4(p.get_integer4(name));
-			break;
-		case INTEGER8:
-			msg.add_integer8(p.get_integer8(name));
-			break;
-		case INT8_T:
-			msg.add_int8(p.get_int8(name));
-			break;
-		case INT16_T:
-			msg.add_int16(p.get_int16(name));
-			break;
-		case INT32_T:
-			msg.add_int32(p.get_int32(name));
-			break;
-		case INT64_T:
-			msg.add_int64(p.get_int64(name));
-			break;
-		case UINT8_T:
-			msg.add_uint8(p.get_uint8(name));
-			break;
-		case UINT16_T:
-			msg.add_uint16(p.get_uint16(name));
-			break;
-		case UINT32_T:
-			msg.write_uint32(p.get_uint32(name));
-			break;
-		case UINT64_T:
-			msg.add_uint64(p.get_uint64(name));
-			break;
-//				case FLOAT_INT:
-//					p.add_float_int(name, msg.read_float_int());
-//					break;
-//				case DOUBLE_INT:
-//					p.add_double_int(name, msg.read_double_int());
-//					break;
-//				case LONG_INT:
-//					p.add_long_int(name, msg.read_long_int());
-//					break;
-//				case SHORT_INT:
-//					p.add_short_int(name, msg.read_short_int());
-//					break;
-//				case LONG_DOUBLE_INT:
-//					p.add_long_double_int(name, msg.read_long_double_int());
-//					break;
-		case STRING:
-			msg.add_string(p.get_string(name));
-			break;
-		case WSTRING:
-//			msg.add_wstring(p.get_wstring(name));
-			break;
-		case MATRIX_ID:
-			msg.add_matrix_ID(p.get_matrix_info(name)->ID);
-			break;
-		case MATRIX_INFO:
-			msg.add_matrix_info(*p.get_matrix_info(name));
-			break;
-		}
-
-		dt = p.get_next_parameter();
-	}
+//	while (dt != NONE) {
+//		msg.write_parameter();
+//		name = p.get_name();
+//		msg.write_string(name);
+//
+//		switch(dt) {
+//		case CHAR:
+//			msg.write_char(p.get_char(name));
+//			break;
+//		case SIGNED_CHAR:
+////			msg.write_signed_char(p.get_signed_char(name));
+//			break;
+//		case UNSIGNED_CHAR:
+////			unsigned char value = p.get_unsigned_char(name);
+////			msg.write_unsigned_char();
+//			break;
+//		case CHARACTER:
+////			msg.write_character(p.get_char(name));
+//			break;
+//		case WCHAR:
+////			msg.write_wchar(p.read_wchar(name));
+//			break;
+//		case SHORT:
+////			msg.write_short(p.read_short(name));
+//			break;
+//		case UNSIGNED_SHORT:
+////			msg.write_unsigned_short(p.read_unsigned_short(name));
+//			break;
+//		case INT:
+//			msg.write_int(p.get_int(name));
+//			break;
+//		case UNSIGNED:
+////			msg.write_unsigned(p.get_unsigned(name));
+//			break;
+//		case LONG:
+////			msg.write_long(p.get_long(name));
+//			break;
+//		case UNSIGNED_LONG:
+////			msg.write_unsigned_long(p.get_unsigned_long(name));
+//			break;
+//		case LONG_LONG_INT:
+////			msg.write_long_long_int(p.get_long_long_int(name));
+//			break;
+//		case LONG_LONG:
+////			msg.write_long_long(p.get_long_long(name));
+//			break;
+//		case UNSIGNED_LONG_LONG:
+////			msg.write_unsigned_long_long(p.get_unsigned_long_long(name));
+//			break;
+//		case FLOAT:
+//			msg.write_float(p.get_float(name));
+//			break;
+//		case DOUBLE:
+//			msg.write_double(p.get_double(name));
+//			break;
+////				case LONG_DOUBLE:
+////					p.write_long_double(name, msg.read_long_double());
+////					break;
+//		case BYTE:
+//			msg.write_byte(p.get_byte(name));
+//			break;
+//		case BOOL:
+//			msg.write_bool(p.get_bool(name));
+//			break;
+//		case INTEGER:
+////			msg.write_integer(p.get_integer(name));
+//			break;
+//		case REAL:
+////			msg.write_real(p.get_real(name));
+//			break;
+//		case LOGICAL:
+//			msg.write_logical(p.get_logical(name));
+//			break;
+////				case COMPLEX:
+////					p.write_complex(name, msg.read_complex());
+////					break;
+//		case DOUBLE_PRECISION:
+////			msg.write_double_precision(p.get_double_precision(name));
+//			break;
+//		case REAL4:
+////			msg.write_real4(p.get_real4(name));
+//			break;
+////				case COMPLEX8:
+////					p.write_complex8(name, msg.read_complex8());
+////					break;
+//		case REAL8:
+////			msg.write_real8(p.get_real8(name));
+//			break;
+////				case COMPLEX16:
+////					p.write_complex16(name, msg.read_complex16());
+////					break;
+//		case INTEGER1:
+//			msg.write_integer1(p.get_integer1(name));
+//			break;
+//		case INTEGER2:
+//			msg.write_integer2(p.get_integer2(name));
+//			break;
+//		case INTEGER4:
+//			msg.write_integer4(p.get_integer4(name));
+//			break;
+//		case INTEGER8:
+//			msg.write_integer8(p.get_integer8(name));
+//			break;
+//		case INT8_T:
+//			msg.write_int8(p.get_int8(name));
+//			break;
+//		case INT16_T:
+//			msg.write_int16(p.get_int16(name));
+//			break;
+//		case INT32_T:
+//			msg.write_int32(p.get_int32(name));
+//			break;
+//		case INT64_T:
+//			msg.write_int64(p.get_int64(name));
+//			break;
+//		case UINT8_T:
+//			msg.write_uint8(p.get_uint8(name));
+//			break;
+//		case UINT16_T:
+//			msg.write_uint16(p.get_uint16(name));
+//			break;
+//		case UINT32_T:
+//			msg.write_uint32(p.get_uint32(name));
+//			break;
+//		case UINT64_T:
+//			msg.write_uint64(p.get_uint64(name));
+//			break;
+////				case FLOAT_INT:
+////					p.write_float_int(name, msg.read_float_int());
+////					break;
+////				case DOUBLE_INT:
+////					p.write_double_int(name, msg.read_double_int());
+////					break;
+////				case LONG_INT:
+////					p.write_long_int(name, msg.read_long_int());
+////					break;
+////				case SHORT_INT:
+////					p.write_short_int(name, msg.read_short_int());
+////					break;
+////				case LONG_DOUBLE_INT:
+////					p.write_long_double_int(name, msg.read_long_double_int());
+////					break;
+//		case STRING:
+//			msg.write_string(p.get_string(name));
+//			break;
+//		case WSTRING:
+////			msg.write_wstring(p.get_wstring(name));
+//			break;
+//		case MATRIXID:
+//			msg.write_matrixID(p.get_matrix_info(name)->ID);
+//			break;
+//		case MATRIX_INFO:
+//			msg.write_matrix_info(*p.get_matrix_info(name));
+//			break;
+//		}
+//
+//		dt = p.get_next_parameter();
+//	}
 }
 
-Matrix_ID GroupDriver::new_matrix(string name, uint64_t num_rows, uint64_t num_cols, uint8_t sparse, uint8_t layout)
+ArrayID GroupDriver::new_matrix(const ArrayInfo_ptr x)
 {
 	alchemist_command command = _AM_NEW_MATRIX;
 
@@ -713,32 +713,32 @@ Matrix_ID GroupDriver::new_matrix(string name, uint64_t num_rows, uint64_t num_c
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	Matrix_ID matrix_ID = next_matrix_ID++;
+	ArrayID matrixID = next_matrixID++;
 
-	MPI_Bcast(&matrix_ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
-	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
-	MPI_Bcast(&sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
-	MPI_Bcast(&layout, 1, MPI_UNSIGNED_CHAR, 0, group);
-	uint8_t num_paritions = (uint8_t) workers.size();
-
-	MPI_Barrier(group);
-
-	matrices.insert(std::make_pair(matrix_ID, std::make_shared<MatrixInfo>(matrix_ID, name, num_rows, num_cols, sparse > 0, layout, num_paritions)));
+	MPI_Bcast(&x->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+	MPI_Bcast(&x->num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
+	MPI_Bcast(&x->num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
+	MPI_Bcast(&x->sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
+	MPI_Bcast(&x->layout, 1, MPI_UNSIGNED_CHAR, 0, group);
+	x->num_partitions = (uint8_t) workers.size();
 
 	MPI_Barrier(group);
 
-	determine_row_assignments(matrix_ID);
+	matrices.insert(std::make_pair(matrixID, x));
 
-	return matrix_ID;
+	MPI_Barrier(group);
+
+	determine_row_assignments(matrixID);
+
+	return matrixID;
 }
 
-Worker_ID * GroupDriver::get_row_assignments(Matrix_ID & matrix_ID)
+WorkerID * GroupDriver::get_row_assignments(ArrayID & matrixID)
 {
-	return matrices[matrix_ID]->row_assignments;
+	return matrices[matrixID]->worker_assignments;
 }
 
-bool GroupDriver::check_library_ID(Library_ID & lib_ID)
+bool GroupDriver::check_libraryID(LibraryID & libID)
 {
 	return true;
 }
@@ -748,12 +748,12 @@ string GroupDriver::list_workers()
 	return driver.list_all_workers();
 }
 
-MatrixInfo & GroupDriver::get_matrix_info(const Matrix_ID matrix_ID)
+ArrayInfo & GroupDriver::get_matrix_info(const ArrayID matrixID)
 {
-	return *matrices[matrix_ID];
+	return *matrices[matrixID];
 }
 
-void GroupDriver::determine_row_assignments(Matrix_ID & matrix_ID)
+void GroupDriver::determine_row_assignments(ArrayID & matrixID)
 {
 	uint64_t worker_num_rows;
 	uint64_t * row_indices;
@@ -769,18 +769,18 @@ void GroupDriver::determine_row_assignments(Matrix_ID & matrix_ID)
 //	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 //	MPI_Wait(&req, &status);
 
-	MPI_Bcast(&matrices[matrix_ID]->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+	MPI_Bcast(&matrices[matrixID]->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Barrier(group);
 
 	for (auto it = workers.begin(); it != workers.end(); it++) {
-		Worker_ID id = it->first;
+		WorkerID id = it->first;
 		MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
 
 		row_indices = new uint64_t[worker_num_rows];
 
 		MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
 		for (uint64_t i = 0; i < worker_num_rows; i++) {
-			matrices[matrix_ID]->row_assignments[row_indices[i]] = id;
+			matrices[matrixID]->worker_assignments[row_indices[i]] = id;
 		}
 
 		delete [] row_indices;
@@ -884,9 +884,9 @@ int GroupDriver::process_output_parameters(Parameters & output_parameters) {
 // ----------------------------------------   Matrices   -----------------------------------------
 
 
-//MatrixHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
+//ArrayHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
 //
-//	MatrixHandle handle{next_matrix_ID++};
+//	ArrayHandle handle{next_matrixID++};
 //
 //	return handle;
 //}

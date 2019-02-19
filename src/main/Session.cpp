@@ -7,23 +7,23 @@ namespace alchemist {
 // =============================================================================================
 
 Session::Session(tcp::socket _socket)
-    : socket(std::move(_socket)), session_ID(0), ready(false), admin_privilege(false)
+    : socket(std::move(_socket)), sessionID(0), ready(false), admin_privilege(false)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
 
-Session::Session(tcp::socket _socket, Session_ID _session_ID, Client_ID _client_ID)
-    : socket(std::move(_socket)), session_ID(_session_ID), client_ID(_client_ID), ready(false), admin_privilege(false)
+Session::Session(tcp::socket _socket, SessionID _sessionID, ClientID _clientID)
+    : socket(std::move(_socket)), sessionID(_sessionID), clientID(_clientID), ready(false), admin_privilege(false)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
 	port = socket.remote_endpoint().port();
 }
 
-Session::Session(tcp::socket _socket, Session_ID _session_ID, Client_ID _client_ID, Log_ptr & _log)
-    : socket(std::move(_socket)), session_ID(_session_ID), client_ID(_client_ID), ready(false), admin_privilege(false), log(_log)
+Session::Session(tcp::socket _socket, SessionID _sessionID, ClientID _clientID, Log_ptr & _log)
+    : socket(std::move(_socket)), sessionID(_sessionID), clientID(_clientID), ready(false), admin_privilege(false), log(_log)
 {
 	socket.non_blocking(true);
 	address = socket.remote_endpoint().address().to_string();
@@ -43,9 +43,9 @@ void Session::set_log(Log_ptr _log)
 	log = _log;
 }
 
-void Session::set_ID(Session_ID _session_ID)
+void Session::setID(SessionID _sessionID)
 {
-	session_ID = _session_ID;
+	sessionID = _sessionID;
 }
 
 void Session::set_admin_privilege(bool privilege)
@@ -53,9 +53,9 @@ void Session::set_admin_privilege(bool privilege)
 	admin_privilege = privilege;
 }
 
-Session_ID Session::get_session_ID() const
+SessionID Session::get_sessionID() const
 {
-	return session_ID;
+	return sessionID;
 }
 
 string Session::get_address() const
@@ -80,9 +80,9 @@ bool Session::get_admin_privilege() const
 //	if (!write_in_progress) write();
 //}
 
-Session_ID Session::assign_session_ID()
+SessionID Session::assign_sessionID()
 {
-	return ++session_ID;
+	return ++sessionID;
 }
 
 void Session::wait()
@@ -92,7 +92,7 @@ void Session::wait()
 
 string Session::preamble()
 {
-	return client_preamble() + " " + session_preamble() + " " + address_preamble();
+	return client_preamble() + " " + session_preamble();
 }
 
 string Session::address_preamble()
@@ -108,7 +108,7 @@ string Session::client_preamble()
 {
 	std::stringstream ss;
 
-	ss << "[Client " << client_ID << " (" << address.c_str() << ":" << port << ")]";
+	ss << "[Client " << clientID << " (" << address.c_str() << ":" << port << ")]";
 
 	return ss.str();
 }
@@ -117,14 +117,14 @@ string Session::session_preamble()
 {
 	std::stringstream ss;
 
-	ss << "[Session " << session_ID << "]";
+	ss << "[Session " << sessionID << "]";
 
 	return ss.str();
 }
 
 bool Session::handle_handshake()
 {
-	cl = (client_language) read_msg.read_uint8();
+	cl = read_msg.read_client_language();
 	write_msg.set_client_language(cl);
 	read_msg.set_client_language(cl);
 
@@ -138,7 +138,7 @@ bool Session::handle_handshake()
 		if (d2 == 2.22) {
 			double * temp = new double[12];
 			for (auto i = 0; i < 12; i++) temp[i] = 1.11*(i+3);
-			DoubleArrayBlock_ptr block = read_msg.read_array_block();
+			DoubleArrayBlock_ptr block = read_msg.read_DoubleArrayBlock();
 			if (read_msg.compare_array_block(block, temp)) {
 
 				log->info("{} Received handshake", preamble());
@@ -155,11 +155,11 @@ bool Session::handle_handshake()
 
 bool Session::valid_handshake()
 {
-	assign_session_ID();
+	assign_sessionID();
 
-	write_msg.start(client_ID, session_ID, HANDSHAKE);
+	write_msg.start(clientID, sessionID, HANDSHAKE);
 
-	write_msg.add_uint16(4321);
+	write_msg.write_uint16(4321);
 	write_msg.write_string(string("DCBA"));
 	write_msg.write_double(3.33);
 
@@ -170,9 +170,9 @@ bool Session::valid_handshake()
 
 bool Session::invalid_handshake()
 {
-	write_msg.start(client_ID, session_ID, HANDSHAKE);
+	write_msg.start(clientID, sessionID, HANDSHAKE);
 
-	write_msg.add_string(string("INVALID HANDSHAKE FORMAT"));
+	write_msg.write_string(string("INVALID HANDSHAKE FORMAT"));
 
 	flush();
 
@@ -195,7 +195,7 @@ void Session::read_header()
 	asio::async_read(socket,
 			asio::buffer(read_msg.header(), Message::header_length),
 				[this, self](error_code ec, std::size_t /*length*/) {
-			if (!ec && read_msg.decode_header()) read_body();
+			if (!ec) { read_msg.decode_header(); read_body(); }
 			else remove_session();
 		});
 }
@@ -219,6 +219,7 @@ void Session::flush()
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),
 				[this, self](error_code ec, std::size_t /*length*/) {
+			log->info("O {} {} {}", (int16_t) write_msg.header()[0], (int16_t) write_msg.header()[1], write_msg.length());
 			if (!ec) write_msg.clear();
 			else remove_session();
 		});
@@ -228,7 +229,7 @@ void Session::flush()
 
 //int Session::handle_message()
 //{
-////	log->info("Received message from Session {} at {}", get_ID(), get_address().c_str());
+////	log->info("Received message from Session {} at {}", getID(), get_address().c_str());
 ////	log->info("{}", read_msg.to_string());
 ////	log->info("{}", read_msg.cc);
 //
@@ -284,16 +285,16 @@ void Session::flush()
 //
 //		uint16_t num_workers = read_msg.read_uint16();
 //
-//		log->info("Assigning {} workers to Session {} at {}", num_workers, get_ID(), get_address().c_str());
+//		log->info("Assigning {} workers to Session {} at {}", num_workers, getID(), get_address().c_str());
 //
-//		std::map<Worker_ID, WorkerInfo> workers = server.assign_workers(DriverSession::shared_from_this(), num_workers);
+//		std::map<WorkerID, WorkerInfo> workers = server.assign_workers(DriverSession::shared_from_this(), num_workers);
 //
 //		auto it = workers.begin();
 //
 //		for ( ; it != workers.end(); it++) {
-//			write_msg.add_string(it->second.hostname);
-//			write_msg.add_string(it->second.address);
-//			write_msg.add_uint16(it->second.port);
+//			write_msg.write_string(it->second.hostname);
+//			write_msg.write_string(it->second.address);
+//			write_msg.write_uint16(it->second.port);
 //		}
 //	}
 //
@@ -302,10 +303,10 @@ void Session::flush()
 //
 //bool Session::list_all_workers()
 //{
-//	log->info("Sending list of all workers to Session {} at {}", get_ID(), get_address().c_str());
+//	log->info("Sending list of all workers to Session {} at {}", getID(), get_address().c_str());
 //
 //	write_msg.start(LIST_ALL_WORKERS);
-//	write_msg.add_string(server.list_workers());
+//	write_msg.write_string(server.list_workers());
 //	flush();
 //
 //	read_header();
@@ -315,10 +316,10 @@ void Session::flush()
 //
 //bool Session::list_active_workers()
 //{
-//	log->info("Sending list of active workers to Session {} at {}", get_ID(), get_address().c_str());
+//	log->info("Sending list of active workers to Session {} at {}", getID(), get_address().c_str());
 //
 //	write_msg.start(LIST_ACTIVE_WORKERS);
-//	write_msg.add_string(server.list_active_workers());
+//	write_msg.write_string(server.list_active_workers());
 //	flush();
 //
 //	read_header();
@@ -328,10 +329,10 @@ void Session::flush()
 //
 //bool Session::list_inactive_workers()
 //{
-//	log->info("Sending list of inactive workers to Session {} at {}", get_ID(), get_address().c_str());
+//	log->info("Sending list of inactive workers to Session {} at {}", getID(), get_address().c_str());
 //
 //	write_msg.start(LIST_INACTIVE_WORKERS);
-//	write_msg.add_string(server.list_inactive_workers());
+//	write_msg.write_string(server.list_inactive_workers());
 //	flush();
 //
 //	read_header();
@@ -341,10 +342,10 @@ void Session::flush()
 //
 //bool Session::list_assigned_workers()
 //{
-//	log->info("Sending list of assigned workers to Session {} at {}", get_ID(), get_address().c_str());
+//	log->info("Sending list of assigned workers to Session {} at {}", getID(), get_address().c_str());
 //
 //	write_msg.start(LIST_INACTIVE_WORKERS);
-//	write_msg.add_string(server.list_assigned_workers(DriverSession::shared_from_this()));
+//	write_msg.write_string(server.list_assigned_workers(DriverSession::shared_from_this()));
 //	flush();
 //
 //	read_header();

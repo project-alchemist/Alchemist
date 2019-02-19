@@ -40,14 +40,14 @@ typedef enum _datatype : uint8_t {
 	INTEGER2,
 	INTEGER4,
 	INTEGER8,
-	INT8_T,
-	INT16_T,
-	INT32_T,
-	INT64_T,
-	UINT8_T,
-	UINT16_T,
-	UINT32_T,
-	UINT64_T,
+	INT8,
+	INT16,
+	INT32,
+	INT64,
+	UINT8,
+	UINT16,
+	UINT32,
+	UINT64,
 	FLOAT_INT,
 	DOUBLE_INT,
 	LONG_INT,
@@ -56,13 +56,17 @@ typedef enum _datatype : uint8_t {
 	STRING,
 	WSTRING,
 	COMMAND_CODE,
-	PARAMETER,
 	LIBRARY_ID,
-	MATRIX_ID,
-	MATRIX_INFO,
-	MATRIX_BLOCK,
+	GROUP_ID,
+	WORKER_ID,
+	WORKER_INFO,
+	ARRAY_ID,
+	ARRAY_INFO,
+	ARRAY_BLOCK_FLOAT,
+	ARRAY_BLOCK_DOUBLE,
 	DISTMATRIX,
-	VOID_POINTER
+	VOID_POINTER,
+	PARAMETER = 100
 } datatype;
 
 //inline const uint8_t get_datatype_length(const datatype & dt)
@@ -160,27 +164,27 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "UNSIGNED LONG";
 		case INTEGER1:
 			return "INTEGER1";
-		case INT8_T:
+		case INT8:
 			return "INT8";
-		case UINT8_T:
+		case UINT8:
 			return "UINT8";
 		case INTEGER2:
 			return "INTEGER2";
-		case INT16_T:
+		case INT16:
 			return "INT16";
-		case UINT16_T:
+		case UINT16:
 			return "UINT16";
 		case INTEGER4:
 			return "INTEGER4";
-		case INT32_T:
+		case INT32:
 			return "INT32";
-		case UINT32_T:
+		case UINT32:
 			return "UINT32";
 		case INTEGER8:
 			return "INTEGER8";
-		case INT64_T:
+		case INT64:
 			return "INT64";
-		case UINT64_T:
+		case UINT64:
 			return "UINT64";
 		case FLOAT:
 			return "FLOAT";
@@ -196,14 +200,18 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "PARAMETER";
 		case LIBRARY_ID:
 			return "LIBRARY ID";
-		case MATRIX_ID:
-			return "MATRIX ID";
-		case MATRIX_INFO:
-			return "MATRIX INFO";
-		case MATRIX_BLOCK:
-			return "MATRIX BLOCK";
+		case ARRAY_ID:
+			return "ARRAY ID";
+		case ARRAY_INFO:
+			return "ARRAY INFO";
+		case ARRAY_BLOCK_FLOAT:
+			return "ARRAY BLOCK FLOAT";
+		case ARRAY_BLOCK_DOUBLE:
+			return "ARRAY BLOCK DOUBLE";
 		case DISTMATRIX:
 			return "DISTMATRIX";
+		case WORKER_INFO:
+			return "WORKER INFO";
 		case VOID_POINTER:
 			return "VOID POINTER";
 		default:

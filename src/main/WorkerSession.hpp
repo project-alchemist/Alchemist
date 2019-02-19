@@ -14,8 +14,8 @@ class WorkerSession : public Session
 {
 public:
 	WorkerSession(tcp::socket, GroupWorker &);
-	WorkerSession(tcp::socket, GroupWorker &, Session_ID _ID, Group_ID _group_ID);
-	WorkerSession(tcp::socket, GroupWorker &, Session_ID _ID, Group_ID _group_ID, Log_ptr &);
+	WorkerSession(tcp::socket, GroupWorker &, SessionID ID, GroupID _groupID);
+	WorkerSession(tcp::socket, GroupWorker &, SessionID ID, GroupID _groupID, Log_ptr &);
 
 	int handle_message();
 

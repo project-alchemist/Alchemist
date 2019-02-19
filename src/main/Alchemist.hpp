@@ -70,15 +70,15 @@ using asio::ip::tcp;
 const string get_Alchemist_version();
 const string get_Boost_version();
 
-typedef El::Matrix<double> Matrix;
+typedef El::Matrix<double> Array;
 
-typedef uint8_t Worker_ID;
-typedef uint16_t Client_ID;
-typedef uint16_t Group_ID;
-typedef uint16_t Session_ID;
-typedef uint16_t Matrix_ID;
-typedef uint16_t Task_ID;
-typedef uint8_t Library_ID;
+typedef uint16_t WorkerID;
+typedef uint16_t ClientID;
+typedef uint16_t GroupID;
+typedef uint16_t SessionID;
+typedef uint16_t ArrayID;
+typedef uint16_t TaskID;
+typedef uint8_t LibraryID;
 
 inline const string get_Alchemist_version()
 {
@@ -102,58 +102,69 @@ const string get_Boost_version()
 //	return std::ctime(&now);
 //}
 
-struct WorkerInfo {
-	WorkerInfo(Worker_ID _ID) :
-		ID(_ID), hostname(string("0")), address(string("0")), port(0), active(false), group_ID(0) { }
-	WorkerInfo(Worker_ID _ID, string _hostname, string _address, uint16_t _port) :
-		ID(_ID), hostname(_hostname), address(_address), port(_port), active(false), group_ID(0)  { }
+enum { IS_PARAMETER = true };
 
-	Worker_ID ID;
+struct WorkerInfo {
+	WorkerInfo(WorkerID ID) :
+		WorkerInfo(ID, string("0"), string("0"), 0, 0) { }
+	WorkerInfo(WorkerID ID, string _hostname, string _address, uint16_t _port) :
+		WorkerInfo(ID, _hostname, _address, _port, 0) { }
+	WorkerInfo(WorkerID ID, string _hostname, string _address, uint16_t _port, GroupID groupID) :
+		ID(ID), hostname(_hostname), address(_address), port(_port), groupID(groupID)  { }
+
+	WorkerID ID;
 	string hostname, address;
 	uint16_t port;
-	bool active;
-	Group_ID group_ID;
+	GroupID groupID;
+
+	string to_string(bool display_layout=false) const {
+		std::stringstream ss;
+
+
+		return ss.str();
+	}
 };
 
-struct MatrixInfo {
-	Matrix_ID ID;
+struct ArrayInfo {
+	ArrayID ID;
 
 	string name;
 	uint64_t num_rows, num_cols;
-	bool sparse;
-	uint8_t layout, num_partitions;
+	uint8_t sparse, layout, num_partitions;
 
-	Worker_ID * row_assignments;
+	uint16_t * worker_assignments;
 
-	explicit MatrixInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(false), layout(0), num_partitions(0), row_assignments(nullptr) {
-		row_assignments = new Worker_ID[num_rows]();
+	explicit ArrayInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(0), layout(0), num_partitions(1), worker_assignments(nullptr) {
+		worker_assignments = new uint16_t[num_partitions]();
 	}
 
-	MatrixInfo(Matrix_ID _ID, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(_ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(false), layout(0), num_partitions(0), row_assignments(nullptr) {
-		row_assignments = new Worker_ID[num_rows]();
+	ArrayInfo(ArrayID ID, uint64_t _num_rows, uint64_t _num_cols) :
+		ID(ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(0), layout(0), num_partitions(1), worker_assignments(nullptr) {
+		worker_assignments = new uint16_t[num_partitions]();
 	}
 
-	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(false), layout(0), num_partitions(0), row_assignments(nullptr) {
-		row_assignments = new Worker_ID[num_rows]();
-	}
-	MatrixInfo(Matrix_ID _ID, string _name, uint64_t _num_rows, uint64_t _num_cols, bool _sparse, uint8_t _layout, uint8_t _num_partitions) :
-		ID(_ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions), row_assignments(nullptr) {
-		row_assignments = new Worker_ID[num_rows]();
+	ArrayInfo(ArrayID ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(0), layout(0), num_partitions(1), worker_assignments(nullptr) {
+		worker_assignments = new uint16_t[num_partitions]();
 	}
 
-	~MatrixInfo() {
-		delete [] row_assignments; row_assignments = nullptr;
+	ArrayInfo(ArrayID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, uint8_t _layout, uint8_t _num_partitions) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions), worker_assignments(nullptr) {
+		worker_assignments = new uint16_t[num_partitions]();
+	}
+
+	~ArrayInfo() {
+		delete [] worker_assignments;
+		worker_assignments = nullptr;
 	}
 
 	string to_string(bool display_layout=false) const {
 		std::stringstream ss;
 
-		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ", # partitions: " << (uint16_t) num_partitions << ")";
+		ss << "Array " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ", # partitions: " << (uint16_t) num_partitions << ")";
 		if (display_layout) {
 			ss << std::endl << "Layout: " << std::endl;
-			for (uint64_t i = 0; i < num_rows; i++) ss << (uint16_t) row_assignments[i] << " ";
+			for (uint64_t i = 0; i < num_rows; i++) ss << (uint16_t) worker_assignments[i] << " ";
 		}
 
 		return ss.str();
@@ -248,7 +259,9 @@ struct ArrayBlock {
 	}
 };
 
-typedef std::shared_ptr<MatrixInfo> MatrixInfo_ptr;
+typedef std::shared_ptr<WorkerInfo> WorkerInfo_ptr;
+typedef std::shared_ptr<ArrayInfo> ArrayInfo_ptr;
+typedef std::shared_ptr<ArrayBlock<float>> FloatArrayBlock_ptr;
 typedef std::shared_ptr<ArrayBlock<double>> DoubleArrayBlock_ptr;
 
 //inline bool exist_test (const std::string & name) {

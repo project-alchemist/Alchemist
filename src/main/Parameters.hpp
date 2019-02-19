@@ -623,7 +623,7 @@ protected:
 
 struct Int8Parameter : Parameter {
 public:
-	Int8Parameter(string _name, int8_t _value) : Parameter(_name, INT8_T), value(_value) { }
+	Int8Parameter(string _name, int8_t _value) : Parameter(_name, INT8), value(_value) { }
 
 	~Int8Parameter() { }
 
@@ -641,7 +641,7 @@ protected:
 
 struct Int16Parameter : Parameter {
 public:
-	Int16Parameter(string _name, int16_t _value) : Parameter(_name, INT16_T), value(_value) { }
+	Int16Parameter(string _name, int16_t _value) : Parameter(_name, INT16), value(_value) { }
 
 	~Int16Parameter() { }
 
@@ -659,7 +659,7 @@ protected:
 
 struct Int32Parameter : Parameter {
 public:
-	Int32Parameter(string _name, int32_t _value) : Parameter(_name, INT32_T), value(_value) { }
+	Int32Parameter(string _name, int32_t _value) : Parameter(_name, INT32), value(_value) { }
 
 	~Int32Parameter() { }
 
@@ -677,7 +677,7 @@ protected:
 
 struct Int64Parameter : Parameter {
 public:
-	Int64Parameter(string _name, int64_t _value) : Parameter(_name, INT64_T), value(_value) { }
+	Int64Parameter(string _name, int64_t _value) : Parameter(_name, INT64), value(_value) { }
 
 	~Int64Parameter() { }
 
@@ -695,7 +695,7 @@ protected:
 
 struct UInt8Parameter : Parameter {
 public:
-	UInt8Parameter(string _name, uint8_t _value) : Parameter(_name, UINT8_T), value(_value) { }
+	UInt8Parameter(string _name, uint8_t _value) : Parameter(_name, UINT8), value(_value) { }
 
 	~UInt8Parameter() { }
 
@@ -713,7 +713,7 @@ protected:
 
 struct UInt16Parameter : Parameter {
 public:
-	UInt16Parameter(string _name, uint16_t _value) : Parameter(_name, UINT16_T), value(_value) { }
+	UInt16Parameter(string _name, uint16_t _value) : Parameter(_name, UINT16), value(_value) { }
 
 	~UInt16Parameter() { }
 
@@ -731,7 +731,7 @@ protected:
 
 struct UInt32Parameter : Parameter {
 public:
-	UInt32Parameter(string _name, uint32_t _value) : Parameter(_name, UINT32_T), value(_value) { }
+	UInt32Parameter(string _name, uint32_t _value) : Parameter(_name, UINT32), value(_value) { }
 
 	~UInt32Parameter() { }
 
@@ -749,7 +749,7 @@ protected:
 
 struct UInt64Parameter : Parameter {
 public:
-	UInt64Parameter(string _name, uint64_t _value) : Parameter(_name, UINT64_T), value(_value) { }
+	UInt64Parameter(string _name, uint64_t _value) : Parameter(_name, UINT64), value(_value) { }
 
 	~UInt64Parameter() { }
 
@@ -767,7 +767,7 @@ protected:
 
 struct FloatIntParameter : Parameter {
 public:
-	FloatIntParameter(string _name, int32_t _value) : Parameter(_name, INT32_T), value(_value) { }
+	FloatIntParameter(string _name, int32_t _value) : Parameter(_name, INT32), value(_value) { }
 
 	~FloatIntParameter() { }
 
@@ -785,7 +785,7 @@ protected:
 
 struct DoubleIntParameter : Parameter {
 public:
-	DoubleIntParameter(string _name, int64_t _value) : Parameter(_name, INT64_T), value(_value) { }
+	DoubleIntParameter(string _name, int64_t _value) : Parameter(_name, INT64), value(_value) { }
 
 	~DoubleIntParameter() { }
 
@@ -803,7 +803,7 @@ protected:
 
 struct ShortIntParameter : Parameter {
 public:
-	ShortIntParameter(string _name, int16_t _value) : Parameter(_name, INT16_T), value(_value) { }
+	ShortIntParameter(string _name, int16_t _value) : Parameter(_name, INT16), value(_value) { }
 
 	~ShortIntParameter() { }
 
@@ -821,7 +821,7 @@ protected:
 
 struct LongIntParameter : Parameter {
 public:
-	LongIntParameter(string _name, int64_t _value) : Parameter(_name, INT64_T), value(_value) { }
+	LongIntParameter(string _name, int64_t _value) : Parameter(_name, INT64), value(_value) { }
 
 	~LongIntParameter() { }
 
@@ -839,7 +839,7 @@ protected:
 
 struct LongDoubleIntParameter : Parameter {
 public:
-	LongDoubleIntParameter(string _name, int64_t _value) : Parameter(_name, INT64_T), value(_value) { }
+	LongDoubleIntParameter(string _name, int64_t _value) : Parameter(_name, INT64), value(_value) { }
 
 	~LongDoubleIntParameter() { }
 
@@ -897,14 +897,14 @@ protected:
 	string value;
 };
 
-struct MatrixInfoParameter : Parameter {
+struct ArrayInfoParameter : Parameter {
 public:
 
-	MatrixInfoParameter(string _name, MatrixInfo_ptr _value) : Parameter(_name, MATRIX_INFO), value(_value) { }
+	ArrayInfoParameter(string _name, ArrayInfo_ptr _value) : Parameter(_name, ARRAY_INFO), value(_value) { }
 
-	~MatrixInfoParameter() { }
+	~ArrayInfoParameter() { }
 
-	MatrixInfo_ptr get_value() const {
+	ArrayInfo_ptr get_value() const {
 		return value;
 	}
 
@@ -913,7 +913,7 @@ public:
 	}
 
 protected:
-	MatrixInfo_ptr value;
+	ArrayInfo_ptr value;
 };
 
 struct DistMatrixParameter : Parameter {
@@ -1224,9 +1224,9 @@ public:
 		parameters.insert(std::make_pair(name, new WStringParameter(name, value)));
 	}
 
-	void add_matrix_info(string name, const MatrixInfo_ptr value) {
+	void add_matrix_info(string name, const ArrayInfo_ptr value) {
 		matrix_info_names.push_back(name);
-		parameters.insert(std::make_pair(name, new MatrixInfoParameter(name, value)));
+		parameters.insert(std::make_pair(name, new ArrayInfoParameter(name, value)));
 	}
 
 	void add_distmatrix(string name, DistMatrix_ptr value) {
@@ -1351,8 +1351,8 @@ public:
 		return std::dynamic_pointer_cast<StringParameter>(parameters.find(name)->second)->get_value();
 	}
 
-	MatrixInfo_ptr get_matrix_info(string name) const {
-		return std::dynamic_pointer_cast<MatrixInfoParameter>(parameters.find(name)->second)->get_value();
+	ArrayInfo_ptr get_matrix_info(string name) const {
+		return std::dynamic_pointer_cast<ArrayInfoParameter>(parameters.find(name)->second)->get_value();
 	}
 
 	DistMatrix_ptr get_distmatrix(string name) const {

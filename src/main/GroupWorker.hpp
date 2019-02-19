@@ -18,17 +18,17 @@ class GroupWorker : public Server, public std::enable_shared_from_this<GroupWork
 {
 public:
 
-//	GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, MPI_Comm & _group, MPI_Comm & _group_peers, io_context & _io_context,
+//	GroupWorker(GroupID _groupID, WorkerID _workerID, MPI_Comm & _group, MPI_Comm & _group_peers, io_context & _io_context,
 //			const unsigned int port, Log_ptr & _log);
-//	GroupWorker(Group_ID _group_ID, Worker_ID _worker_ID, MPI_Comm & _group, MPI_Comm & _group_peers, io_context & _io_context,
+//	GroupWorker(GroupID _groupID, WorkerID _workerID, MPI_Comm & _group, MPI_Comm & _group_peers, io_context & _io_context,
 //			const tcp::endpoint & endpoint, Log_ptr & _log);
 
-	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const unsigned int port, bool _primary_group_worker, Log_ptr & _log);
-	GroupWorker(Group_ID _group_ID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, bool _primary_group_worker, Log_ptr & _log);
+	GroupWorker(GroupID _groupID, Worker & _worker, io_context & _io_context, const unsigned int port, bool _primary_group_worker, Log_ptr & _log);
+	GroupWorker(GroupID _groupID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, bool _primary_group_worker, Log_ptr & _log);
 	~GroupWorker();
 
-	Worker_ID get_worker_ID();
-	Group_ID get_group_ID();
+	WorkerID get_workerID();
+	GroupID get_groupID();
 
 	int start();
 
@@ -54,11 +54,11 @@ public:
 	int get_transpose();
 	int matrix_multiply();
 
-	bool check_library_ID(Library_ID & lib_ID);
+	bool check_libraryID(LibraryID & libID);
 
 	int get_matrix_rows();
 
-	void print_data(Matrix_ID ID);
+	void print_data(ArrayID ID);
 
 	void serialize_parameters(Parameters & output_parameters, Message & msg);
 	void deserialize_parameters(Parameters & input_parameters, Message & msg);
@@ -66,23 +66,23 @@ public:
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 	void set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group);
 
-	void set_value(Matrix_ID ID, uint64_t row, uint64_t col, float value);
-	void set_value(Matrix_ID ID, uint64_t row, uint64_t col, double value);
+	void set_value(ArrayID ID, uint64_t row, uint64_t col, float value);
+	void set_value(ArrayID ID, uint64_t row, uint64_t col, double value);
 
-	void get_value(Matrix_ID ID, uint64_t row, uint64_t col, float & value);
-	void get_value(Matrix_ID ID, uint64_t row, uint64_t col, double & value);
+	void get_value(ArrayID ID, uint64_t row, uint64_t col, float & value);
+	void get_value(ArrayID ID, uint64_t row, uint64_t col, double & value);
 
 	int load_library();
 	void run_task();
 
-	Worker_ID worker_ID;
+	WorkerID workerID;
 private:
 	MPI_Comm group;
 	MPI_Comm group_peers;
 
-	Group_ID group_ID;
-	Matrix_ID current_matrix_ID;
-	Session_ID next_session_ID;
+	GroupID groupID;
+	ArrayID current_matrixID;
+	SessionID next_sessionID;
 
 	Worker & worker;
 
@@ -90,9 +90,9 @@ private:
 
 	client_language cl;
 
-	map<Library_ID, Library *> libraries;
-	map<Session_ID, WorkerSession_ptr> sessions;
-	map<Matrix_ID, DistMatrix_ptr> matrices;
+	map<LibraryID, Library *> libraries;
+	map<SessionID, WorkerSession_ptr> sessions;
+	map<ArrayID, DistMatrix_ptr> matrices;
 
 	bool connection_open;
 

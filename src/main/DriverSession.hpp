@@ -14,13 +14,13 @@ class DriverSession : public Session
 {
 public:
 	DriverSession(tcp::socket, GroupDriver &);
-	DriverSession(tcp::socket, GroupDriver &, Client_ID _client_ID);
-	DriverSession(tcp::socket, GroupDriver &, Client_ID _client_ID, Log_ptr &);
+	DriverSession(tcp::socket, GroupDriver &, ClientID _clientID);
+	DriverSession(tcp::socket, GroupDriver &, ClientID _clientID, Log_ptr &);
 
-	map<Worker_ID, WorkerInfo> workers;
+	map<WorkerID, WorkerInfo> workers;
 
-	vector<Worker_ID>  allocated_workers;
-	vector<Library_ID> loaded_libraries;
+	vector<WorkerID>  allocated_workers;
+	vector<LibraryID> loaded_libraries;
 
 	void start();
 
@@ -28,8 +28,8 @@ public:
 
 	void request_matrix();
 
-	void send_matrix_info(Matrix_ID matrix_ID);
-	void send_matrix_ID(Matrix_ID & matrix_ID);
+	void send_matrix_info(ArrayID matrixID);
+	void send_matrixID(ArrayID & matrixID);
 
 	bool send_response_string();
 

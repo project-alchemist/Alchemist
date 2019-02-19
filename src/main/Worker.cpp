@@ -6,7 +6,7 @@ namespace alchemist {
 // =======================================   CONSTRUCTOR   =======================================
 
 Worker::Worker(io_context & _io_context, const unsigned int _port) :
-		ic(_io_context), group_worker(nullptr), ID(0), client_ID(0), next_session_ID(0), accept_connections(false)
+		ic(_io_context), group_worker(nullptr), ID(0), clientID(0), next_sessionID(0), accept_connections(false)
 {
 	world = MPI_COMM_WORLD;
 
@@ -35,7 +35,7 @@ Worker::Worker(io_context & _io_context, const unsigned int _port) :
 Worker::~Worker() { }
 
 
-//Worker_ID Worker::get_ID()
+//WorkerID Worker::getID()
 //{
 //	return ID;
 //}
@@ -83,7 +83,7 @@ int Worker::wait_for_command()
 }
 
 
-Worker_ID Worker::get_ID()
+WorkerID Worker::get_ID()
 {
 	return ID;
 }
@@ -156,37 +156,37 @@ void Worker::handle_new_group()
 {
 	MPI_Status status;
 
-	Group_ID group_ID;
+	GroupID groupID;
 
 	int primary_group_worker = -1;
 
-	MPI_Recv(&group_ID, 1, MPI_UNSIGNED_SHORT, 0, 0, world, &status);
-	if (group_ID > 0) {
+	MPI_Recv(&groupID, 1, MPI_UNSIGNED_SHORT, 0, 0, world, &status);
+	if (groupID > 0) {
 
 		uint16_t num_peers = 0;
 
 		MPI_Recv(&num_peers, 1, MPI_UNSIGNED_SHORT, 0, 0, world, &status);
 
-		int group_IDs[(int) num_peers+1];
-		int group_peer_IDs[(int) num_peers];
+		int groupIDs[(int) num_peers+1];
+		int group_peerIDs[(int) num_peers];
 
-		group_IDs[0] = 0;
-		MPI_Recv(&group_peer_IDs, (int) num_peers, MPI_INT, 0, 0, world, &status);
+		groupIDs[0] = 0;
+		MPI_Recv(&group_peerIDs, (int) num_peers, MPI_INT, 0, 0, world, &status);
 		MPI_Recv(&primary_group_worker, 1, MPI_INT, 0, 0, world, &status);
 
-		for (uint16_t i = 0; i < num_peers; i++) group_IDs[i+1] = group_peer_IDs[i];
+		for (uint16_t i = 0; i < num_peers; i++) groupIDs[i+1] = group_peerIDs[i];
 
 		if (group_worker == nullptr)
-			group_worker = std::make_shared<GroupWorker>(group_ID, *this, ic, port, primary_group_worker == 0, log);
+			group_worker = std::make_shared<GroupWorker>(groupID, *this, ic, port, primary_group_worker == 0, log);
 
 		MPI_Group world_group;
 		MPI_Group temp_group;
 		MPI_Comm_group(world, &world_group);
 
-		MPI_Group_incl(world_group, (int) (num_peers+1), group_IDs, &temp_group);
+		MPI_Group_incl(world_group, (int) (num_peers+1), groupIDs, &temp_group);
 		group_worker->set_group_comm(world, temp_group);
 
-		MPI_Group_incl(world_group, (int) num_peers, group_peer_IDs, &temp_group);
+		MPI_Group_incl(world_group, (int) num_peers, group_peerIDs, &temp_group);
 		group_worker->set_group_peers_comm(world, temp_group);
 
 		MPI_Group_free(&world_group);
@@ -297,7 +297,7 @@ void Worker::print_info()
 //	log->info("Creating new Elemental distributed matrix");
 //
 //	uint64_t num_rows, num_cols;
-//	Matrix_ID ID;
+//	MatrixID ID;
 //
 //	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 //	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
@@ -321,7 +321,7 @@ void Worker::print_info()
 //
 //	log->info("Creating vector of local rows");
 //
-//	Matrix_ID ID;
+//	MatrixID ID;
 //
 //	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 //	MPI_Barrier(group);
@@ -351,22 +351,22 @@ void Worker::print_info()
 //	return 0;
 //}
 //
-//void Worker::set_value(Matrix_ID ID, uint64_t row, uint64_t col, float value)
+//void Worker::set_value(MatrixID ID, uint64_t row, uint64_t col, float value)
 //{
 //	matrices[ID]->Set(row, col, value);
 //}
 //
-//void Worker::set_value(Matrix_ID ID, uint64_t row, uint64_t col, double value)
+//void Worker::set_value(MatrixID ID, uint64_t row, uint64_t col, double value)
 //{
 //	matrices[ID]->Set(row, col, value);
 //}
 //
-//void Worker::get_value(Matrix_ID ID, uint64_t row, uint64_t col, float & value)
+//void Worker::get_value(MatrixID ID, uint64_t row, uint64_t col, float & value)
 //{
 //	value = matrices[ID]->Get(row, col);
 //}
 //
-//void Worker::get_value(Matrix_ID ID, uint64_t row, uint64_t col, double & value)
+//void Worker::get_value(MatrixID ID, uint64_t row, uint64_t col, double & value)
 //{
 //	value = matrices[ID]->Get(row, col);
 //}
@@ -407,7 +407,7 @@ void Worker::print_info()
 //	return 0;
 //}
 //
-//void Worker::print_data(Matrix_ID ID)
+//void Worker::print_data(MatrixID ID)
 //{
 ////	std::stringstream ss;
 ////	ss << "LOCAL DATA:" << std::endl;

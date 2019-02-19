@@ -11,23 +11,23 @@ class Session : public std::enable_shared_from_this<Session>
 {
 public:
 	Session(tcp::socket);
-	Session(tcp::socket, Session_ID _ID, Client_ID _client_ID);
-	Session(tcp::socket, Session_ID _ID, Client_ID _client_ID, Log_ptr &);
+	Session(tcp::socket, SessionID ID, ClientID _clientID);
+	Session(tcp::socket, SessionID ID, ClientID _clientID, Log_ptr &);
 	virtual ~Session() { };
 
-	vector<Worker_ID>  allocated_workers;
-	vector<Library_ID> loaded_libraries;
-	vector<Task_ID> tasks;
+	vector<WorkerID>  allocated_workers;
+	vector<LibraryID> loaded_libraries;
+	vector<TaskID> tasks;
 
 	virtual void start() = 0;
 	virtual void remove_session() = 0;
 	virtual int handle_message() = 0;
 
 	void set_log(Log_ptr _log);
-	void set_ID(Session_ID _ID);
+	void setID(SessionID ID);
 	void set_admin_privilege(bool privilege);
 
-	Session_ID get_session_ID() const;
+	SessionID get_sessionID() const;
 	string get_address() const;
 	uint16_t get_port() const;
 	bool get_admin_privilege() const;
@@ -52,7 +52,7 @@ public:
 	string session_preamble();
 	string address_preamble();
 
-	Session_ID assign_session_ID();
+	SessionID assign_sessionID();
 
 	void set_client_language(client_language _cl);
 
@@ -67,8 +67,8 @@ public:
 	Message read_msg;
 	Message write_msg;
 protected:
-	Client_ID client_ID;
-	Session_ID session_ID;
+	ClientID clientID;
+	SessionID sessionID;
 
 	bool admin_privilege;
 	bool ready;

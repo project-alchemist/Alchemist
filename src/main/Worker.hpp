@@ -20,9 +20,9 @@ public:
 	void display_info();
 	void print_info();
 
-	Worker_ID get_ID();
+	WorkerID get_ID();
 
-//	Worker_ID get_ID();
+//	WorkerID getID();
 //	bool is_active();
 //
 //	int new_matrix();
@@ -35,14 +35,14 @@ public:
 //
 //	int get_matrix_rows();
 //
-//	void print_data(Matrix_ID ID);
+//	void print_data(MatrixID ID);
 //
 //
-//	void set_value(Matrix_ID ID, uint64_t row, uint64_t col, float value);
-//	void set_value(Matrix_ID ID, uint64_t row, uint64_t col, double value);
+//	void set_value(MatrixID ID, uint64_t row, uint64_t col, float value);
+//	void set_value(MatrixID ID, uint64_t row, uint64_t col, double value);
 //
-//	void get_value(Matrix_ID ID, uint64_t row, uint64_t col, float & value);
-//	void get_value(Matrix_ID ID, uint64_t row, uint64_t col, double & value);
+//	void get_value(MatrixID ID, uint64_t row, uint64_t col, float & value);
+//	void get_value(MatrixID ID, uint64_t row, uint64_t col, double & value);
 
 
 private:
@@ -57,9 +57,9 @@ private:
 
 	GroupWorker_ptr group_worker;
 
-	Worker_ID ID;
-	Client_ID client_ID;
-	Session_ID next_session_ID;
+	WorkerID ID;
+	ClientID clientID;
+	SessionID next_sessionID;
 
 	bool accept_connections;
 

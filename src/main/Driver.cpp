@@ -9,7 +9,7 @@ Driver::Driver(io_context & _io_context, const unsigned int port) :
 				Driver(_io_context, tcp::endpoint(tcp::v4(), port)) { }
 
 Driver::Driver(io_context & _io_context, const tcp::endpoint & endpoint) :
-				Server(_io_context, endpoint), next_matrix_ID(0), next_group_ID(0)
+				Server(_io_context, endpoint), next_matrixID(0), next_groupID(0)
 {
 	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]        %^%v%$", bold, iwhite);
 	Server::set_log(log);
@@ -84,46 +84,46 @@ void Driver::print_ready_message()
 	log->info(message.c_str());
 }
 
-//vector<Worker_ID> & Driver::allocate_workers(Session_ID session_ID, uint16_t num_workers)
+//vector<WorkerID> & Driver::allocate_workers(SessionID sessionID, uint16_t num_workers)
 //{
-////	log->info("{} Allocating {} workers", sessions[session_ID].ptr->session_preamble(), num_workers);
+////	log->info("{} Allocating {} workers", sessions[sessionID].ptr->session_preamble(), num_workers);
 //
-//	vector<Worker_ID> allocated_workers(num_workers);
+//	vector<WorkerID> allocated_workers(num_workers);
 //
 //	if (inactive_workers.size() >= num_workers) {
 //		auto it = inactive_workers.begin();
 //
-//		Worker_ID worker_ID;
+//		WorkerID workerID;
 //
 //		for (uint16_t i = 0; i < num_workers; i++) {
-//			worker_ID = inactive_workers[i];
-//			active_workers.insert(std::make_pair(worker_ID, session_ID));
-//			workers[worker_ID].active = true;
-////			allocated_workers[session_ID].push_back(worker_ID);
+//			workerID = inactive_workers[i];
+//			active_workers.insert(std::make_pair(workerID, sessionID));
+//			workers[workerID].active = true;
+////			allocated_workers[sessionID].push_back(workerID);
 //		}
 //		inactive_workers.erase(inactive_workers.begin(), inactive_workers.begin() + num_workers);
 //	}
 //
 //	open_workers();
 //
-//	return allocated_workers[session_ID];
+//	return allocated_workers[sessionID];
 //}
 
-void Driver::set_group_communicator(const Group_ID & group_ID)
+void Driver::set_group_communicator(const GroupID & groupID)
 {
 //	std::lock_guard<std::mutex> lock(worker_mutex);
 
-	uint16_t group_size = (uint16_t) groups[group_ID]->workers.size();
-	uint16_t worker_ID, peer_ID;
+	uint16_t group_size = (uint16_t) groups[groupID]->workers.size();
+	uint16_t workerID, peerID;
 
-	int group_IDs[group_size+1];
-	int group_peer_IDs[group_size];
-	group_IDs[0] = 0;
+	int groupIDs[group_size+1];
+	int group_peerIDs[group_size];
+	groupIDs[0] = 0;
 
 	int i = 1;
-	for (auto it = groups[group_ID]->workers.begin(); it != groups[group_ID]->workers.end(); it++) {
-		group_IDs[i] = it->first;
-		group_peer_IDs[i-1] = it->first;
+	for (auto it = groups[groupID]->workers.begin(); it != groups[groupID]->workers.end(); it++) {
+		groupIDs[i] = it->first;
+		group_peerIDs[i-1] = it->first;
 		i++;
 	}
 
@@ -133,13 +133,13 @@ void Driver::set_group_communicator(const Group_ID & group_ID)
 
 	MPI_Comm_group(world, &world_group);
 
-	MPI_Group_incl(world_group, (int) (group_size+1), group_IDs, &temp_group);
-	MPI_Group_incl(world_group, (int) group_size, group_peer_IDs, &temp_peer_group);
+	MPI_Group_incl(world_group, (int) (group_size+1), groupIDs, &temp_group);
+	MPI_Group_incl(world_group, (int) group_size, group_peerIDs, &temp_peer_group);
 
 	alchemist_command command = _AM_NEW_GROUP;
 
 	log->info("Sending command {} to {} workers", get_command_name(command), group_size);
-	groups[group_ID]->free_group();
+	groups[groupID]->free_group();
 
 	MPI_Request req;
 	MPI_Status status;
@@ -147,25 +147,25 @@ void Driver::set_group_communicator(const Group_ID & group_ID)
 	MPI_Wait(&req, &status);
 
 	uint16_t num_workers = (uint16_t) workers.size();
-	Group_ID null_group_ID = 0;
+	GroupID null_groupID = 0;
 
 	int primary_group_worker = 0;
 
 	for (int j = 1; j <= num_workers; j++) {
-		worker_ID = j;
-		if (groups[group_ID]->workers.find(worker_ID) == groups[group_ID]->workers.end() )
-			MPI_Send(&null_group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+		workerID = j;
+		if (groups[groupID]->workers.find(workerID) == groups[groupID]->workers.end() )
+			MPI_Send(&null_groupID, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
 		else {
-			MPI_Send(&group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
-			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
-			MPI_Send(&group_peer_IDs, (int) group_size, MPI_INT, worker_ID, 0, world);
-			MPI_Send(&primary_group_worker, 1, MPI_INT, worker_ID, 0, world);
+			MPI_Send(&groupID, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
+			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
+			MPI_Send(&group_peerIDs, (int) group_size, MPI_INT, workerID, 0, world);
+			MPI_Send(&primary_group_worker, 1, MPI_INT, workerID, 0, world);
 			if (primary_group_worker == 0) primary_group_worker = 1;
 		}
 	}
-	groups[group_ID]->set_group_comm(world, temp_group);
+	groups[groupID]->set_group_comm(world, temp_group);
 
-	groups[group_ID]->ready_group();
+	groups[groupID]->ready_group();
 
 	MPI_Group_free(&world_group);
 	MPI_Group_free(&temp_group);
@@ -184,9 +184,9 @@ int Driver::start_workers()
 
 	MPI_Request req;
 	MPI_Status status;
-//	for (int temp_worker_ID = 1; temp_worker_ID <= num_workers; temp_worker_ID++) {
-//		log->info("sfsfs {}", temp_worker_ID);
-//		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_worker_ID, 0, world, &req);
+//	for (int temp_workerID = 1; temp_workerID <= num_workers; temp_workerID++) {
+//		log->info("sfsfs {}", temp_workerID);
+//		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_workerID, 0, world, &req);
 //		MPI_Wait(&req, &status);
 //	}
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
@@ -203,7 +203,7 @@ int Driver::register_workers()
 
 	log->info("Sending command {} to workers", get_command_name(command));
 
-	Worker_ID temp_worker_ID;
+	WorkerID temp_workerID;
 	MPI_Request req;
 	MPI_Status status;
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
@@ -211,18 +211,18 @@ int Driver::register_workers()
 
 	uint16_t hostname_length, address_length, port;
 
-	for (Worker_ID worker_ID = 1; worker_ID <= num_workers; ++worker_ID) {
-		MPI_Recv(&hostname_length, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world, &status);
+	for (WorkerID workerID = 1; workerID <= num_workers; ++workerID) {
+		MPI_Recv(&hostname_length, 1, MPI_UNSIGNED_SHORT, workerID, 0, world, &status);
 		char hostname[hostname_length];
-		MPI_Recv(hostname, hostname_length, MPI_CHAR, worker_ID, 0, world, &status);
-		MPI_Recv(&address_length, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world, &status);
+		MPI_Recv(hostname, hostname_length, MPI_CHAR, workerID, 0, world, &status);
+		MPI_Recv(&address_length, 1, MPI_UNSIGNED_SHORT, workerID, 0, world, &status);
 		char address[address_length];
-		MPI_Recv(address, address_length, MPI_CHAR, worker_ID, 0, world, &status);
-		MPI_Recv(&port, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world, &status);
+		MPI_Recv(address, address_length, MPI_CHAR, workerID, 0, world, &status);
+		MPI_Recv(&port, 1, MPI_UNSIGNED_SHORT, workerID, 0, world, &status);
 
-		workers.insert(std::make_pair(worker_ID, WorkerInfo(worker_ID, string(hostname), string(address), port)));
+		workers.insert(std::make_pair(workerID, WorkerInfo(workerID, string(hostname), string(address), port)));
 
-		unallocated_workers.push_back(worker_ID);
+		unallocated_workers.push_back(workerID);
 	}
 
 	MPI_Barrier(world);
@@ -239,7 +239,7 @@ int Driver::register_workers()
 	return 0;
 }
 
-uint16_t Driver::allocate_workers(const Group_ID group_ID, const uint16_t & num_requested_workers)
+uint16_t Driver::allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers)
 {
 
 	uint16_t num_allocated_workers = std::min(num_requested_workers, (uint16_t) unallocated_workers.size());
@@ -248,18 +248,17 @@ uint16_t Driver::allocate_workers(const Group_ID group_ID, const uint16_t & num_
 
 	if (num_allocated_workers > 0) {
 
-		Worker_ID worker_ID;
-		Group_ID _group_ID = group_ID;
+		WorkerID workerID;
+		GroupID _groupID = groupID;
 
 		for (uint16_t i = 0; i < num_allocated_workers; i++) {
-			worker_ID = unallocated_workers[i];
-			workers.find(worker_ID)->second.active = true;
-			workers.find(worker_ID)->second.group_ID = _group_ID;
-			groups[group_ID]->add_worker(worker_ID, workers.find(worker_ID)->second);
+			workerID = unallocated_workers[i];
+			workers.find(workerID)->second.groupID = _groupID;
+			groups[groupID]->add_worker(workerID, workers.find(workerID)->second);
 		}
 		unallocated_workers.erase(unallocated_workers.begin(), unallocated_workers.begin() + num_requested_workers);
 
-		set_group_communicator(group_ID);
+		set_group_communicator(groupID);
 	}
 	else
 		log->info(string("No workers available to be allocated"));
@@ -273,68 +272,67 @@ uint16_t Driver::allocate_workers(const Group_ID group_ID, const uint16_t & num_
 //{
 //	alchemist_command command = _AM_NEW_GROUP;
 //
-//	//, map<Worker_ID, WorkerInfo> & allocated_group
+//	//, map<WorkerID, WorkerInfo> & allocated_group
 //
 //	log->info("Sending command {} to workers", get_command_name(command));
 //
-//	Worker_ID temp_worker_ID;
+//	WorkerID temp_workerID;
 //	MPI_Request req;
 //	MPI_Status status;
 ////	for (auto it = allocated_group.begin(); it != allocated_group.end(); it++) {
 ////	for (int i = 1; i <= num_workers; i++) {
-////		temp_worker_ID = i;
-////		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_worker_ID, 0, world, &req);
+////		temp_workerID = i;
+////		MPI_Isend(&command, 1, MPI_UNSIGNED_CHAR, temp_workerID, 0, world, &req);
 ////		MPI_Wait(&req, &status);
 ////	}
 //	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, world, &req);
 //	MPI_Wait(&req, &status);
 //
 //	uint16_t group_size = allocated_group.size();
-//	uint16_t worker_ID, peer_ID;
+//	uint16_t workerID, peerID;
 //
-//	int group_IDs[group_size+1];
-//	group_IDs[0] = 0;
+//	int groupIDs[group_size+1];
+//	groupIDs[0] = 0;
 //
 //	int i = 0;
 //	for (int j = 1; j <= num_workers; j++) {
-//		worker_ID = j;
+//		workerID = j;
 ////  for (auto it = allocated_group.begin(); it != allocated_group.end(); it++) {
-//		if (allocated_group.find(worker_ID) == allocated_group.end() ) {
-//			Group_ID null_group_ID = 0;
-//			MPI_Send(&null_group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+//		if (allocated_group.find(workerID) == allocated_group.end() ) {
+//			GroupID null_groupID = 0;
+//			MPI_Send(&null_groupID, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
 //		}
 //		else {
-//			group_IDs[i+1] = worker_ID;
+//			groupIDs[i+1] = workerID;
 //
-//			MPI_Send(&group_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
-//			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+//			MPI_Send(&groupID, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
+//			MPI_Send(&group_size, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
 //
 //			for (auto it1 = allocated_group.begin(); it1 != allocated_group.end(); it1++) {
-//				peer_ID = it1->first;
-//				MPI_Send(&peer_ID, 1, MPI_UNSIGNED_SHORT, worker_ID, 0, world);
+//				peerID = it1->first;
+//				MPI_Send(&peerID, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
 //			}
 //			i++;
 //		}
 //	}
 //}
 
-vector<Worker_ID> Driver::deallocate_workers(const Group_ID group_ID, const vector<Worker_ID> & selected_workers)
+vector<WorkerID> Driver::deallocate_workers(const GroupID groupID, const vector<WorkerID> & selected_workers)
 {
 	std::lock_guard<std::mutex> lock(worker_mutex);
 
-	vector<Worker_ID> deallocated_workers;
+	vector<WorkerID> deallocated_workers;
 
 	for (auto it = selected_workers.begin(); it != selected_workers.end(); it++) {
 		unallocated_workers.push_back(*it);
 		deallocated_workers.push_back(*it);
-		workers.find(*it)->second.active = false;
-		workers.find(*it)->second.group_ID = 0;
-		groups[group_ID]->remove_worker(*it);
+		workers.find(*it)->second.groupID = 0;
+		groups[groupID]->remove_worker(*it);
 	}
 
 	sort(unallocated_workers.begin(), unallocated_workers.end());
 
-	set_group_communicator(group_ID);
+	set_group_communicator(groupID);
 
 	log->info(list_all_workers());
 
@@ -364,7 +362,7 @@ string Driver::list_all_workers(const string & preamble)
 			all_workers << preamble;
 			all_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " at ";
 			all_workers << it->second.address << ":" << it->second.port << " - ";
-			if (it->second.active) all_workers << "ACTIVE" << " (group " << it->second.group_ID << ")";
+			if (it->second.groupID > 0) all_workers << "ACTIVE" << " (group " << it->second.groupID << ")";
 			else all_workers << "IDLE";
 			all_workers << std::endl;
 		}
@@ -399,11 +397,11 @@ string Driver::list_active_workers(const string & preamble)
 		active_workers << "List of active workers (" << num_active_workers << "):" << std::endl;
 
 		for (auto it = workers.begin(); it != workers.end(); it++) {
-			if (it->second.active) {
+			if (it->second.groupID > 0) {
 				sprintf(buffer, "%03d", it->second.ID);
 				active_workers << preamble;
 				active_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " at ";
-				active_workers << it->second.address << ":" << it->second.port << " (group " << it->second.group_ID << ")";
+				active_workers << it->second.address << ":" << it->second.port << " (group " << it->second.groupID << ")";
 				active_workers << std::endl;
 			}
 		}
@@ -457,24 +455,24 @@ string Driver::list_inactive_workers()
 	return Driver::list_inactive_workers(space);
 }
 
-string Driver::list_allocated_workers(const Group_ID group_ID, const string & preamble)
+string Driver::list_allocated_workers(const GroupID groupID, const string & preamble)
 {
 	std::stringstream allocated_workers;
-	auto num_group_workers = groups[group_ID]->workers.size();
+	auto num_group_workers = groups[groupID]->workers.size();
 
 	string sp = SPACE;
 	if (strcmp(preamble.c_str(), sp.c_str()) != 0) allocated_workers << preamble;
 
 	if (num_group_workers == 0) {
-		allocated_workers << "No workers allocated to group " << group_ID;
+		allocated_workers << "No workers allocated to group " << groupID;
 		allocated_workers << std::endl;
 	}
 	else {
 		char buffer[4];
 
-		allocated_workers << "List of workers allocated to group " << group_ID << " (" << num_group_workers << "):" << std::endl;
+		allocated_workers << "List of workers allocated to group " << groupID << " (" << num_group_workers << "):" << std::endl;
 
-		for (auto it = groups[group_ID]->workers.begin(); it != groups[group_ID]->workers.end(); it++) {
+		for (auto it = groups[groupID]->workers.begin(); it != groups[groupID]->workers.end(); it++) {
 			sprintf(buffer, "%03d", it->second.ID);
 			allocated_workers << preamble;
 			allocated_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " at ";
@@ -486,10 +484,10 @@ string Driver::list_allocated_workers(const Group_ID group_ID, const string & pr
 	return allocated_workers.str();
 }
 
-string Driver::list_allocated_workers(const Group_ID group_ID)
+string Driver::list_allocated_workers(const GroupID groupID)
 {
 	string space = SPACE;
-	return Driver::list_allocated_workers(group_ID, space);
+	return Driver::list_allocated_workers(groupID, space);
 }
 
 
@@ -569,20 +567,20 @@ void Driver::print_num_sessions()
 
 //void Driver::add_session(DriverSession_ptr session)
 //{
-//	Session_ID session_ID = session->get_ID();
+//	SessionID sessionID = session->getID();
 //
-//	sessions[session_ID] = session;
+//	sessions[sessionID] = session;
 //
-//	log->info("[Session {}] [{}:{}] Connection established", session->get_ID(), session->get_address().c_str(), session->get_port());
+//	log->info("[Session {}] [{}:{}] Connection established", session->getID(), session->get_address().c_str(), session->get_port());
 //	print_num_sessions();
 //}
 //
-//void Driver::remove_session(Session_ID session_ID)
+//void Driver::remove_session(SessionID sessionID)
 //{
-//	Session_ID session_ID = session->get_ID();
+//	SessionID sessionID = session->getID();
 //
-//	log->info("Session {} at {} has been removed", sessions[session_ID]->get_ID(), sessions[session_ID]->get_address().c_str());
-//	sessions.erase(session_ID);
+//	log->info("Session {} at {} has been removed", sessions[sessionID]->getID(), sessions[sessionID]->get_address().c_str());
+//	sessions.erase(sessionID);
 //
 //	print_num_sessions();
 //}
@@ -605,10 +603,10 @@ int Driver::get_num_sessions()
 void Driver::new_group(tcp::socket socket)
 {
 	log->info("NEW GROUP");
-	next_group_ID++;
-	auto group_ptr = std::make_shared<GroupDriver>(next_group_ID, *this, log);
-	groups.insert(std::make_pair(next_group_ID, group_ptr));
-	groups[next_group_ID]->start(std::move(socket));
+	next_groupID++;
+	auto group_ptr = std::make_shared<GroupDriver>(next_groupID, *this, log);
+	groups.insert(std::make_pair(next_groupID, group_ptr));
+	groups[next_groupID]->start(std::move(socket));
 }
 
 
@@ -618,7 +616,7 @@ int Driver::accept_connection()
 	acceptor.async_accept(
 		[this](error_code ec, tcp::socket socket)
 		{
-//			if (!ec) std::make_shared<DriverSession>(std::move(socket), *this, next_session_ID++, log)->start();
+//			if (!ec) std::make_shared<DriverSession>(std::move(socket), *this, next_sessionID++, log)->start();
 			if (!ec) new_group(std::move(socket));
 
 			accept_connection();

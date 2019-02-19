@@ -16,8 +16,8 @@ typedef std::shared_ptr<DriverSession> DriverSession_ptr;
 class GroupDriver : public std::enable_shared_from_this<GroupDriver>
 {
 public:
-	GroupDriver(Group_ID _ID, Driver & _driver);
-	GroupDriver(Group_ID _ID, Driver & _driver, Log_ptr & _log);
+	GroupDriver(GroupID ID, Driver & _driver);
+	GroupDriver(GroupID ID, Driver & _driver, Log_ptr & _log);
 	~GroupDriver();
 
 	void start(tcp::socket socket);
@@ -26,25 +26,25 @@ public:
 
 	DriverSession_ptr session;
 
-	map<Worker_ID, WorkerInfo> workers;
+	map<WorkerID, WorkerInfo> workers;
 
 	void free_group();
 	void ready_group();
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 
-	const map<Worker_ID, WorkerInfo> & allocate_workers(const uint16_t & num_requested_workers);
-	vector<Worker_ID> deallocate_workers(const vector<Worker_ID> & yielded_workers);
+	const map<WorkerID, WorkerInfo> & allocate_workers(const uint16_t & num_requested_workers);
+	vector<WorkerID> deallocate_workers(const vector<WorkerID> & yielded_workers);
 
 	string list_workers();
 	uint16_t get_num_workers();
 
-	MatrixInfo & get_matrix_info(const Matrix_ID matrix_ID);
+	ArrayInfo & get_matrix_info(const ArrayID matrixID);
 
 	string list_sessions();
-	Library_ID load_library(string library_name, string library_path);
-	Matrix_ID new_matrix(string name, uint64_t num_rows, uint64_t num_cols, uint8_t sparse, uint8_t layout);
-	Worker_ID * get_row_assignments(Matrix_ID & matrix_ID);
-	void determine_row_assignments(Matrix_ID & matrix_ID);
+	LibraryID load_library(string library_name, string library_path);
+	ArrayID new_matrix(const ArrayInfo_ptr x);
+	WorkerID * get_row_assignments(ArrayID & matrixID);
+	void determine_row_assignments(ArrayID & matrixID);
 	vector<vector<vector<float> > > prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers);
 
 
@@ -52,7 +52,7 @@ public:
 
 	int read_HDF5();
 
-//	int run_task(Library_ID lib_ID, string task, Matrix_ID matrix_ID, uint32_t rank, uint8_t method);
+//	int run_task(LibraryID libID, string task, ArrayID matrixID, uint32_t rank, uint8_t method);
 	void run_task(const char * & in_data, uint32_t & in_data_length, char * & out_data, uint32_t & out_data_length, client_language cl);
 	void run_task(Message & in, Message & out);
 	int process_input_parameters(Parameters & input_parameters);
@@ -61,10 +61,10 @@ public:
 	void serialize_parameters(Parameters & output_parameters, Message & msg);
 	void deserialize_parameters(Parameters & input_parameters, Message & msg);
 
-	bool check_library_ID(Library_ID & lib_ID);
+	bool check_libraryID(LibraryID & libID);
 
-	uint64_t get_num_rows(Matrix_ID & matrix_ID);
-	uint64_t get_num_cols(Matrix_ID & matrix_ID);
+	uint64_t get_num_rows(ArrayID & matrixID);
+	uint64_t get_num_cols(ArrayID & matrixID);
 
 	string list_all_workers();
 	string list_all_workers(const string & preamble);
@@ -80,23 +80,23 @@ public:
 
 	void print_info();
 
-	void add_worker(const Worker_ID & worker_ID, const WorkerInfo & info);
-	void remove_worker(const Worker_ID & worker_ID);
+	void add_worker(const WorkerID & workerID, const WorkerInfo & info);
+	void remove_worker(const WorkerID & workerID);
 
 	void idle_workers();
 private:
 	MPI_Comm group;
 
-	Group_ID ID;
+	GroupID ID;
 	client_language cl;
 
-	map<Library_ID, Library *> libraries;
-	map<Matrix_ID, MatrixInfo_ptr> matrices;
+	map<LibraryID, Library *> libraries;
+	map<ArrayID, ArrayInfo_ptr> matrices;
 
 	Driver & driver;
 
-	Matrix_ID next_matrix_ID;
-	Library_ID next_library_ID;
+	ArrayID next_matrixID;
+	LibraryID next_libraryID;
 
 	Log_ptr log;
 };

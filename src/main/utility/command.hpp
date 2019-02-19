@@ -56,6 +56,14 @@ typedef enum _alchemist_command : uint8_t {
 	_AM_WORKER_RUN_TASK
 } alchemist_command;
 
+typedef enum _alchemist_error_code : uint8_t {
+	ERR_NONE = 0,
+	ERR_INVALID_HANDSHAKE,
+	ERR_INVALID_CLIENT_ID,
+	ERR_INVALID_SESSION_ID,
+	ERR_INCONSISTENT_DATATYPES
+} alchemist_error_code;
+
 inline const std::string get_command_name(const client_command & c)
 {
 	switch (c) {
@@ -141,6 +149,24 @@ inline const std::string get_command_name(const alchemist_command & c)
 			return "WORKER RUN TASK";
 		case _AM_PRINT_DATA:
 			return "PRINT DATA";
+		default:
+			return "INVALID COMMAND";
+		}
+}
+
+inline const std::string get_error_name(const alchemist_error_code & ec)
+{
+	switch (ec) {
+		case ERR_NONE:
+			return "NONE";
+		case ERR_INVALID_HANDSHAKE:
+			return "INVALID HANDSHAKE";
+		case ERR_INVALID_CLIENT_ID:
+			return "INVALID CLIENT ID";
+		case ERR_INVALID_SESSION_ID:
+			return "INVALID SESSION ID";
+		case ERR_INCONSISTENT_DATATYPES:
+			return "INCONSISTENT DATATYPES";
 		default:
 			return "INVALID COMMAND";
 		}
