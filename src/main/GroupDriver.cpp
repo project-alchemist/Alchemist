@@ -94,7 +94,7 @@ void GroupDriver::print_info()
 	MPI_Barrier(group);
 }
 
-const map<WorkerID, WorkerInfo> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
+const map<WorkerID, WorkerInfo_ptr> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
 {
 	driver.allocate_workers(ID, num_requested_workers);
 
@@ -156,44 +156,24 @@ string GroupDriver::list_sessions()
 
 // -----------------------------------------   Workers   -----------------------------------------
 
-string GroupDriver::list_all_workers()
+vector<WorkerInfo_ptr> GroupDriver::get_all_workers()
 {
-	return driver.list_all_workers();
+	return driver.get_all_workers();
 }
 
-string GroupDriver::list_all_workers(const string & preamble)
+vector<WorkerInfo_ptr> GroupDriver::get_active_workers()
 {
-	return driver.list_all_workers(preamble);
+	return driver.get_active_workers();
 }
 
-string GroupDriver::list_active_workers()
+vector<WorkerInfo_ptr> GroupDriver::get_inactive_workers()
 {
-	return driver.list_active_workers();
+	return driver.get_inactive_workers();
 }
 
-string GroupDriver::list_active_workers(const string & preamble)
+vector<WorkerInfo_ptr> GroupDriver::get_assigned_workers()
 {
-	return driver.list_active_workers(preamble);
-}
-
-string GroupDriver::list_inactive_workers()
-{
-	return driver.list_inactive_workers();
-}
-
-string GroupDriver::list_inactive_workers(const string & preamble)
-{
-	return driver.list_inactive_workers(preamble);
-}
-
-string GroupDriver::list_allocated_workers()
-{
-	return driver.list_allocated_workers(ID);
-}
-
-string GroupDriver::list_allocated_workers(const string & preamble)
-{
-	return driver.list_allocated_workers(ID, preamble);
+	return driver.get_assigned_workers(ID);
 }
 
 LibraryID GroupDriver::load_library(string library_name, string library_path)
@@ -265,7 +245,7 @@ LibraryID GroupDriver::load_library(string library_name, string library_path)
 	return next_libraryID;
 }
 
-void GroupDriver::add_worker(const WorkerID & workerID, const WorkerInfo & info)
+void GroupDriver::add_worker(const WorkerID & workerID, const WorkerInfo_ptr & info)
 {
 	workers.insert(std::make_pair(workerID, info));
 }
@@ -748,9 +728,9 @@ string GroupDriver::list_workers()
 	return driver.list_all_workers();
 }
 
-ArrayInfo & GroupDriver::get_matrix_info(const ArrayID matrixID)
+ArrayInfo_ptr GroupDriver::get_matrix_info(const ArrayID matrixID)
 {
-	return *matrices[matrixID];
+	return matrices[matrixID];
 }
 
 void GroupDriver::determine_row_assignments(ArrayID & matrixID)

@@ -61,7 +61,9 @@ typedef enum _alchemist_error_code : uint8_t {
 	ERR_INVALID_HANDSHAKE,
 	ERR_INVALID_CLIENT_ID,
 	ERR_INVALID_SESSION_ID,
-	ERR_INCONSISTENT_DATATYPES
+	ERR_INCONSISTENT_DATATYPES,
+	ERR_NO_WORKERS,
+	ERR_NONPOS_WORKER_REQUEST
 } alchemist_error_code;
 
 inline const std::string get_command_name(const client_command & c)
@@ -167,6 +169,10 @@ inline const std::string get_error_name(const alchemist_error_code & ec)
 			return "INVALID SESSION ID";
 		case ERR_INCONSISTENT_DATATYPES:
 			return "INCONSISTENT DATATYPES";
+		case ERR_NO_WORKERS:
+			return "ERR NO WORKERS";
+		case ERR_NONPOS_WORKER_REQUEST:
+			return "ERR NONPOSITIVE WORKER REQUEST";
 		default:
 			return "INVALID COMMAND";
 		}

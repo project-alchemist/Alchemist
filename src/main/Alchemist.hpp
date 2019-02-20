@@ -117,9 +117,14 @@ struct WorkerInfo {
 	uint16_t port;
 	GroupID groupID;
 
-	string to_string(bool display_layout=false) const {
+	string to_string(bool include_allocation=true) const {
 		std::stringstream ss;
+		char buffer[4];
 
+		sprintf(buffer, "%03d", ID);
+		ss << "Worker-" << string(buffer) << " running on " << hostname << " at " << address << ":" << port;
+		if (include_allocation)
+			(groupID > 0) ? ss << " - ACTIVE (group " << groupID << ")" : ss << " - IDLE";
 
 		return ss.str();
 	}

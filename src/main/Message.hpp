@@ -398,13 +398,13 @@ public:
 		signed_ints_only ? put_int16((int16_t) x) : put_uint16(x);
 	}
 
-	void put_WorkerInfo(const WorkerInfo & x)
+	void put_WorkerInfo(const WorkerInfo_ptr & x)
 	{
-		put_WorkerID(x.ID);
-		put_string(x.hostname);
-		put_string(x.address);
-		signed_ints_only ? put_int16((int16_t) x.port) : put_uint16(x.port);
-		put_GroupID(x.groupID);
+		put_WorkerID(x->ID);
+		put_string(x->hostname);
+		put_string(x->address);
+		signed_ints_only ? put_int16((int16_t) x->port) : put_uint16(x->port);
+		put_GroupID(x->groupID);
 	}
 
 	void put_ArrayID(const ArrayID & x)
@@ -412,17 +412,17 @@ public:
 		signed_ints_only ? put_int16((int16_t) x) : put_uint16(x);
 	}
 
-	void put_ArrayInfo(const ArrayInfo & x)
+	void put_ArrayInfo(const ArrayInfo_ptr & x)
 	{
-		put_ArrayID(x.ID);
-		put_string(x.name);
-		signed_ints_only ? put_int64((int64_t) x.num_rows) : put_uint64(x.num_rows);
-		signed_ints_only ? put_int64((int64_t) x.num_cols) : put_uint64(x.num_cols);
-		signed_ints_only ? put_int8((int8_t) x.sparse) : put_uint8(x.sparse);
-		signed_ints_only ? put_int8((int8_t) x.layout) : put_uint8(x.layout);
-		signed_ints_only ? put_int8((int8_t) x.num_partitions) : put_uint8(x.num_partitions);
-		for (auto i = 0; i < x.num_partitions; i++)
-			signed_ints_only ? put_int8((int8_t) x.worker_assignments[i]) : put_uint8(x.worker_assignments[i]);
+		put_ArrayID(x->ID);
+		put_string(x->name);
+		signed_ints_only ? put_int64((int64_t) x->num_rows) : put_uint64(x->num_rows);
+		signed_ints_only ? put_int64((int64_t) x->num_cols) : put_uint64(x->num_cols);
+		signed_ints_only ? put_int8((int8_t) x->sparse) : put_uint8(x->sparse);
+		signed_ints_only ? put_int8((int8_t) x->layout) : put_uint8(x->layout);
+		signed_ints_only ? put_int8((int8_t) x->num_partitions) : put_uint8(x->num_partitions);
+		for (auto i = 0; i < x->num_partitions; i++)
+			signed_ints_only ? put_int8((int8_t) x->worker_assignments[i]) : put_uint8(x->worker_assignments[i]);
 	}
 
 	void put_FloatArrayBlock(const FloatArrayBlock_ptr & x)
@@ -450,6 +450,12 @@ public:
 	}
 
 	// ========================================================================================================================================================
+
+
+	void write_error_code(const alchemist_error_code & x)
+	{
+		put_error_code(x);
+	}
 
 	void write_byte(const int8_t & x, bool is_parameter = false)
 	{
@@ -578,7 +584,7 @@ public:
 		put_WorkerID(x);
 	}
 
-	void write_WorkerInfo(const WorkerInfo & x, bool is_parameter = false)
+	void write_WorkerInfo(const WorkerInfo_ptr & x, bool is_parameter = false)
 	{
 		if (is_parameter) put_datatype(PARAMETER);
 		put_datatype(WORKER_INFO);
@@ -592,7 +598,7 @@ public:
 		put_ArrayID(x);
 	}
 
-	void write_ArrayInfo(const ArrayInfo & x, bool is_parameter = false)
+	void write_ArrayInfo(const ArrayInfo_ptr & x, bool is_parameter = false)
 	{
 		if (is_parameter) put_datatype(PARAMETER);
 		put_datatype(ARRAY_INFO);

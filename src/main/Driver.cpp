@@ -220,7 +220,7 @@ int Driver::register_workers()
 		MPI_Recv(address, address_length, MPI_CHAR, workerID, 0, world, &status);
 		MPI_Recv(&port, 1, MPI_UNSIGNED_SHORT, workerID, 0, world, &status);
 
-		workers.insert(std::make_pair(workerID, WorkerInfo(workerID, string(hostname), string(address), port)));
+		workers.insert(std::make_pair(workerID, std::make_shared<WorkerInfo>(workerID, string(hostname), string(address), port)));
 
 		unallocated_workers.push_back(workerID);
 	}
@@ -241,7 +241,6 @@ int Driver::register_workers()
 
 uint16_t Driver::allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers)
 {
-
 	uint16_t num_allocated_workers = std::min(num_requested_workers, (uint16_t) unallocated_workers.size());
 
 	std::lock_guard<std::mutex> lock(worker_mutex);
@@ -253,7 +252,7 @@ uint16_t Driver::allocate_workers(const GroupID groupID, const uint16_t & num_re
 
 		for (uint16_t i = 0; i < num_allocated_workers; i++) {
 			workerID = unallocated_workers[i];
-			workers.find(workerID)->second.groupID = _groupID;
+			workers.find(workerID)->second->groupID = _groupID;
 			groups[groupID]->add_worker(workerID, workers.find(workerID)->second);
 		}
 		unallocated_workers.erase(unallocated_workers.begin(), unallocated_workers.begin() + num_requested_workers);
@@ -326,7 +325,7 @@ vector<WorkerID> Driver::deallocate_workers(const GroupID groupID, const vector<
 	for (auto it = selected_workers.begin(); it != selected_workers.end(); it++) {
 		unallocated_workers.push_back(*it);
 		deallocated_workers.push_back(*it);
-		workers.find(*it)->second.groupID = 0;
+		workers.find(*it)->second->groupID = 0;
 		groups[groupID]->remove_worker(*it);
 	}
 
@@ -339,6 +338,46 @@ vector<WorkerID> Driver::deallocate_workers(const GroupID groupID, const vector<
 	return deallocated_workers;
 }
 
+vector<WorkerInfo_ptr> Driver::get_all_workers()
+{
+	vector<WorkerInfo_ptr> all_workers;
+
+	for (auto it = workers.begin(); it != workers.end(); it++)
+		all_workers.push_back(it->second);
+
+	return all_workers;
+}
+
+vector<WorkerInfo_ptr> Driver::get_active_workers()
+{
+	vector<WorkerInfo_ptr> active_workers;
+
+	for (auto it = workers.begin(); it != workers.end(); it++)
+		if (it->second->groupID > 0) active_workers.push_back(it->second);
+
+	return active_workers;
+}
+
+vector<WorkerInfo_ptr> Driver::get_inactive_workers()
+{
+	vector<WorkerInfo_ptr> inactive_workers;
+
+	for (auto it = workers.begin(); it != workers.end(); it++)
+		if (it->second->groupID == 0) inactive_workers.push_back(it->second);
+
+	return inactive_workers;
+}
+
+vector<WorkerInfo_ptr> Driver::get_assigned_workers(const GroupID groupID)
+{
+	vector<WorkerInfo_ptr> assigned_workers;
+
+	for (auto it = workers.begin(); it != workers.end(); it++)
+		if (it->second->groupID == groupID) assigned_workers.push_back(it->second);
+
+	return assigned_workers;
+}
+
 string Driver::list_all_workers(const string & preamble)
 {
 	std::stringstream all_workers;
@@ -347,25 +386,14 @@ string Driver::list_all_workers(const string & preamble)
 	string sp = SPACE;
 	if (strcmp(preamble.c_str(), sp.c_str()) != 0) all_workers << preamble;
 
-	if (num_workers == 0) {
-		all_workers << "No workers";
-		all_workers << std::endl;
-	}
+	if (num_workers == 0)
+		all_workers << "No workers" << std::endl;
 	else
 	{
-		char buffer[4];
-
 		all_workers << "List of workers (" << num_workers << "):" << std::endl;
 
-		for (auto it = workers.begin(); it != workers.end(); it++) {
-			sprintf(buffer, "%03d", it->second.ID);
-			all_workers << preamble;
-			all_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " at ";
-			all_workers << it->second.address << ":" << it->second.port << " - ";
-			if (it->second.groupID > 0) all_workers << "ACTIVE" << " (group " << it->second.groupID << ")";
-			else all_workers << "IDLE";
-			all_workers << std::endl;
-		}
+		for (auto it = workers.begin(); it != workers.end(); it++)
+			all_workers << preamble << "    " << it->second->to_string() << std::endl;
 	}
 
 	return all_workers.str();
@@ -386,25 +414,15 @@ string Driver::list_active_workers(const string & preamble)
 	string sp = SPACE;
 	if (strcmp(preamble.c_str(), sp.c_str()) != 0) active_workers << preamble;
 
-	if (num_active_workers == 0) {
-		active_workers << "No active workers";
-		active_workers << std::endl;
-	}
+	if (num_active_workers == 0)
+		active_workers << "No active workers" << std::endl;
 	else
 	{
-		char buffer[4];
-
 		active_workers << "List of active workers (" << num_active_workers << "):" << std::endl;
 
-		for (auto it = workers.begin(); it != workers.end(); it++) {
-			if (it->second.groupID > 0) {
-				sprintf(buffer, "%03d", it->second.ID);
-				active_workers << preamble;
-				active_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " at ";
-				active_workers << it->second.address << ":" << it->second.port << " (group " << it->second.groupID << ")";
-				active_workers << std::endl;
-			}
-		}
+		for (auto it = workers.begin(); it != workers.end(); it++)
+			if (it->second->groupID > 0)
+				active_workers << preamble << "    " << it->second->to_string() << std::endl;
 	}
 
 	return active_workers.str();
@@ -426,23 +444,15 @@ string Driver::list_inactive_workers(const string & preamble)
 	string sp = SPACE;
 	if (strcmp(preamble.c_str(), sp.c_str()) != 0) inactive_workers << preamble;
 
-	if (num_inactive_worker == 0) {
-		inactive_workers << "No inactive workers";
-		inactive_workers << std::endl;
-	}
+	if (num_inactive_worker == 0)
+		inactive_workers << "No inactive workers" << std::endl;
 	else
 	{
-		char buffer[4];
-
 		inactive_workers << "List of inactive workers (" << num_inactive_worker << "):" << std::endl;
 
-		for (auto it = unallocated_workers.begin(); it != unallocated_workers.end(); it++) {
-			sprintf(buffer, "%03d", workers.find(*it)->second.ID);
-			inactive_workers << preamble;
-			inactive_workers << "    Worker-" << string(buffer) << " running on " << workers.find(*it)->second.hostname << " at ";
-			inactive_workers << workers.find(*it)->second.address << ":" << workers.find(*it)->second.port;
-			inactive_workers << std::endl;
-		}
+		for (auto it = workers.begin(); it != workers.end(); it++)
+			if (it->second->groupID == 0)
+				inactive_workers << preamble << "    " << it->second->to_string(false) << std::endl;
 	}
 
 	return inactive_workers.str();
@@ -463,22 +473,14 @@ string Driver::list_allocated_workers(const GroupID groupID, const string & prea
 	string sp = SPACE;
 	if (strcmp(preamble.c_str(), sp.c_str()) != 0) allocated_workers << preamble;
 
-	if (num_group_workers == 0) {
-		allocated_workers << "No workers allocated to group " << groupID;
-		allocated_workers << std::endl;
-	}
+	if (num_group_workers == 0)
+		allocated_workers << "No workers allocated to group " << groupID << std::endl;
 	else {
-		char buffer[4];
-
 		allocated_workers << "List of workers allocated to group " << groupID << " (" << num_group_workers << "):" << std::endl;
 
-		for (auto it = groups[groupID]->workers.begin(); it != groups[groupID]->workers.end(); it++) {
-			sprintf(buffer, "%03d", it->second.ID);
-			allocated_workers << preamble;
-			allocated_workers << "    Worker-" << string(buffer) << " running on " << it->second.hostname << " at ";
-			allocated_workers << it->second.address << ":" << it->second.port;
-			allocated_workers << std::endl;
-		}
+		for (auto it = workers.begin(); it != workers.end(); it++)
+			if (it->second->groupID == groupID)
+				allocated_workers << preamble << "    " << it->second->to_string(false) << std::endl;
 	}
 
 	return allocated_workers.str();
@@ -491,7 +493,8 @@ string Driver::list_allocated_workers(const GroupID groupID)
 }
 
 
-uint16_t Driver::get_num_workers() {
+uint16_t Driver::get_num_workers()
+{
 	return num_workers;
 }
 
@@ -502,7 +505,6 @@ int Driver::shut_down()
 
 	return 0;
 }
-
 
 int Driver::send_assigned_workers_info()
 {

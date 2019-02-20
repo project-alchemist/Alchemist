@@ -171,8 +171,7 @@ bool Session::valid_handshake()
 bool Session::invalid_handshake()
 {
 	write_msg.start(clientID, sessionID, HANDSHAKE);
-
-	write_msg.write_string(string("INVALID HANDSHAKE FORMAT"));
+	write_msg.write_error_code(ERR_INVALID_HANDSHAKE);
 
 	flush();
 
@@ -219,7 +218,6 @@ void Session::flush()
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),
 				[this, self](error_code ec, std::size_t /*length*/) {
-			log->info("O {} {} {}", (int16_t) write_msg.header()[0], (int16_t) write_msg.header()[1], write_msg.length());
 			if (!ec) write_msg.clear();
 			else remove_session();
 		});

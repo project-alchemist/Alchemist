@@ -180,26 +180,18 @@ void DriverSession::handle_request_workers()
 	write_msg.start(clientID, sessionID, REQUEST_WORKERS);
 
 	if (num_requested_workers > 0) {
-		map<WorkerID, WorkerInfo> allocated_workers = group_driver.allocate_workers(num_requested_workers);
+		map<WorkerID, WorkerInfo_ptr> allocated_workers = group_driver.allocate_workers(num_requested_workers);
 
 		if (allocated_workers.size() > 0) {
 			uint16_t num_allocated_workers = allocated_workers.size();
 			write_msg.write_uint16(num_allocated_workers);
-			for (auto it = allocated_workers.begin(); it != allocated_workers.end(); it++) {
-				write_msg.write_uint16(it->first);
-				write_msg.write_string(it->second.hostname);
-				write_msg.write_string(it->second.address);
-				write_msg.write_uint16(it->second.port);
-			}
+			for (auto it = allocated_workers.begin(); it != allocated_workers.end(); it++)
+				write_msg.write_WorkerInfo(it->second);
 		}
-		else {
-			write_msg.write_uint16(0);
-			write_msg.write_string(string("ERROR: No Alchemist workers currently available, try again later."));
-		}
+		else write_msg.write_error_code(ERR_NO_WORKERS);
 	}
 	else {
-		write_msg.write_uint16(0);
-		write_msg.write_string(string("ERROR: Number of requested workers must be positive."));
+		write_msg.write_error_code(ERR_NONPOS_WORKER_REQUEST);
 	}
 
 	flush();
@@ -209,7 +201,7 @@ void DriverSession::handle_yield_workers()
 {
 	vector<WorkerID> yielded_workers;
 	WorkerID workerID;
-	map<WorkerID, WorkerInfo>::iterator it;
+	map<WorkerID, WorkerInfo_ptr>::iterator it;
 
 	write_msg.start(clientID, sessionID, YIELD_WORKERS);
 
@@ -220,10 +212,8 @@ void DriverSession::handle_yield_workers()
 	else {
 		while (!read_msg.eom()) {
 			workerID = read_msg.read_uint16();
-//			for (auto it = group_driver.workers.begin(); it != group_driver.workers.end(); it++)
-//				log->info("YYYYYYYYYYYYYY {}", it->first);
 			it = group_driver.workers.find(workerID);
-			if (it != workers.end()) {
+			if (it != group_driver.workers.end()) {
 				yielded_workers.push_back(workerID);
 			}
 		}
@@ -366,10 +356,12 @@ void DriverSession::handle_list_all_workers()
 {
 	log->info("{} Sending list of all workers", preamble());
 
-	string pre = read_msg.read_string();
-
 	write_msg.start(clientID, sessionID, LIST_ALL_WORKERS);
-	write_msg.write_string(group_driver.list_all_workers(pre));
+	vector<WorkerInfo_ptr> all_workers = group_driver.get_all_workers();
+	write_msg.write_uint16((uint16_t) all_workers.size());
+	for (WorkerInfo_ptr w : all_workers)
+		write_msg.write_WorkerInfo(w);
+
 	flush();
 }
 
@@ -377,11 +369,12 @@ void DriverSession::handle_list_active_workers()
 {
 	log->info("{} Sending list of active workers", preamble());
 
-	string pre = read_msg.read_string();
-
 	write_msg.start(clientID, sessionID, LIST_ACTIVE_WORKERS);
-//	write_msg.write_uint16(group_driver.get_num_workers());
-	write_msg.write_string(group_driver.list_active_workers(pre));
+	vector<WorkerInfo_ptr> active_workers = group_driver.get_active_workers();
+	write_msg.write_uint16((uint16_t) active_workers.size());
+	for (WorkerInfo_ptr w : active_workers)
+		write_msg.write_WorkerInfo(w);
+
 	flush();
 }
 
@@ -389,11 +382,12 @@ void DriverSession::handle_list_inactive_workers()
 {
 	log->info("{} Sending list of inactive workers", preamble());
 
-	string pre = read_msg.read_string();
-
 	write_msg.start(clientID, sessionID, LIST_INACTIVE_WORKERS);
-//	write_msg.write_uint16(group_driver.get_num_workers());
-	write_msg.write_string(group_driver.list_inactive_workers(pre));
+	vector<WorkerInfo_ptr> inactive_workers = group_driver.get_inactive_workers();
+	write_msg.write_uint16((uint16_t) inactive_workers.size());
+	for (WorkerInfo_ptr w : inactive_workers)
+		write_msg.write_WorkerInfo(w);
+
 	flush();
 }
 
@@ -401,13 +395,13 @@ void DriverSession::handle_list_assigned_workers()
 {
 	log->info("{} Sending list of assigned workers", preamble());
 
-	string pre = read_msg.read_string();
-
 	write_msg.start(clientID, sessionID, LIST_ASSIGNED_WORKERS);
-//	write_msg.write_uint16(group_driver.get_num_workers());
-	write_msg.write_string(group_driver.list_allocated_workers(pre));
-	flush();
+	vector<WorkerInfo_ptr> assigned_workers = group_driver.get_assigned_workers();
+	write_msg.write_uint16((uint16_t) assigned_workers.size());
+	for (WorkerInfo_ptr w : assigned_workers)
+		write_msg.write_WorkerInfo(w);
 
+	flush();
 }
 
 void DriverSession::handle_list_available_libraries()

@@ -26,19 +26,19 @@ public:
 
 	DriverSession_ptr session;
 
-	map<WorkerID, WorkerInfo> workers;
+	map<WorkerID, WorkerInfo_ptr> workers;
 
 	void free_group();
 	void ready_group();
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 
-	const map<WorkerID, WorkerInfo> & allocate_workers(const uint16_t & num_requested_workers);
+	const map<WorkerID, WorkerInfo_ptr> & allocate_workers(const uint16_t & num_requested_workers);
 	vector<WorkerID> deallocate_workers(const vector<WorkerID> & yielded_workers);
 
 	string list_workers();
 	uint16_t get_num_workers();
 
-	ArrayInfo & get_matrix_info(const ArrayID matrixID);
+	ArrayInfo_ptr get_matrix_info(const ArrayID matrixID);
 
 	string list_sessions();
 	LibraryID load_library(string library_name, string library_path);
@@ -66,21 +66,17 @@ public:
 	uint64_t get_num_rows(ArrayID & matrixID);
 	uint64_t get_num_cols(ArrayID & matrixID);
 
-	string list_all_workers();
-	string list_all_workers(const string & preamble);
-	string list_active_workers();
-	string list_active_workers(const string & preamble);
-	string list_inactive_workers();
-	string list_inactive_workers(const string & preamble);
-	string list_allocated_workers();
-	string list_allocated_workers(const string & preamble);
+	vector<WorkerInfo_ptr> get_all_workers();
+	vector<WorkerInfo_ptr> get_active_workers();
+	vector<WorkerInfo_ptr> get_inactive_workers();
+	vector<WorkerInfo_ptr> get_assigned_workers();
 
 	void open_workers();
 	void close_workers();
 
 	void print_info();
 
-	void add_worker(const WorkerID & workerID, const WorkerInfo & info);
+	void add_worker(const WorkerID & workerID, const WorkerInfo_ptr & info);
 	void remove_worker(const WorkerID & workerID);
 
 	void idle_workers();

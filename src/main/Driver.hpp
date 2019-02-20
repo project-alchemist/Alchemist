@@ -26,6 +26,11 @@ public:
 	uint16_t allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers);
 	vector<WorkerID> deallocate_workers(const GroupID groupID, const vector<WorkerID> & selected_workers);
 
+	vector<WorkerInfo_ptr> get_all_workers();
+	vector<WorkerInfo_ptr> get_active_workers();
+	vector<WorkerInfo_ptr> get_inactive_workers();
+	vector<WorkerInfo_ptr> get_assigned_workers(const GroupID groupID);
+
 	string list_all_workers();
 	string list_all_workers(const string & preamble);
 	string list_active_workers();
@@ -95,9 +100,9 @@ private:
 
 	uint16_t num_workers;
 
-	map<WorkerID, WorkerInfo> workers;
+	map<WorkerID, WorkerInfo_ptr> workers;
 
-	map<GroupID, map<WorkerID, WorkerInfo> > allocated_workers;
+	map<GroupID, map<WorkerID, WorkerInfo_ptr> > allocated_workers;
 	vector<WorkerID> unallocated_workers;
 
 	int start_workers();
