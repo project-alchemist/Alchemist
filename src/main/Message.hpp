@@ -231,7 +231,6 @@ public:
 			string error_message = "Inconsistent datatypes: Expected ";
 			error_message += get_datatype_name(dt);
 			error_message += ", got ";
-			error_message += (uint16_t) (next_datatype);
 			error_message += get_datatype_name(next_datatype);
 			std::cerr << "ERROR: " << error_message << std::endl;
 			throw std::exception();
@@ -561,6 +560,11 @@ public:
 		if (is_parameter) put_datatype(PARAMETER);
 		put_datatype(STRING);
 		put_string(x);
+	}
+
+	void write_Parameter()
+	{
+		put_datatype(PARAMETER);
 	}
 
 	void write_LibraryID(const LibraryID & x, bool is_parameter = false)
@@ -1014,6 +1018,11 @@ public:
 		check_datatype(STRING);
 
 		return get_string();
+	}
+
+	void read_Parameter()
+	{
+		check_datatype(PARAMETER);
 	}
 
 	const LibraryID read_LibraryID()

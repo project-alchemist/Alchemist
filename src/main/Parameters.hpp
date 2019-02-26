@@ -10,6 +10,20 @@ typedef std::shared_ptr<El::AbstractDistMatrix<double>> DistMatrix_ptr;
 
 using std::string;
 using std::stringstream;
+//
+//template <class T>
+//class Parameter_ {
+//public:
+//	string name;
+//	datatype dt;
+//	T value;
+//
+//	Parameter_(string _name, datatype _dt, T _value) {
+//		name = _name;
+//		dt = _dt;
+//		value = _value;
+//	}
+//};
 
 struct Parameter {
 public:

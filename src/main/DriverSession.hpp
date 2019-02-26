@@ -1,10 +1,9 @@
 #ifndef ALCHEMIST__DRIVERSESSION_HPP
 #define ALCHEMIST__DRIVERSESSION_HPP
 
-
 #include "Session.hpp"
 #include "GroupDriver.hpp"
-
+#include "Parameters.hpp"
 
 namespace alchemist {
 

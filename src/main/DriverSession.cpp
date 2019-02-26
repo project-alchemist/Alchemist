@@ -450,6 +450,68 @@ void DriverSession::handle_request_matrix_blocks()
 
 void DriverSession::handle_run_task()
 {
+//	LibraryID libID = read_msg.read_LibraryID();
+//	string task_name = read_msg.read_string();
+//	uint8_t num_parameters = read_msg.read_byte();
+//
+//	Parameters in, out;
+//	datatype dt;
+//
+//	for (uint8_t i = 0; i < num_parameters; i++) {
+//		dt = (datatype) read_msg.get_datatype();
+//		if (dt == PARAMETER) {
+//			read_msg.read_Parameter();
+//			string name = read_msg.read_string();
+//			dt = (datatype) read_msg.preview_datatype();
+//
+//			switch (dt) {
+//			case BYTE:
+//				in.add_byte(name, read_msg.read_byte());
+//				break;
+//			case CHAR:
+//				in.add_char(name, read_msg.read_char());
+//				break;
+//			case INT8:
+//				in.add_int8(name, read_msg.read_int8());
+//				break;
+//			case INT16:
+//				in.add_int16(name, read_msg.read_int16());
+//				break;
+//			case INT32:
+//				in.add_int32(name, read_msg.read_int32());
+//				break;
+//			case INT64:
+//				in.add_int64(name, read_msg.read_int64());
+//				break;
+//			case UINT8:
+//				in.add_uint8(name, read_msg.read_uint8());
+//				break;
+//			case UINT16:
+//				in.add_uint16(name, read_msg.read_uint16());
+//				break;
+//			case UINT32:
+//				in.add_uint32(name, read_msg.read_uint32());
+//				break;
+//			case UINT64:
+//				in.add_uint64(name, read_msg.read_uint64());
+//				break;
+//			case FLOAT:
+//				in.add_float(name, read_msg.read_float());
+//				break;
+//			case DOUBLE:
+//				in.add_double(name, read_msg.read_double());
+//				break;
+//			case STRING:
+//				in.add_string(name, read_msg.read_string());
+//				break;
+//			case ARRAY_ID:
+//				in.add_ArrayID(name, read_msg.read_ArrayID());
+//				break;
+//			}
+//		}
+//	}
+
+
 	write_msg.start(clientID, sessionID, RUN_TASK);
 
 	group_driver.run_task(read_msg, write_msg);

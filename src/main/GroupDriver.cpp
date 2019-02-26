@@ -359,173 +359,121 @@ void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
 	string name = "";
 	datatype dt = NONE;
 	uint32_t data_length;
-//	while (!msg.eom()) {
-//		dt = (datatype) msg.next_datatype();
-//		data_length = msg.next_data_length();
-//		if (dt == PARAMETER) {
-//			msg.read_parameter();
-//			name = msg.read_string();
-//			dt = (datatype) msg.next_datatype();
-//			data_length = msg.next_data_length();
-//
-//			switch (dt) {
-//			case CHAR:
-//				p.write_char(name, msg.read_char());
-//				break;
-//			case SIGNED_CHAR:
-//				p.write_signed_char(name, msg.read_signed_char());
-//				break;
-//			case UNSIGNED_CHAR:
-//				p.write_unsigned_char(name, msg.read_unsigned_char());
-//				break;
-//			case CHARACTER:
-//				p.write_character(name, msg.read_char());
-//				break;
-//			case WCHAR:
-//				p.write_wchar(name, msg.read_wchar());
-//				break;
-//			case SHORT:
-//				p.write_short(name, msg.read_short());
-//				break;
-//			case UNSIGNED_SHORT:
-//				p.write_unsigned_short(name, msg.read_unsigned_short());
-//				break;
-//			case INT:
-//				p.write_int(name, msg.read_int());
-//				break;
-//			case UNSIGNED:
-//				p.write_unsigned(name, msg.read_unsigned());
-//				break;
-//			case LONG:
-//				p.write_long(name, msg.read_long());
-//				break;
-//			case UNSIGNED_LONG:
-//				p.write_unsigned_long(name, msg.read_unsigned_long());
-//				break;
-//			case LONG_LONG_INT:
-//				p.write_long_long_int(name, msg.read_long_long_int());
-//				break;
-//			case LONG_LONG:
-//				p.write_long_long(name, msg.read_long_long());
-//				break;
-//			case UNSIGNED_LONG_LONG:
-//				p.write_unsigned_long_long(name, msg.read_unsigned_long_long());
-//				break;
-//			case FLOAT:
-//				p.write_float(name, msg.read_float());
-//				break;
-//			case DOUBLE:
-//				p.write_double(name, msg.read_double());
-//				break;
-//	//				case LONG_DOUBLE:
-//	//					p.write_long_double(name, msg.read_long_double());
-//	//					break;
-//			case BYTE:
-//				p.write_byte(name, msg.read_byte());
-//				break;
-//			case BOOL:
-//				p.write_bool(name, msg.read_bool());
-//				break;
-//			case INTEGER:
-//				p.write_integer(name, msg.read_integer());
-//				break;
-//			case REAL:
-//				p.write_real(name, msg.read_real());
-//				break;
-//			case LOGICAL:
-//				p.write_logical(name, msg.read_logical());
-//				break;
-//	//				case COMPLEX:
-//	//					p.write_complex(name, msg.read_complex());
-//	//					break;
-//			case DOUBLE_PRECISION:
-//				p.write_double_precision(name, msg.read_double_precision());
-//				break;
-//			case REAL4:
-//				p.write_real4(name, msg.read_real4());
-//				break;
-//	//				case COMPLEX8:
-//	//					p.write_complex8(name, msg.read_complex8());
-//	//					break;
-//			case REAL8:
-//				p.write_real8(name, msg.read_real8());
-//				break;
-//	//				case COMPLEX16:
-//	//					p.write_complex16(name, msg.read_complex16());
-//	//					break;
-//			case INTEGER1:
-//				p.write_integer1(name, msg.read_integer1());
-//				break;
-//			case INTEGER2:
-//				p.write_integer2(name, msg.read_integer2());
-//				break;
-//			case INTEGER4:
-//				p.write_integer4(name, msg.read_integer4());
-//				break;
-//			case INTEGER8:
-//				p.write_integer8(name, msg.read_integer8());
-//				break;
-//			case INT8_T:
-//				p.write_int8(name, msg.read_int8());
-//				break;
-//			case INT16_T:
-//				p.write_int16(name, msg.read_int16());
-//				break;
-//			case INT32_T:
-//				p.write_int32(name, msg.read_int32());
-//				break;
-//			case INT64_T:
-//				p.write_int64(name, msg.read_int64());
-//				break;
-//			case UINT8_T:
-//				p.write_uint8(name, msg.read_uint8());
-//				break;
-//			case UINT16_T:
-//				p.write_uint16(name, msg.read_uint16());
-//				break;
-//			case UINT32_T:
-//				p.write_uint32(name, msg.read_uint32());
-//				break;
-//			case UINT64_T:
-//				p.write_uint64(name, msg.read_uint64());
-//				break;
-//	//				case FLOAT_INT:
-//	//					p.write_float_int(name, msg.read_float_int());
-//	//					break;
-//	//				case DOUBLE_INT:
-//	//					p.write_double_int(name, msg.read_double_int());
-//	//					break;
-//	//				case LONG_INT:
-//	//					p.write_long_int(name, msg.read_long_int());
-//	//					break;
-//	//				case SHORT_INT:
-//	//					p.write_short_int(name, msg.read_short_int());
-//	//					break;
-//	//				case LONG_DOUBLE_INT:
-//	//					p.write_long_double_int(name, msg.read_long_double_int());
-//	//					break;
-//			case STRING:
-//				p.write_string(name, msg.read_string());
-//				break;
-//			case WSTRING:
-//				p.write_wstring(name, msg.read_wstring());
-//				break;
-//			case MATRIXID:
-//				p.write_matrix_info(name, matrices[msg.read_matrixID()]);
-//				break;
-//			}
-//		}
-//	}
+	while (!msg.eom()) {
+		dt = (datatype) msg.get_datatype();
+		if (dt == PARAMETER) {
+			name = msg.read_string();
+			dt = (datatype) msg.preview_datatype();
+
+			switch (dt) {
+			case BYTE:
+				p.add_byte(name, msg.read_byte());
+				break;
+			case CHAR:
+				p.add_char(name, msg.read_char());
+				break;
+			case INT8:
+				p.add_int8(name, msg.read_int8());
+				break;
+			case INT16:
+				p.add_int16(name, msg.read_int16());
+				break;
+			case INT32:
+				p.add_int32(name, msg.read_int32());
+				break;
+			case INT64:
+				p.add_int64(name, msg.read_int64());
+				break;
+			case UINT8:
+				p.add_uint8(name, msg.read_uint8());
+				break;
+			case UINT16:
+				p.add_uint16(name, msg.read_uint16());
+				break;
+			case UINT32:
+				p.add_uint32(name, msg.read_uint32());
+				break;
+			case UINT64:
+				p.add_uint64(name, msg.read_uint64());
+				break;
+			case FLOAT:
+				p.add_float(name, msg.read_float());
+				break;
+			case DOUBLE:
+				p.add_double(name, msg.read_double());
+				break;
+			case STRING:
+				p.add_string(name, msg.read_string());
+				break;
+			case ARRAY_ID:
+				p.add_matrix_info(name, matrices[msg.read_ArrayID()]);
+				break;
+			}
+		}
+	}
 }
 
 void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 {
 	string name = "";
 	datatype dt = p.get_next_parameter();
-//	while (dt != NONE) {
-//		msg.write_parameter();
-//		name = p.get_name();
-//		msg.write_string(name);
+	while (dt != NONE) {
+		msg.write_Parameter();
+		name = p.get_name();
+		log->info("RR {}", name);
+		msg.write_string(name);
+
+		switch (dt) {
+		case BYTE:
+			msg.write_byte(p.get_byte(name));
+			break;
+		case CHAR:
+			msg.write_char(p.get_char(name));
+			break;
+		case INT8:
+			msg.write_int8(p.get_int8(name));
+			break;
+		case INT16:
+			msg.write_int16(p.get_int16(name));
+			break;
+		case INT32:
+			msg.write_int32(p.get_int32(name));
+			break;
+		case INT64:
+			msg.write_int64(p.get_int64(name));
+			break;
+		case UINT8:
+			msg.write_uint8(p.get_uint8(name));
+			break;
+		case UINT16:
+			msg.write_uint16(p.get_uint16(name));
+			break;
+		case UINT32:
+			msg.write_uint32(p.get_uint32(name));
+			break;
+		case UINT64:
+			msg.write_uint64(p.get_uint64(name));
+			break;
+		case FLOAT:
+			msg.write_float(p.get_float(name));
+			break;
+		case DOUBLE:
+			msg.write_double(p.get_double(name));
+			break;
+		case STRING:
+			msg.write_string(p.get_string(name));
+			break;
+		case ARRAY_ID:
+			msg.write_ArrayID(p.get_matrix_info(name)->ID);
+			break;
+		case ARRAY_INFO:
+			msg.write_ArrayInfo(p.get_matrix_info(name));
+			break;
+		}
+
+		dt = p.get_next_parameter();
+	}
+
 //
 //		switch(dt) {
 //		case CHAR:
