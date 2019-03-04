@@ -64,6 +64,7 @@ typedef enum _datatype : uint8_t {
 	ARRAY_INFO,
 	ARRAY_BLOCK_FLOAT,
 	ARRAY_BLOCK_DOUBLE,
+	INDEXED_ROW,
 	DISTMATRIX,
 	VOID_POINTER,
 	PARAMETER = 100
@@ -208,6 +209,8 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "ARRAY BLOCK FLOAT";
 		case ARRAY_BLOCK_DOUBLE:
 			return "ARRAY BLOCK DOUBLE";
+		case INDEXED_ROW:
+			return "INDEXED ROW";
 		case DISTMATRIX:
 			return "DISTMATRIX";
 		case WORKER_INFO:

@@ -419,9 +419,13 @@ public:
 		signed_ints_only ? put_int64((int64_t) x->num_cols) : put_uint64(x->num_cols);
 		signed_ints_only ? put_int8((int8_t) x->sparse) : put_uint8(x->sparse);
 		signed_ints_only ? put_int8((int8_t) x->layout) : put_uint8(x->layout);
-		signed_ints_only ? put_int8((int8_t) x->num_partitions) : put_uint8(x->num_partitions);
-		for (auto i = 0; i < x->num_partitions; i++)
-			signed_ints_only ? put_int8((int8_t) x->worker_assignments[i]) : put_uint8(x->worker_assignments[i]);
+		signed_ints_only ? put_int16((int16_t) x->num_partitions) : put_uint16(x->num_partitions);
+		std::cout << "JJyyyyyJ " << (uint16_t) x->num_partitions << std::endl;
+		for (auto it = x->worker_assignments.begin(); it != x->worker_assignments.end(); it++) {
+			std::cout << "JJJ " << it->first << " " << it->second << std::endl;
+			put_WorkerID(it->first);
+			signed_ints_only ? put_int64((int64_t) it->second) : put_uint64(it->second);
+		}
 	}
 
 	void put_FloatArrayBlock(const FloatArrayBlock_ptr & x)
@@ -855,12 +859,15 @@ public:
 		uint64_t num_cols = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
 		uint8_t sparse = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
 		uint8_t layout = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
-		uint8_t num_partitions = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
+		uint16_t num_partitions = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
 
 		ArrayInfo_ptr x = std::make_shared<ArrayInfo>(ID, name, num_rows, num_cols, sparse, layout, num_partitions);
 
-		for (auto i = 0; i < num_partitions; i++)
-			x->worker_assignments[i] = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
+		for (uint16_t i = 0; i < num_partitions; i++) {
+			WorkerID w = get_WorkerID();
+			uint64_t f = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
+			x->worker_assignments.insert(std::make_pair(w, f));
+		}
 
 		return x;
 	}
@@ -1169,7 +1176,7 @@ public:
 				ss << get_ArrayID();
 				break;
 			case ARRAY_INFO:
-				ss << get_ArrayInfo()->to_string();
+				ss << get_ArrayInfo()->to_string(true);
 				break;
 			case ARRAY_BLOCK_DOUBLE:
 				ss << get_DoubleArrayBlock()->to_string();

@@ -43,7 +43,7 @@ public:
 	string list_sessions();
 	LibraryID load_library(string library_name, string library_path);
 	ArrayID new_matrix(const ArrayInfo_ptr x);
-	WorkerID * get_row_assignments(ArrayID & matrixID);
+	ArrayInfo_ptr new_matrix(const string name, const uint64_t num_rows, const uint64_t num_cols, const uint8_t sparse, const uint8_t layout);
 	void determine_row_assignments(ArrayID & matrixID);
 	vector<vector<vector<float> > > prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers);
 

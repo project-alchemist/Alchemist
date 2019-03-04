@@ -30,8 +30,9 @@ typedef enum _client_command : uint8_t {
 	// Matrices
 	SEND_MATRIX_INFO = 31,
 	SEND_MATRIX_LAYOUT = 32,
-	SEND_MATRIX_BLOCKS = 33,
-	REQUEST_MATRIX_BLOCKS = 34,
+	SEND_INDEXED_ROWS = 33,
+	SEND_MATRIX_BLOCKS = 34,
+	REQUEST_MATRIX_BLOCKS = 35,
 	// Tasks
 	RUN_TASK = 41,
 	// Shutting down
@@ -107,6 +108,8 @@ inline const std::string get_command_name(const client_command & c)
 			return "SEND MATRIX INFO";
 		case SEND_MATRIX_LAYOUT:
 			return "SEND MATRIX LAYOUT";
+		case SEND_INDEXED_ROWS:
+			return "SEND INDEXED ROWS";
 		case SEND_MATRIX_BLOCKS:
 			return "SEND MATRIX BLOCKS";
 		case REQUEST_MATRIX_BLOCKS:

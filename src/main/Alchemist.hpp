@@ -135,32 +135,30 @@ struct ArrayInfo {
 
 	string name;
 	uint64_t num_rows, num_cols;
-	uint8_t sparse, layout, num_partitions;
+	uint8_t sparse, layout;
+	uint16_t num_partitions;
 
-	uint16_t * worker_assignments;
+	map<WorkerID, uint32_t> worker_assignments;
 
-	explicit ArrayInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(0), layout(0), num_partitions(1), worker_assignments(nullptr) {
-		worker_assignments = new uint16_t[num_partitions]();
-	}
+	explicit ArrayInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(0), layout(0), num_partitions(1) { }
 
 	ArrayInfo(ArrayID ID, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(0), layout(0), num_partitions(1), worker_assignments(nullptr) {
-		worker_assignments = new uint16_t[num_partitions]();
-	}
+		ID(ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(0), layout(0), num_partitions(1) { }
 
 	ArrayInfo(ArrayID ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(0), layout(0), num_partitions(1), worker_assignments(nullptr) {
-		worker_assignments = new uint16_t[num_partitions]();
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(0), layout(0), num_partitions(1) { }
+
+	ArrayInfo(ArrayID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, uint8_t _layout) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(1) { }
+
+	ArrayInfo(ArrayID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, uint8_t _layout, uint16_t _num_partitions) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions) {
 	}
 
-	ArrayInfo(ArrayID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, uint8_t _layout, uint8_t _num_partitions) :
-		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), layout(0), num_partitions(_num_partitions), worker_assignments(nullptr) {
-		worker_assignments = new uint16_t[num_partitions]();
-	}
+	~ArrayInfo() { }
 
-	~ArrayInfo() {
-		delete [] worker_assignments;
-		worker_assignments = nullptr;
+	void add_worker_assignment(WorkerID workerID, uint64_t worker_assignment) {
+		worker_assignments.insert(std::make_pair(workerID, worker_assignment));
 	}
 
 	string to_string(bool display_layout=false) const {
@@ -169,7 +167,8 @@ struct ArrayInfo {
 		ss << "Array " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ", # partitions: " << (uint16_t) num_partitions << ")";
 		if (display_layout) {
 			ss << std::endl << "Layout: " << std::endl;
-			for (uint64_t i = 0; i < num_rows; i++) ss << (uint16_t) worker_assignments[i] << " ";
+			for (auto it = worker_assignments.begin(); it != worker_assignments.end(); it++)
+				ss << (uint16_t) it->first << " " << it->second << "\n";
 		}
 
 		return ss.str();

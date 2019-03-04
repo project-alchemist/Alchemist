@@ -437,25 +437,33 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 int GroupWorker::get_matrix_layout()
 {
-	log->info("Creating vector of local rows");
+//	log->info("Creating vector of local rows");
+
+	log->info("Cr 1");
 
 	ArrayID ID;
 
 	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+//	MPI_Barrier(group);
+	log->info("Cr 1a");
+
+//	DistMatrix_ptr matrix = matrices[ID];
+//	uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
+//	uint64_t * local_rows = new uint64_t[num_local_rows];
+
+	log->info("Cr 1b");
+	uint64_t first_row_index = (uint64_t) matrices[ID]->GlobalRow(0);
+
+	log->info("Cr 1c");
+//	MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+	MPI_Send(&first_row_index, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+
+	log->info("Cr 1d");
+//	delete [] local_rows;
+	log->info("Cr 2");
+
 	MPI_Barrier(group);
-
-	DistMatrix_ptr matrix = matrices[ID];
-	uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
-	uint64_t * local_rows = new uint64_t[num_local_rows];
-
-	for (uint64_t i = 0; i < num_local_rows; i++) local_rows[i] = (uint64_t) matrix->GlobalRow(i);
-
-	MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
-	MPI_Send(local_rows, (int) num_local_rows, MPI_UNSIGNED_LONG, 0, 0, group);
-
-	delete [] local_rows;
-
-	MPI_Barrier(group);
+	log->info("Cr 3");
 
 	return 0;
 }

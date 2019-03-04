@@ -428,9 +428,20 @@ void DriverSession::handle_unload_library()
 
 void DriverSession::handle_matrix_info()
 {
-	ArrayInfo_ptr x = read_msg.read_ArrayInfo();
+	string array_name = read_msg.read_string();
+	uint64_t num_rows = read_msg.read_uint64();
+	uint64_t num_cols = read_msg.read_uint64();
+	uint8_t sparse = read_msg.read_uint8();
+	uint8_t layout = read_msg.read_uint8();
 
-	send_matrix_info(group_driver.new_matrix(x));
+	ArrayInfo_ptr x = group_driver.new_matrix(array_name, num_rows, num_cols, sparse, layout);
+
+	log->info("Sending back info for array {}", x->ID);
+
+	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
+	write_msg.write_ArrayInfo(x);
+
+	flush();
 }
 
 void DriverSession::handle_matrix_layout()
@@ -539,11 +550,11 @@ void DriverSession::remove_session()
 //	driver.remove_session();
 }
 
-void DriverSession::send_matrix_info(ArrayID matrixID)
+void DriverSession::send_matrix_info(ArrayID arrayID)
 {
 	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
-	log->info("Sending back info for matrix {}", matrixID);
-	write_msg.write_ArrayInfo(group_driver.get_matrix_info(matrixID));
+	log->info("Sending back ID for matrix {}", arrayID);
+	write_msg.write_ArrayInfo(group_driver.get_matrix_info(arrayID));
 
 	flush();
 }
