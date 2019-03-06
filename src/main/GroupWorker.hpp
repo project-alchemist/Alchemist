@@ -66,11 +66,14 @@ public:
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 	void set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group);
 
-	void set_value(ArrayID ID, uint64_t row, uint64_t col, float value);
-	void set_value(ArrayID ID, uint64_t row, uint64_t col, double value);
+	uint64_t get_num_local_rows(ArrayID arrayID);
+	uint64_t get_num_local_cols(ArrayID arrayID);
 
-	void get_value(ArrayID ID, uint64_t row, uint64_t col, float & value);
-	void get_value(ArrayID ID, uint64_t row, uint64_t col, double & value);
+	void set_value(ArrayID arrayID, uint64_t row, uint64_t col, float value);
+	void set_value(ArrayID arrayID, uint64_t row, uint64_t col, double value);
+
+	void get_value(ArrayID arrayID, uint64_t row, uint64_t col, float & value);
+	void get_value(ArrayID arrayID, uint64_t row, uint64_t col, double & value);
 
 	int load_library();
 	void run_task();

@@ -49,24 +49,88 @@ int WorkerSession::handle_message()
 		switch (command) {
 			case REQUEST_TEST_STRING:
 				send_test_string();
-				read_header();
 				break;
 			case SEND_TEST_STRING:
 				send_response_string();
-				read_header();
+				break;
+			case SEND_INDEXED_ROWS:
+				handle_send_indexed_rows();
+				break;
+			case REQUEST_INDEXED_ROWS:
+				handle_request_indexed_rows();
 				break;
 			case SEND_MATRIX_BLOCKS:
 				receive_matrix_blocks();
-				read_header();
 				break;
 			case REQUEST_MATRIX_BLOCKS:
 				send_matrix_blocks();
-				read_header();
 				break;
 		}
+
+		read_header();
 	}
 
 	return 0;
+}
+
+void WorkerSession::handle_send_indexed_rows()
+{
+	ArrayID arrayID = read_msg.read_ArrayID();
+	uint64_t row = 0, num_cols = 0, num_read_rows = 0;
+	double value = 0.0;
+
+	while (!read_msg.eom()) {
+		try {
+			read_msg.check_datatype(INDEXED_ROW);
+
+			row = read_msg.get_uint64();
+			num_cols = read_msg.get_uint64();
+
+			log->info("{} Receiving row {} for array {}", session_preamble(), row, arrayID);
+
+			for (uint64_t i = 0; i < num_cols; i++) {
+				read_msg.get_double(value);
+				group_worker.set_value(arrayID, row, i, value);
+			}
+
+			num_read_rows++;
+		}
+		catch (const std::exception& e) {
+			log->info("{}", e.what());
+		}
+	}
+
+	group_worker.print_data(arrayID);
+
+	write_msg.start(clientID, sessionID, SEND_INDEXED_ROWS);
+	write_msg.write_ArrayID(arrayID);
+	write_msg.write_uint64(num_read_rows);
+
+	flush();
+}
+
+void WorkerSession::handle_request_indexed_rows()
+{
+	ArrayID arrayID = read_msg.read_ArrayID();
+	uint64_t row = 0, num_cols = 0, num_read_rows = 0;
+	double value = 0.0;
+
+	write_msg.start(clientID, sessionID, REQUEST_INDEXED_ROWS);
+	write_msg.write_ArrayID(arrayID);
+
+	while (!read_msg.eom()) {
+		row = read_msg.read_uint64();
+		num_cols = group_worker.get_num_local_cols(arrayID);
+
+		write_msg.write_IndexedRow(row, num_cols);
+
+		for (uint64_t i = 0; i < num_cols; i++) {
+			group_worker.get_value(arrayID, row, i, value);
+			write_msg.put_double(value);
+		}
+	}
+
+	flush();
 }
 
 bool WorkerSession::send_matrix_blocks()

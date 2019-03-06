@@ -222,7 +222,7 @@ public:
 		return next_datatype;
 	}
 
-	void check_datatype(const datatype & dt)
+	bool check_datatype(const datatype & dt)
 	{
 		datatype next_datatype;
 		memcpy(&next_datatype, data + read_pos, 1);
@@ -236,6 +236,8 @@ public:
 			throw std::exception();
 		}
 		else ++read_pos;
+
+		return true;
 	}
 
 	void finish()
@@ -420,9 +422,7 @@ public:
 		signed_ints_only ? put_int8((int8_t) x->sparse) : put_uint8(x->sparse);
 		signed_ints_only ? put_int8((int8_t) x->layout) : put_uint8(x->layout);
 		signed_ints_only ? put_int16((int16_t) x->num_partitions) : put_uint16(x->num_partitions);
-		std::cout << "JJyyyyyJ " << (uint16_t) x->num_partitions << std::endl;
 		for (auto it = x->worker_assignments.begin(); it != x->worker_assignments.end(); it++) {
-			std::cout << "JJJ " << it->first << " " << it->second << std::endl;
 			put_WorkerID(it->first);
 			signed_ints_only ? put_int64((int64_t) it->second) : put_uint64(it->second);
 		}
@@ -569,6 +569,13 @@ public:
 	void write_Parameter()
 	{
 		put_datatype(PARAMETER);
+	}
+
+	void write_IndexedRow(const uint64_t & row, const uint64_t & num_cols)
+	{
+		put_datatype(INDEXED_ROW);
+		put_uint64(row);
+		put_uint64(num_cols);
 	}
 
 	void write_LibraryID(const LibraryID & x, bool is_parameter = false)
@@ -809,6 +816,13 @@ public:
 		return x;
 	}
 
+	void get_double(double & x)
+	{
+		memcpy(&x, data + read_pos, 8);
+		if (reverse_floats) reverse_double(&x);
+		read_pos += 8;
+	}
+
 	const string get_string()
 	{
 		uint16_t string_length = signed_ints_only ? (uint16_t) get_int16() : get_uint16();
@@ -870,6 +884,18 @@ public:
 		}
 
 		return x;
+	}
+
+	const string get_IndexedRow()
+	{
+		uint64_t row = get_uint64();
+		uint64_t num_cols = get_uint64();
+		double value = 0.0;
+
+		for (uint64_t i = 0; i < num_cols; i++)
+			value = get_double();
+
+		return string("Indexed row");
 	}
 
 	const FloatArrayBlock_ptr get_FloatArrayBlock()
@@ -1177,6 +1203,9 @@ public:
 				break;
 			case ARRAY_INFO:
 				ss << get_ArrayInfo()->to_string(true);
+				break;
+			case INDEXED_ROW:
+				ss << get_IndexedRow();
 				break;
 			case ARRAY_BLOCK_DOUBLE:
 				ss << get_DoubleArrayBlock()->to_string();

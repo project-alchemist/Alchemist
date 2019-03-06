@@ -32,7 +32,8 @@ typedef enum _client_command : uint8_t {
 	SEND_MATRIX_LAYOUT = 32,
 	SEND_INDEXED_ROWS = 33,
 	SEND_MATRIX_BLOCKS = 34,
-	REQUEST_MATRIX_BLOCKS = 35,
+	REQUEST_INDEXED_ROWS = 35,
+	REQUEST_MATRIX_BLOCKS = 36,
 	// Tasks
 	RUN_TASK = 41,
 	// Shutting down

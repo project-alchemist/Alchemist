@@ -27,6 +27,9 @@ public:
 	bool send_matrix_blocks();
 	bool receive_matrix_blocks();
 
+	void handle_send_indexed_rows();
+	void handle_request_indexed_rows();
+
 	// -------------------------------------   Matrix Management   -----------------------------------
 
 	//	MatrixHandle register_matrix(size_t num_rows, size_t num_cols);

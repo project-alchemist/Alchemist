@@ -437,56 +437,48 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 int GroupWorker::get_matrix_layout()
 {
-//	log->info("Creating vector of local rows");
-
-	log->info("Cr 1");
-
 	ArrayID ID;
 
 	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-//	MPI_Barrier(group);
-	log->info("Cr 1a");
 
-//	DistMatrix_ptr matrix = matrices[ID];
-//	uint64_t num_local_rows = (uint64_t) matrix->LocalHeight();
-//	uint64_t * local_rows = new uint64_t[num_local_rows];
-
-	log->info("Cr 1b");
 	uint64_t first_row_index = (uint64_t) matrices[ID]->GlobalRow(0);
 
-	log->info("Cr 1c");
-//	MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
 	MPI_Send(&first_row_index, 1, MPI_UNSIGNED_LONG, 0, 0, group);
 
-	log->info("Cr 1d");
-//	delete [] local_rows;
-	log->info("Cr 2");
-
 	MPI_Barrier(group);
-	log->info("Cr 3");
 
 	return 0;
 }
 
-void GroupWorker::set_value(ArrayID ID, uint64_t row, uint64_t col, float value)
+uint64_t GroupWorker::get_num_local_rows(ArrayID arrayID)
 {
-	matrices[ID]->SetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col), value);
+	return (uint64_t) matrices[arrayID]->LocalHeight();
 }
 
-void GroupWorker::set_value(ArrayID ID, uint64_t row, uint64_t col, double value)
+uint64_t GroupWorker::get_num_local_cols(ArrayID arrayID)
 {
-	matrices[ID]->SetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col), value);
+	return (uint64_t) matrices[arrayID]->LocalWidth();
 }
 
-void GroupWorker::get_value(ArrayID ID, uint64_t row, uint64_t col, float & value)
+void GroupWorker::set_value(ArrayID arrayID, uint64_t row, uint64_t col, float value)
 {
-	value = matrices[ID]->GetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col));
+	matrices[arrayID]->SetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col), value);
 }
 
-void GroupWorker::get_value(ArrayID ID, uint64_t row, uint64_t col, double & value)
+void GroupWorker::set_value(ArrayID arrayID, uint64_t row, uint64_t col, double value)
+{
+	matrices[arrayID]->SetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col), value);
+}
+
+void GroupWorker::get_value(ArrayID arrayID, uint64_t row, uint64_t col, float & value)
+{
+	value = matrices[arrayID]->GetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col));
+}
+
+void GroupWorker::get_value(ArrayID arrayID, uint64_t row, uint64_t col, double & value)
 {
 //	clock_t start1 = clock();
-	value = matrices[ID]->GetLocal(matrices[ID]->LocalRow(row), matrices[ID]->LocalCol(col));
+	value = matrices[arrayID]->GetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col));
 }
 
 void GroupWorker::print_data(ArrayID ID)
@@ -495,6 +487,7 @@ void GroupWorker::print_data(ArrayID ID)
 	ss << "LOCAL DATA:" << std::endl;
 	ss << "Local size: " << matrices[ID]->LocalHeight() << " x " << matrices[ID]->LocalWidth() << std::endl;
 	for (El::Int i = 0; i < matrices[ID]->LocalHeight(); i++) {
+		ss << matrices[ID]->GlobalRow(i) << " (" << i << ") | ";
 		for (El::Int j = 0; j < matrices[ID]->LocalWidth(); j++)
 			ss <<  matrices[ID]->GetLocal(i, j) << " ";
 		ss << std::endl;
