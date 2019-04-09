@@ -138,8 +138,8 @@ bool Session::handle_handshake()
 		if (d2 == 2.22) {
 			double * temp = new double[12];
 			for (auto i = 0; i < 12; i++) temp[i] = 1.11*(i+3);
-			DoubleArrayBlock_ptr block = read_msg.read_DoubleArrayBlock();
-			if (read_msg.compare_array_block(block, temp)) {
+			MatrixBlock_ptr block = read_msg.read_MatrixBlock();
+			if (read_msg.compare_matrix_block(block, temp)) {
 
 				log->info("{} Received handshake", preamble());
 				log->info("{} Client Language is {}", preamble(), get_client_language_name(cl));
@@ -213,7 +213,7 @@ void Session::read_body()
 void Session::flush()
 {
 	write_msg.finish();
-	log->info("OUT: {}", write_msg.to_string());
+//	log->info("OUT: {}", write_msg.to_string());
 	auto self(shared_from_this());
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),

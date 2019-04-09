@@ -111,12 +111,12 @@ uint16_t GroupDriver::get_num_workers()
 	return (uint16_t) workers.size();
 }
 
-uint64_t GroupDriver::get_num_rows(ArrayID & matrixID)
+uint64_t GroupDriver::get_num_rows(MatrixID & matrixID)
 {
 	return matrices[matrixID]->num_rows;
 }
 
-uint64_t GroupDriver::get_num_cols(ArrayID & matrixID)
+uint64_t GroupDriver::get_num_cols(MatrixID & matrixID)
 {
 	return matrices[matrixID]->num_cols;
 }
@@ -134,6 +134,7 @@ void GroupDriver::ready_group()
 	print_info();
 
 	open_workers();
+	get_process_grid();
 }
 
 string GroupDriver::list_sessions()
@@ -288,17 +289,21 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 
 		MPI_Barrier(group);
 
+		Coordinate c;
 		int num_distmatrices;
 		string distmatrix_name;
 		uint16_t dmnl;
 		uint64_t num_rows, num_cols;
+		bool sparse = false;
+		layout l = MC_MR;
+		uint8_t num_partitions = (uint8_t) workers.size();
 
 		WorkerID primary_worker = workers.begin()->first;
 
 		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
 
 		if (num_distmatrices > 0) {
-			ArrayID matrixIDs[num_distmatrices];
+			MatrixID matrixIDs[num_distmatrices];
 			for (int i = 0; i < num_distmatrices; i++) {
 				MPI_Recv(&dmnl, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
 				char distmatrix_name_c[dmnl];
@@ -307,42 +312,51 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 
 				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
+				MPI_Recv(&l, 1, MPI_BYTE, primary_worker, 0, group, &status);
 
-				bool sparse = false;
-				uint8_t layout = 0;
-				uint8_t num_partitions = (uint8_t) workers.size();
+				MPI_Barrier(group);
 
-				matrices.insert(std::make_pair(next_matrixID, std::make_shared<ArrayInfo>(next_matrixID, distmatrix_name, num_rows, num_cols, sparse, layout, num_partitions)));
+				matrices.insert(std::make_pair(next_matrixID, std::make_shared<MatrixInfo>(next_matrixID, distmatrix_name, num_rows, num_cols, sparse, l, num_partitions)));
 				matrixIDs[i] = next_matrixID++;
+
+				for (auto it = workers.begin(); it != workers.end(); it++) {
+					WorkerID id = it->first;
+					c.row = it->second->grid_row;
+					c.col = it->second->grid_col;
+
+					matrices[matrixIDs[i]]->add_worker_assignment(id, c);
+				}
+
+				out.add_matrix_info(matrices[matrixIDs[i]]->name, matrices[matrixIDs[i]]);
 			}
 
 			MPI_Bcast(&matrixIDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
 
-			uint64_t worker_num_rows;
-			uint64_t * row_indices;
-
-			for (int i = 0; i < num_distmatrices; i++) {
-
-				std::clock_t start;
-
-				MPI_Bcast(&matrixIDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
-				MPI_Barrier(group);
-
-				for (auto it = workers.begin(); it != workers.end(); it++) {
-
-					WorkerID id = it->first;
-					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
-
-					row_indices = new uint64_t[worker_num_rows];
-
-					MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
-					for (uint64_t j = 0; j < worker_num_rows; j++)
-						matrices[matrixIDs[i]]->worker_assignments[row_indices[j]] = id;
-
-					delete [] row_indices;
-				}
-//				out.write_ArrayInfo(matrices[matrixIDs[i]]->name, matrices[matrixIDs[i]]);
-			}
+//			uint64_t worker_num_rows;
+//			uint64_t * row_indices;
+//
+//			for (int i = 0; i < num_distmatrices; i++) {
+//
+//				std::clock_t start;
+//
+//				MPI_Bcast(&matrixIDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
+//				MPI_Barrier(group);
+//
+//				for (auto it = workers.begin(); it != workers.end(); it++) {
+//
+//					WorkerID id = it->first;
+//					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
+//
+//					row_indices = new uint64_t[worker_num_rows];
+//
+//					MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
+//					for (uint64_t j = 0; j < worker_num_rows; j++)
+//						matrices[matrixIDs[i]]->worker_assignments[row_indices[j]] = id;
+//
+//					delete [] row_indices;
+//				}
+//				out.add_matrix_info(matrices[matrixIDs[i]]->name, matrices[matrixIDs[i]]);
+//			}
 		}
 
 		MPI_Barrier(group);
@@ -405,8 +419,8 @@ void GroupDriver::deserialize_parameters(Parameters & p, Message & msg) {
 			case STRING:
 				p.add_string(name, msg.read_string());
 				break;
-			case ARRAY_ID:
-				p.add_matrix_info(name, matrices[msg.read_ArrayID()]);
+			case MATRIX_ID:
+				p.add_matrix_info(name, matrices[msg.read_MatrixID()]);
 				break;
 			}
 		}
@@ -420,7 +434,6 @@ void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 	while (dt != NONE) {
 		msg.write_Parameter();
 		name = p.get_name();
-		log->info("RR {}", name);
 		msg.write_string(name);
 
 		switch (dt) {
@@ -463,11 +476,12 @@ void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 		case STRING:
 			msg.write_string(p.get_string(name));
 			break;
-		case ARRAY_ID:
-			msg.write_ArrayID(p.get_matrix_info(name)->ID);
+		case MATRIX_ID:
+			msg.write_MatrixID(p.get_matrix_info(name)->ID);
 			break;
-		case ARRAY_INFO:
-			msg.write_ArrayInfo(p.get_matrix_info(name));
+		case MATRIX_INFO:
+//			log->info("GGGG {}", name);
+			msg.write_MatrixInfo(p.get_matrix_info(name));
 			break;
 		}
 
@@ -630,7 +644,7 @@ void GroupDriver::serialize_parameters(Parameters & p, Message & msg)
 //	}
 }
 
-ArrayInfo_ptr GroupDriver::new_matrix(const string name, const uint64_t num_rows, const uint64_t num_cols, const uint8_t sparse, const uint8_t layout)
+MatrixInfo_ptr GroupDriver::new_matrix(const string name, const uint64_t num_rows, const uint64_t num_cols, const uint8_t sparse, const layout l)
 {
 	alchemist_command command = _AM_NEW_MATRIX;
 
@@ -641,57 +655,63 @@ ArrayInfo_ptr GroupDriver::new_matrix(const string name, const uint64_t num_rows
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	ArrayInfo_ptr x = std::make_shared<ArrayInfo>(next_matrixID++, name, num_rows, num_cols, sparse, layout);
+	Coordinate c;
+	MatrixInfo_ptr x = std::make_shared<MatrixInfo>(next_matrixID++, name, num_rows, num_cols, sparse, l);
 
 	MPI_Bcast(&x->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(&x->num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&x->num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&x->sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
-	MPI_Bcast(&x->layout, 1, MPI_UNSIGNED_CHAR, 0, group);
+	MPI_Bcast(&x->l, 1, MPI_UNSIGNED_CHAR, 0, group);
 	x->num_partitions = (uint16_t) workers.size();
 
-	MPI_Barrier(group);
+	for (auto it = workers.begin(); it != workers.end(); it++) {
+		WorkerID id = it->first;
+		c.row = it->second->grid_row;
+		c.col = it->second->grid_col;
 
-	log->info("Dr 1 {}", x->ID);
+		x->add_worker_assignment(id, c);
+	}
+
 	matrices.insert(std::make_pair(x->ID, x));
 
 	MPI_Barrier(group);
-	determine_row_assignments(x->ID);
-	log->info("Dr 2");
+
+//	MPI_Barrier(group);
+//	determine_worker_assignments(x->ID);
 
 	return x;
 }
 
-ArrayID GroupDriver::new_matrix(const ArrayInfo_ptr x)
-{
-	alchemist_command command = _AM_NEW_MATRIX;
-
-	log->info("Sending command {} to workers", get_command_name(command));
-
-	MPI_Request req;
-	MPI_Status status;
-	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
-	MPI_Wait(&req, &status);
-
-	x->ID = ++next_matrixID;
-
-	MPI_Bcast(&x->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
-	MPI_Bcast(&x->num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
-	MPI_Bcast(&x->num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
-	MPI_Bcast(&x->sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
-	MPI_Bcast(&x->layout, 1, MPI_UNSIGNED_CHAR, 0, group);
-	x->num_partitions = (uint8_t) workers.size();
-
-	MPI_Barrier(group);
-
-	determine_row_assignments(x->ID);
-	matrices.insert(std::make_pair(x->ID, x));
-
-	MPI_Barrier(group);
-
-
-	return x->ID;
-}
+//MatrixID GroupDriver::new_matrix(const MatrixInfo_ptr x)
+//{
+//	alchemist_command command = _AM_NEW_MATRIX;
+//
+//	log->info("Sending command {} to workers", get_command_name(command));
+//
+//	MPI_Request req;
+//	MPI_Status status;
+//	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+//	MPI_Wait(&req, &status);
+//
+//	x->ID = ++next_matrixID;
+//
+//	MPI_Bcast(&x->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
+//	MPI_Bcast(&x->num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
+//	MPI_Bcast(&x->num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
+//	MPI_Bcast(&x->sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
+//	MPI_Bcast(&x->l, 1, MPI_UNSIGNED_CHAR, 0, group);
+//	x->num_partitions = (uint8_t) workers.size();
+//
+//	MPI_Barrier(group);
+//
+//	determine_row_assignments(x->ID);
+//	matrices.insert(std::make_pair(x->ID, x));
+//
+//	MPI_Barrier(group);
+//
+//	return x->ID;
+//}
 
 bool GroupDriver::check_libraryID(LibraryID & libID)
 {
@@ -703,15 +723,34 @@ string GroupDriver::list_workers()
 	return driver.list_all_workers();
 }
 
-ArrayInfo_ptr GroupDriver::get_matrix_info(const ArrayID arrayID)
+MatrixInfo_ptr GroupDriver::get_matrix_info(const MatrixID arrayID)
 {
 	return matrices[arrayID];
 }
 
-void GroupDriver::determine_row_assignments(ArrayID & matrixID)
+void GroupDriver::get_process_grid()
 {
-	uint64_t first_row_index;
-	uint64_t * row_indices;
+	alchemist_command command = _AM_GET_PROCESS_GRID;
+
+	log->info("Sending command {} to workers", get_command_name(command));
+
+	MPI_Request req;
+	MPI_Status status;
+	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
+	MPI_Wait(&req, &status);
+
+	MPI_Barrier(group);
+
+	for (auto it = workers.begin(); it != workers.end(); it++) {
+		WorkerID id = it->first;
+		MPI_Recv(&it->second->grid_row, 1, MPI_UNSIGNED_SHORT, id, 0, group, &status);
+		MPI_Recv(&it->second->grid_col, 1, MPI_UNSIGNED_SHORT, id, 0, group, &status);
+	}
+}
+
+void GroupDriver::determine_worker_assignments(MatrixID & matrixID)
+{
+	Coordinate c;
 
 	std::clock_t start;
 
@@ -729,9 +768,10 @@ void GroupDriver::determine_row_assignments(ArrayID & matrixID)
 
 	for (auto it = workers.begin(); it != workers.end(); it++) {
 		WorkerID id = it->first;
-		MPI_Recv(&first_row_index, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
+		MPI_Recv(&c.row, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
+		MPI_Recv(&c.col, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
 
-		matrices[matrixID]->add_worker_assignment(id, first_row_index);
+		matrices[matrixID]->add_worker_assignment(id, c);
 
 //		row_indices = new uint64_t[worker_num_rows];
 //
@@ -841,9 +881,9 @@ int GroupDriver::process_output_parameters(Parameters & output_parameters) {
 // ----------------------------------------   Matrices   -----------------------------------------
 
 
-//ArrayHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
+//MatrixHandle Driver::register_matrix(size_t num_rows, size_t num_cols) {
 //
-//	ArrayHandle handle{next_matrixID++};
+//	MatrixHandle handle{next_matrixID++};
 //
 //	return handle;
 //}

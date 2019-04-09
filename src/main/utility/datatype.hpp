@@ -60,15 +60,35 @@ typedef enum _datatype : uint8_t {
 	GROUP_ID,
 	WORKER_ID,
 	WORKER_INFO,
+	MATRIX_ID,
+	MATRIX_INFO,
+	MATRIX_BLOCK,
+	INDEXED_ROW,
+	DISTMATRIX,
 	ARRAY_ID,
 	ARRAY_INFO,
 	ARRAY_BLOCK_FLOAT,
 	ARRAY_BLOCK_DOUBLE,
-	INDEXED_ROW,
-	DISTMATRIX,
 	VOID_POINTER,
 	PARAMETER = 100
 } datatype;
+
+typedef enum _layout : uint8_t {
+	MC_MR = 0,
+	MC_STAR,
+	MD_STAR,
+	MR_MC,
+	MR_STAR,
+	STAR_MC,
+	STAR_MD,
+	STAR_MR,
+	STAR_STAR,
+	STAR_VC,
+	STAR_VR,
+	VC_STAR,
+	VR_STAR,
+	CIRC_CIRC
+} layout;
 
 //inline const uint8_t get_datatype_length(const datatype & dt)
 //{
@@ -136,6 +156,42 @@ typedef enum _datatype : uint8_t {
 //		}
 //}
 
+inline const std::string get_layout(const layout & l)
+{
+	switch (l) {
+	case MC_MR:
+		return "MC MR";
+	case MC_STAR:
+		return "MC STAR";
+	case MD_STAR:
+		return "MD STAR";
+	case MR_MC:
+		return "MR MC";
+	case MR_STAR:
+		return "MR STAR";
+	case STAR_MC:
+		return "STAR MC";
+	case STAR_MD:
+		return "STAR MD";
+	case STAR_MR:
+		return "STAR MR";
+	case STAR_STAR:
+		return "STAR STAR";
+	case STAR_VC:
+		return "STAR VC";
+	case STAR_VR:
+		return "STAR VR";
+	case VC_STAR:
+		return "VC STAR";
+	case VR_STAR:
+		return "VR STAR";
+	case CIRC_CIRC:
+		return "CIRC CIRC";
+	default:
+		return "Unknown matrix layout";
+	}
+}
+
 inline const std::string get_datatype_name(const datatype & dt)
 {
 	switch (dt) {
@@ -201,6 +257,12 @@ inline const std::string get_datatype_name(const datatype & dt)
 			return "PARAMETER";
 		case LIBRARY_ID:
 			return "LIBRARY ID";
+		case MATRIX_ID:
+			return "MATRIX ID";
+		case MATRIX_INFO:
+			return "MATRIX INFO";
+		case MATRIX_BLOCK:
+			return "MATRIX BLOCK";
 		case ARRAY_ID:
 			return "ARRAY ID";
 		case ARRAY_INFO:

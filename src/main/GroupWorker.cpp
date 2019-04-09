@@ -160,6 +160,9 @@ int GroupWorker::handle_command(alchemist_command c)
 		case _AM_GROUP_CLOSE_CONNECTIONS:
 			handle_group_close_connections();
 			break;
+		case _AM_GET_PROCESS_GRID:
+			handle_get_process_grid();
+			break;
 		case _AM_NEW_MATRIX:
 			new_matrix();
 			break;
@@ -178,6 +181,17 @@ int GroupWorker::handle_command(alchemist_command c)
 	}
 
 	return 0;
+}
+
+void GroupWorker::handle_get_process_grid()
+{
+	MPI_Barrier(group);
+
+	uint16_t row = (uint16_t) grid->Row();
+	uint16_t col = (uint16_t) grid->Col();
+
+	MPI_Send(&row, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
+	MPI_Send(&col, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
 }
 
 void GroupWorker::handle_print_info()
@@ -348,17 +362,64 @@ int GroupWorker::new_matrix()
 	log->info("Creating new Elemental distributed matrix");
 
 	uint64_t num_rows, num_cols;
-	unsigned char sparse, layout;
+	unsigned char sparse;
+	layout l;
 
 	MPI_Bcast(&current_matrixID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(&num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
-	MPI_Bcast(&layout, 1, MPI_UNSIGNED_CHAR, 0, group);
+	MPI_Bcast(&l, 1, MPI_UNSIGNED_CHAR, 0, group);
 
-	MPI_Barrier(group);
+	DistMatrix_ptr M;
+	switch (l) {
+	case MC_MR:
+		 M = std::make_shared<El::DistMatrix<double, El::MC, El::MR>>(num_rows, num_cols, *grid);
+		 break;
+	case MC_STAR:
+		 M = std::make_shared<El::DistMatrix<double, El::MC, El::STAR>>(num_rows, num_cols, *grid);
+		 break;
+	case MD_STAR:
+		 M = std::make_shared<El::DistMatrix<double, El::MD, El::STAR>>(num_rows, num_cols, *grid);
+		 break;
+	case MR_MC:
+		 M = std::make_shared<El::DistMatrix<double, El::MR, El::MC>>(num_rows, num_cols, *grid);
+		 break;
+	case MR_STAR:
+		 M = std::make_shared<El::DistMatrix<double, El::MR, El::STAR>>(num_rows, num_cols, *grid);
+		 break;
+	case STAR_MC:
+		 M = std::make_shared<El::DistMatrix<double, El::STAR, El::MC>>(num_rows, num_cols, *grid);
+		 break;
+	case STAR_MD:
+		 M = std::make_shared<El::DistMatrix<double, El::STAR, El::MD>>(num_rows, num_cols, *grid);
+		 break;
+	case STAR_MR:
+		 M = std::make_shared<El::DistMatrix<double, El::STAR, El::MR>>(num_rows, num_cols, *grid);
+		 break;
+	case STAR_STAR:
+		 M = std::make_shared<El::DistMatrix<double, El::STAR, El::STAR>>(num_rows, num_cols, *grid);
+		 break;
+	case STAR_VC:
+		 M = std::make_shared<El::DistMatrix<double, El::STAR, El::VC>>(num_rows, num_cols, *grid);
+		 break;
+	case STAR_VR:
+		 M = std::make_shared<El::DistMatrix<double, El::STAR, El::VR>>(num_rows, num_cols, *grid);
+		 break;
+	case VC_STAR:
+		 M = std::make_shared<El::DistMatrix<double, El::VC, El::STAR>>(num_rows, num_cols, *grid);
+		 break;
+	case VR_STAR:
+		 M = std::make_shared<El::DistMatrix<double, El::VR, El::STAR>>(num_rows, num_cols, *grid);
+		 break;
+	case CIRC_CIRC:
+		 M = std::make_shared<El::DistMatrix<double, El::CIRC, El::CIRC>>(num_rows, num_cols, *grid);
+		 break;
+	default:
+		 M = std::make_shared<El::DistMatrix<double, El::MC, El::MR>>(num_rows, num_cols, *grid);
+		 break;
+	}
 
-	DistMatrix_ptr M = std::make_shared<El::DistMatrix<double, El::VR, El::STAR>>(num_rows, num_cols, *grid);
 	El::Zero(*M);
 
 	matrices.insert(std::make_pair(current_matrixID, M));
@@ -366,7 +427,7 @@ int GroupWorker::new_matrix()
 
 	MPI_Barrier(group);
 
-	get_matrix_layout();
+//	get_matrix_layout();
 
 	return 0;
 }
@@ -392,9 +453,10 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 	if (primary_group_worker) MPI_Send(&num_distmatrices, 1, MPI_INT, 0, 0, group);
 
 	if (num_distmatrices > 0) {
+		layout l;
 
-		if (primary_group_worker) {
-			for (int i = 0; i < num_distmatrices; i++) {
+		for (int i = 0; i < num_distmatrices; i++) {
+			if (primary_group_worker) {
 				uint16_t dmnl = (uint16_t) distmatrix_names[i].length()+1;
 
 				MPI_Send(&dmnl, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
@@ -405,31 +467,48 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 				MPI_Send(&num_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
 				MPI_Send(&num_cols, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+
+				auto col_dist = distmatrix_ptrs[i]->ColDist();
+				auto row_dist = distmatrix_ptrs[i]->RowDist();
+
+				if (col_dist == 0 && row_dist == 2)
+					l = MC_MR;
+				else if (col_dist == 0 && row_dist == 5)
+					l = MC_STAR;
+				else if (col_dist == 1 && row_dist == 5)
+					l = MD_STAR;
+				else if (col_dist == 2 && row_dist == 0)
+					l = MR_MC;
+				else if (col_dist == 2 && row_dist == 5)
+					l = MR_STAR;
+				else if (col_dist == 5 && row_dist == 0)
+					l = STAR_MC;
+				else if (col_dist == 5 && row_dist == 1)
+					l = STAR_MD;
+				else if (col_dist == 5 && row_dist == 2)
+					l = STAR_MR;
+				else if (col_dist == 5 && row_dist == 5)
+					l = STAR_STAR;
+				else if (col_dist == 5 && row_dist == 3)
+					l = STAR_VC;
+				else if (col_dist == 5 && row_dist == 4)
+					l = STAR_VR;
+				else if (col_dist == 3 && row_dist == 5)
+					l = VC_STAR;
+				else if (col_dist == 4 && row_dist == 5)
+					l = VR_STAR;
+
+				MPI_Send(&l, 1, MPI_BYTE, 0, 0, group);
 			}
+
+			MPI_Barrier(group);
 		}
 
-		ArrayID matrixIDs[num_distmatrices];
+		MatrixID matrixIDs[num_distmatrices];
 		MPI_Bcast(&matrixIDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
 
-		for (int i = 0; i < num_distmatrices; i++) {
+		for (int i = 0; i < num_distmatrices; i++)
 			matrices.insert(std::make_pair(matrixIDs[i], distmatrix_ptrs[i]));
-
-			log->info("Creating vector of local rows for matrix {}", distmatrix_names[i]);
-
-			MPI_Bcast(&matrixIDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
-			MPI_Barrier(group);
-
-			distmatrix_ptr = matrices[matrixIDs[i]];
-			uint64_t num_local_rows = (uint64_t) distmatrix_ptr->LocalHeight();
-			uint64_t * local_rows = new uint64_t[num_local_rows];
-
-			for (uint64_t i = 0; i < num_local_rows; i++) local_rows[i] = (uint64_t) distmatrix_ptr->GlobalRow(i);
-
-			MPI_Send(&num_local_rows, 1, MPI_UNSIGNED_LONG, 0, 0, group);
-			MPI_Send(local_rows, (int) num_local_rows, MPI_UNSIGNED_LONG, 0, 0, group);
-
-			delete [] local_rows;
-		}
 	}
 
 	MPI_Barrier(group);
@@ -437,51 +516,53 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 
 int GroupWorker::get_matrix_layout()
 {
-	ArrayID ID;
+	MatrixID ID;
 
 	MPI_Bcast(&ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 
 	uint64_t first_row_index = (uint64_t) matrices[ID]->GlobalRow(0);
+	uint64_t first_col_index = (uint64_t) matrices[ID]->GlobalCol(0);
 
 	MPI_Send(&first_row_index, 1, MPI_UNSIGNED_LONG, 0, 0, group);
+	MPI_Send(&first_col_index, 1, MPI_UNSIGNED_LONG, 0, 0, group);
 
 	MPI_Barrier(group);
 
 	return 0;
 }
 
-uint64_t GroupWorker::get_num_local_rows(ArrayID arrayID)
+uint64_t GroupWorker::get_num_local_rows(MatrixID matrixID)
 {
-	return (uint64_t) matrices[arrayID]->LocalHeight();
+	return (uint64_t) matrices[matrixID]->LocalHeight();
 }
 
-uint64_t GroupWorker::get_num_local_cols(ArrayID arrayID)
+uint64_t GroupWorker::get_num_local_cols(MatrixID matrixID)
 {
-	return (uint64_t) matrices[arrayID]->LocalWidth();
+	return (uint64_t) matrices[matrixID]->LocalWidth();
 }
 
-void GroupWorker::set_value(ArrayID arrayID, uint64_t row, uint64_t col, float value)
+void GroupWorker::set_value(MatrixID matrixID, uint64_t row, uint64_t col, float value)
 {
-	matrices[arrayID]->SetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col), value);
+	matrices[matrixID]->SetLocal(matrices[matrixID]->LocalRow(row), matrices[matrixID]->LocalCol(col), value);
 }
 
-void GroupWorker::set_value(ArrayID arrayID, uint64_t row, uint64_t col, double value)
+void GroupWorker::set_value(MatrixID matrixID, uint64_t row, uint64_t col, double value)
 {
-	matrices[arrayID]->SetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col), value);
+	matrices[matrixID]->SetLocal(matrices[matrixID]->LocalRow(row), matrices[matrixID]->LocalCol(col), value);
 }
 
-void GroupWorker::get_value(ArrayID arrayID, uint64_t row, uint64_t col, float & value)
+void GroupWorker::get_value(MatrixID matrixID, uint64_t row, uint64_t col, float & value)
 {
-	value = matrices[arrayID]->GetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col));
+	value = matrices[matrixID]->GetLocal(matrices[matrixID]->LocalRow(row), matrices[matrixID]->LocalCol(col));
 }
 
-void GroupWorker::get_value(ArrayID arrayID, uint64_t row, uint64_t col, double & value)
+void GroupWorker::get_value(MatrixID matrixID, uint64_t row, uint64_t col, double & value)
 {
 //	clock_t start1 = clock();
-	value = matrices[arrayID]->GetLocal(matrices[arrayID]->LocalRow(row), matrices[arrayID]->LocalCol(col));
+	value = matrices[matrixID]->GetLocal(matrices[matrixID]->LocalRow(row), matrices[matrixID]->LocalCol(col));
 }
 
-void GroupWorker::print_data(ArrayID ID)
+void GroupWorker::print_data(MatrixID ID)
 {
 	std::stringstream ss;
 	ss << "LOCAL DATA:" << std::endl;
@@ -540,6 +621,8 @@ void GroupWorker::run_task()
 
 		read_matrix_parameters(out);
 	}
+
+	delete [] data;
 }
 
 // ----------------------------------------   Parameters   ---------------------------------------
@@ -695,8 +778,8 @@ void GroupWorker::deserialize_parameters(Parameters & p, Message & msg)
 			case STRING:
 				p.add_string(name, msg.read_string());
 				break;
-			case ARRAY_ID:
-				p.add_distmatrix(name, matrices[msg.read_ArrayID()]);
+			case MATRIX_ID:
+				p.add_distmatrix(name, matrices[msg.read_MatrixID()]);
 				break;
 			}
 		}
@@ -752,8 +835,8 @@ void GroupWorker::serialize_parameters(Parameters & p, Message & msg)
 		case STRING:
 			msg.write_string(p.get_string(name));
 			break;
-		case ARRAY_ID:
-			msg.write_ArrayID(p.get_matrix_info(name)->ID);
+		case MATRIX_ID:
+			msg.write_MatrixID(p.get_matrix_info(name)->ID);
 			break;
 		}
 

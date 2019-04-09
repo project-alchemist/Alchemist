@@ -408,6 +408,35 @@ public:
 		put_GroupID(x->groupID);
 	}
 
+	void put_MatrixID(const MatrixID & x)
+	{
+		signed_ints_only ? put_int16((int16_t) x) : put_uint16(x);
+	}
+
+	void put_MatrixInfo(const MatrixInfo_ptr & x)
+	{
+		put_MatrixID(x->ID);
+		put_string(x->name);
+		signed_ints_only ? put_int64((int64_t) x->num_rows) : put_uint64(x->num_rows);
+		signed_ints_only ? put_int64((int64_t) x->num_cols) : put_uint64(x->num_cols);
+		signed_ints_only ? put_int8((int8_t) x->sparse) : put_uint8(x->sparse);
+		signed_ints_only ? put_int8((int8_t) x->l) : put_uint8(x->l);
+		signed_ints_only ? put_int16((int16_t) x->num_partitions) : put_uint16(x->num_partitions);
+		for (auto it = x->grid.begin(); it != x->grid.end(); it++) {
+			put_WorkerID(it->first);
+			signed_ints_only ? put_int16((int16_t) it->second.row) : put_uint16(it->second.row);
+			signed_ints_only ? put_int16((int16_t) it->second.col) : put_uint16(it->second.col);
+		}
+	}
+
+	void put_MatrixBlock(const MatrixBlock_ptr & x)
+	{
+		for (uint8_t i = 0; i < 3; i++) signed_ints_only ? put_int64((int64_t) x->rows[i]) : put_uint64(x->rows[i]);
+		for (uint8_t i = 0; i < 3; i++) signed_ints_only ? put_int64((int64_t) x->cols[i]) : put_uint64(x->cols[i]);
+		x->start = data + write_pos;
+		write_pos += 8*x->size;
+	}
+
 	void put_ArrayID(const ArrayID & x)
 	{
 		signed_ints_only ? put_int16((int16_t) x) : put_uint16(x);
@@ -451,6 +480,59 @@ public:
 		x->start = data + write_pos;
 		write_pos += 8*x->size;
 	}
+
+//	void put_Parameter(const Parameter_ & p)
+//	{
+//		put_string(p.name);
+//		datatype dt = p.dt;
+//
+//		switch (dt) {
+//		case BYTE:
+//			value = static_cast<void *>(std::make_shared<uint8_t>(get_byte()));
+//			break;
+//		case CHAR:
+//			value = static_cast<void *>(std::make_shared<char>(get_char()));
+//			break;
+//		case INT8:
+//			value = static_cast<void *>(std::make_shared<int8_t>(get_int8()));
+//			break;
+//		case INT16:
+//			value = static_cast<void *>(std::make_shared<int16_t>(get_int16()));
+//			break;
+//		case INT32:
+//			value = static_cast<void *>(std::make_shared<int32_t>(get_int32()));
+//			break;
+//		case INT64:
+//			value = static_cast<void *>(std::make_shared<int64_t>(get_int64()));
+//			break;
+//		case UINT8:
+//			value = static_cast<void *>(std::make_shared<uint8_t>(get_uint8()));
+//			break;
+//		case UINT16:
+//			value = static_cast<void *>(std::make_shared<uint16_t>(get_uint16()));
+//			break;
+//		case UINT32:
+//			value = static_cast<void *>(std::make_shared<uint32_t>(get_uint32()));
+//			break;
+//		case UINT64:
+//			value = static_cast<void *>(std::make_shared<uint64_t>(get_uint64()));
+//			break;
+//		case FLOAT:
+//			value = static_cast<void *>(std::make_shared<float>(get_float()));
+//			break;
+//		case DOUBLE:
+//			value = static_cast<void *>(std::make_shared<double>(get_double()));
+//			break;
+//		case STRING:
+//			value = static_cast<void *>(std::make_shared<string>(get_string()));
+//			break;
+//		case MATRIX_ID:
+//			value = static_cast<void *>(std::make_shared<MatrixID>(get_MatrixID()));
+//			break;
+//		}
+//
+//		return Parameter_(name, dt, value);
+//	}
 
 	// ========================================================================================================================================================
 
@@ -604,6 +686,27 @@ public:
 		if (is_parameter) put_datatype(PARAMETER);
 		put_datatype(WORKER_INFO);
 		put_WorkerInfo(x);
+	}
+
+	void write_MatrixID(const MatrixID & x, bool is_parameter = false)
+	{
+		if (is_parameter) put_datatype(PARAMETER);
+		put_datatype(MATRIX_ID);
+		put_MatrixID(x);
+	}
+
+	void write_MatrixInfo(const MatrixInfo_ptr & x, bool is_parameter = false)
+	{
+		if (is_parameter) put_datatype(PARAMETER);
+		put_datatype(MATRIX_INFO);
+		put_MatrixInfo(x);
+	}
+
+	void write_MatrixBlock(const MatrixBlock_ptr & x, bool is_parameter = false)
+	{
+		if (is_parameter) put_datatype(PARAMETER);
+		put_datatype(MATRIX_BLOCK);
+		put_MatrixBlock(x);
 	}
 
 	void write_ArrayID(const ArrayID & x, bool is_parameter = false)
@@ -860,6 +963,60 @@ public:
 		return std::make_shared<WorkerInfo>(ID, hostname, address, port, groupID);
 	}
 
+	const MatrixID get_MatrixID()
+	{
+		return (MatrixID) (signed_ints_only ? get_int16() : get_uint16());
+	}
+
+	const MatrixInfo_ptr get_MatrixInfo()
+	{
+		MatrixID ID = get_MatrixID();
+		string name = get_string();
+		uint64_t num_rows = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
+		uint64_t num_cols = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
+		uint8_t sparse = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
+		layout l = (layout) (signed_ints_only ? get_int8() : get_uint8());
+		uint16_t num_partitions = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
+
+		MatrixInfo_ptr x = std::make_shared<MatrixInfo>(ID, name, num_rows, num_cols, sparse, l, num_partitions);
+
+		for (uint16_t i = 0; i < num_partitions; i++) {
+			WorkerID w = get_WorkerID();
+			uint16_t row = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
+			uint16_t col = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
+			Coordinate c(row, col);
+			x->grid.insert(std::make_pair(w, c));
+		}
+
+		return x;
+	}
+
+	const MatrixBlock_ptr get_MatrixBlock()
+	{
+		uint64_t rows[3], cols[3];
+		for (uint8_t i = 0; i < 3; i++) rows[i] = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
+		for (uint8_t i = 0; i < 3; i++) cols[i] = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
+
+		MatrixBlock_ptr block = std::make_shared<MatrixBlock<double>>(rows, cols);
+
+		block->start = data + read_pos;
+		read_pos += 8*block->size;
+
+		return block;
+	}
+
+	const string get_IndexedRow()
+	{
+		uint64_t row = get_uint64();
+		uint64_t num_cols = get_uint64();
+		double value = 0.0;
+
+		for (uint64_t i = 0; i < num_cols; i++)
+			value = get_double();
+
+		return string("Indexed row");
+	}
+
 	const ArrayID get_ArrayID()
 	{
 		return (ArrayID) (signed_ints_only ? get_int16() : get_uint16());
@@ -884,18 +1041,6 @@ public:
 		}
 
 		return x;
-	}
-
-	const string get_IndexedRow()
-	{
-		uint64_t row = get_uint64();
-		uint64_t num_cols = get_uint64();
-		double value = 0.0;
-
-		for (uint64_t i = 0; i < num_cols; i++)
-			value = get_double();
-
-		return string("Indexed row");
 	}
 
 	const FloatArrayBlock_ptr get_FloatArrayBlock()
@@ -925,6 +1070,60 @@ public:
 
 		return block;
 	}
+
+//	const Parameter_ get_Parameter()
+//	{
+//		string name = get_string();
+//		datatype dt = get_datatype();
+//		void * value = nullptr;
+//
+//		switch (dt) {
+//		case BYTE:
+//			value = static_cast<void *>(std::make_shared<uint8_t>(get_byte()));
+//			break;
+//		case CHAR:
+//			value = static_cast<void *>(std::make_shared<char>(get_char()));
+//			break;
+//		case INT8:
+//			value = static_cast<void *>(std::make_shared<int8_t>(get_int8()));
+//			break;
+//		case INT16:
+//			value = static_cast<void *>(std::make_shared<int16_t>(get_int16()));
+//			break;
+//		case INT32:
+//			value = static_cast<void *>(std::make_shared<int32_t>(get_int32()));
+//			break;
+//		case INT64:
+//			value = static_cast<void *>(std::make_shared<int64_t>(get_int64()));
+//			break;
+//		case UINT8:
+//			value = static_cast<void *>(std::make_shared<uint8_t>(get_uint8()));
+//			break;
+//		case UINT16:
+//			value = static_cast<void *>(std::make_shared<uint16_t>(get_uint16()));
+//			break;
+//		case UINT32:
+//			value = static_cast<void *>(std::make_shared<uint32_t>(get_uint32()));
+//			break;
+//		case UINT64:
+//			value = static_cast<void *>(std::make_shared<uint64_t>(get_uint64()));
+//			break;
+//		case FLOAT:
+//			value = static_cast<void *>(std::make_shared<float>(get_float()));
+//			break;
+//		case DOUBLE:
+//			value = static_cast<void *>(std::make_shared<double>(get_double()));
+//			break;
+//		case STRING:
+//			value = static_cast<void *>(std::make_shared<string>(get_string()));
+//			break;
+//		case MATRIX_ID:
+//			value = static_cast<void *>(std::make_shared<MatrixID>(get_MatrixID()));
+//			break;
+//		}
+//
+//		return Parameter_(name, dt, value);
+//	}
 
 	// ========================================================================================================================================================
 
@@ -1053,10 +1252,12 @@ public:
 		return get_string();
 	}
 
-	void read_Parameter()
-	{
-		check_datatype(PARAMETER);
-	}
+//	const Parameter_ read_Parameter()
+//	{
+//		check_datatype(PARAMETER);
+//
+//		return get_Parameter();
+//	}
 
 	const LibraryID read_LibraryID()
 	{
@@ -1084,6 +1285,27 @@ public:
 		check_datatype(WORKER_INFO);
 
 		return get_WorkerInfo();
+	}
+
+	const MatrixID read_MatrixID()
+	{
+		check_datatype(MATRIX_ID);
+
+		return get_MatrixID();
+	}
+
+	const MatrixInfo_ptr read_MatrixInfo()
+	{
+		check_datatype(MATRIX_INFO);
+
+		return get_MatrixInfo();
+	}
+
+	const MatrixBlock_ptr read_MatrixBlock()
+	{
+		check_datatype(MATRIX_BLOCK);
+
+		return get_MatrixBlock();
 	}
 
 	const ArrayID read_ArrayID()
@@ -1115,6 +1337,19 @@ public:
 	}
 
 	// ========================================================================================================================================================
+
+	bool compare_matrix_block(MatrixBlock_ptr block, double * temp)
+	{
+		double local;
+		for (uint64_t i = 0; i < block->size; i++) {
+			memcpy(&local, block->start + 8*i, 8);
+			if (local != temp[i]) {
+				if (reverse_floats) reverse_double(&local);
+				if (local != temp[i]) return false;
+			}
+		}
+		return true;
+	}
 
 	bool compare_array_block(DoubleArrayBlock_ptr block, double * temp)
 	{
@@ -1198,14 +1433,23 @@ public:
 			case WORKER_INFO:
 				ss << get_WorkerInfo()->to_string();
 				break;
+			case MATRIX_ID:
+				ss << get_MatrixID();
+				break;
+			case MATRIX_INFO:
+				ss << get_MatrixInfo()->to_string(true);
+				break;
+			case MATRIX_BLOCK:
+				ss << get_MatrixBlock()->to_string();
+				break;
+			case INDEXED_ROW:
+				ss << get_IndexedRow();
+				break;
 			case ARRAY_ID:
 				ss << get_ArrayID();
 				break;
 			case ARRAY_INFO:
 				ss << get_ArrayInfo()->to_string(true);
-				break;
-			case INDEXED_ROW:
-				ss << get_IndexedRow();
 				break;
 			case ARRAY_BLOCK_DOUBLE:
 				ss << get_DoubleArrayBlock()->to_string();
@@ -1215,6 +1459,9 @@ public:
 				break;
 			case LIBRARY_ID:
 				ss << (int16_t) get_LibraryID();
+				break;
+			case PARAMETER:
+				ss << " ";
 				break;
 			default:
 				ss << "Invalid datatype";

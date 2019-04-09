@@ -31,7 +31,7 @@ bool DriverSession::send_response_string()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", getID(), get_address().c_str());
-	log->info("IN: {}", read_msg.to_string());
+//	log->info("IN: {}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;
@@ -205,17 +205,18 @@ void DriverSession::handle_yield_workers()
 
 	write_msg.start(clientID, sessionID, YIELD_WORKERS);
 
-	if (read_msg.eom()) {
+	uint16_t num_yielded_workers = read_msg.read_uint16();
+
+	if (num_yielded_workers == 0) {
 		for (auto it = workers.begin(); it != workers.end(); it++)
 			yielded_workers.push_back(it->first);
 	}
 	else {
-		while (!read_msg.eom()) {
+		for (uint16_t i = 0; i < num_yielded_workers; i++) {
 			workerID = read_msg.read_uint16();
 			it = group_driver.workers.find(workerID);
-			if (it != group_driver.workers.end()) {
+			if (it != group_driver.workers.end())
 				yielded_workers.push_back(workerID);
-			}
 		}
 	}
 
@@ -428,18 +429,18 @@ void DriverSession::handle_unload_library()
 
 void DriverSession::handle_matrix_info()
 {
-	string array_name = read_msg.read_string();
+	string matrix_name = read_msg.read_string();
 	uint64_t num_rows = read_msg.read_uint64();
 	uint64_t num_cols = read_msg.read_uint64();
 	uint8_t sparse = read_msg.read_uint8();
-	uint8_t layout = read_msg.read_uint8();
+	layout l = (layout) read_msg.read_uint8();
 
-	ArrayInfo_ptr x = group_driver.new_matrix(array_name, num_rows, num_cols, sparse, layout);
+	MatrixInfo_ptr x = group_driver.new_matrix(matrix_name, num_rows, num_cols, sparse, l);
 
 	log->info("Sending back info for array {}", x->ID);
 
 	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
-	write_msg.write_ArrayInfo(x);
+	write_msg.write_MatrixInfo(x);
 
 	flush();
 }
@@ -550,11 +551,11 @@ void DriverSession::remove_session()
 //	driver.remove_session();
 }
 
-void DriverSession::send_matrix_info(ArrayID arrayID)
+void DriverSession::send_matrix_info(MatrixID matrixID)
 {
 	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
-	log->info("Sending back ID for matrix {}", arrayID);
-	write_msg.write_ArrayInfo(group_driver.get_matrix_info(arrayID));
+	log->info("Sending back ID for matrix {}", matrixID);
+	write_msg.write_MatrixInfo(group_driver.get_matrix_info(matrixID));
 
 	flush();
 }

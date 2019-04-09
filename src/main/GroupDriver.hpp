@@ -38,13 +38,15 @@ public:
 	string list_workers();
 	uint16_t get_num_workers();
 
-	ArrayInfo_ptr get_matrix_info(const ArrayID matrixID);
+	MatrixInfo_ptr get_matrix_info(const MatrixID matrixID);
+
+	void get_process_grid();
 
 	string list_sessions();
 	LibraryID load_library(string library_name, string library_path);
-	ArrayID new_matrix(const ArrayInfo_ptr x);
-	ArrayInfo_ptr new_matrix(const string name, const uint64_t num_rows, const uint64_t num_cols, const uint8_t sparse, const uint8_t layout);
-	void determine_row_assignments(ArrayID & matrixID);
+	MatrixID new_matrix(const MatrixInfo_ptr x);
+	MatrixInfo_ptr new_matrix(const string name, const uint64_t num_rows, const uint64_t num_cols, const uint8_t sparse, const layout l);
+	void determine_worker_assignments(MatrixID & matrixID);
 	vector<vector<vector<float> > > prepare_data_layout_table(uint16_t num_alchemist_workers, uint16_t num_client_workers);
 
 
@@ -63,8 +65,8 @@ public:
 
 	bool check_libraryID(LibraryID & libID);
 
-	uint64_t get_num_rows(ArrayID & matrixID);
-	uint64_t get_num_cols(ArrayID & matrixID);
+	uint64_t get_num_rows(MatrixID & matrixID);
+	uint64_t get_num_cols(MatrixID & matrixID);
 
 	vector<WorkerInfo_ptr> get_all_workers();
 	vector<WorkerInfo_ptr> get_active_workers();
@@ -87,11 +89,11 @@ private:
 	client_language cl;
 
 	map<LibraryID, Library *> libraries;
-	map<ArrayID, ArrayInfo_ptr> matrices;
+	map<ArrayID, MatrixInfo_ptr> matrices;
 
 	Driver & driver;
 
-	ArrayID next_matrixID;
+	MatrixID next_matrixID;
 	LibraryID next_libraryID;
 
 	Log_ptr log;

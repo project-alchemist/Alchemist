@@ -77,6 +77,7 @@ typedef uint16_t ClientID;
 typedef uint16_t GroupID;
 typedef uint16_t SessionID;
 typedef uint16_t ArrayID;
+typedef uint16_t MatrixID;
 typedef uint16_t TaskID;
 typedef uint8_t LibraryID;
 
@@ -104,18 +105,26 @@ const string get_Boost_version()
 
 enum { IS_PARAMETER = true };
 
+struct Coordinate {
+	Coordinate() : row(0), col(0) { }
+	Coordinate(uint16_t _row, uint16_t _col) : row(_row), col(_col) { }
+
+	uint16_t row, col;
+};
+
 struct WorkerInfo {
 	WorkerInfo(WorkerID ID) :
 		WorkerInfo(ID, string("0"), string("0"), 0, 0) { }
 	WorkerInfo(WorkerID ID, string _hostname, string _address, uint16_t _port) :
 		WorkerInfo(ID, _hostname, _address, _port, 0) { }
 	WorkerInfo(WorkerID ID, string _hostname, string _address, uint16_t _port, GroupID groupID) :
-		ID(ID), hostname(_hostname), address(_address), port(_port), groupID(groupID)  { }
+		ID(ID), hostname(_hostname), address(_address), port(_port), groupID(groupID), grid_row(0), grid_col(0) { }
 
 	WorkerID ID;
 	string hostname, address;
 	uint16_t port;
 	GroupID groupID;
+	uint16_t grid_row, grid_col;
 
 	string to_string(bool include_allocation=true) const {
 		std::stringstream ss;
@@ -125,6 +134,154 @@ struct WorkerInfo {
 		ss << "Worker-" << string(buffer) << " running on " << hostname << " at " << address << ":" << port;
 		if (include_allocation)
 			(groupID > 0) ? ss << " - ACTIVE (group " << groupID << ")" : ss << " - IDLE";
+
+		return ss.str();
+	}
+};
+
+class Parameter_ {
+public:
+	string name;
+	datatype dt;
+	void * value;
+
+	Parameter_(string _name, datatype _dt, void * _value) {
+		name = _name;
+		dt = _dt;
+		value = _value;
+	}
+
+	template <typename T>
+	T * get_value() {
+		return static_cast<T *>(value);
+	}
+
+	template <typename T>
+	void set_value(T * _value) {
+		value = static_cast<void *>(_value);
+	}
+};
+
+struct MatrixInfo {
+	MatrixID ID;
+
+	string name;
+	uint64_t num_rows, num_cols;
+	uint8_t sparse;
+	layout l;
+	uint16_t num_partitions;
+
+	map<WorkerID, Coordinate> grid;
+
+	explicit MatrixInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(0), l(MC_MR), num_partitions(1) { }
+
+	MatrixInfo(MatrixID ID, uint64_t _num_rows, uint64_t _num_cols) :
+		ID(ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(0), l(MC_MR), num_partitions(1) { }
+
+	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(0), l(MC_MR), num_partitions(1) { }
+
+	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, layout _l) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), l(_l), num_partitions(1) { }
+
+	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, layout _l, uint16_t _num_partitions) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), l(_l), num_partitions(_num_partitions) {
+	}
+
+	~MatrixInfo() { }
+
+	void add_worker_assignment(WorkerID workerID, const Coordinate c) {
+		grid.insert(std::make_pair(workerID, c));
+	}
+
+	string to_string(bool display_grid=false) const {
+		std::stringstream ss;
+
+		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ", # partitions: " << (uint16_t) num_partitions << ")";
+		if (display_grid) {
+			ss << std::endl << "Grid: " << std::endl;
+			for (auto it = grid.begin(); it != grid.end(); it++)
+				ss << (uint16_t) it->first << ": " << it->second.row << ", " << it->second.col << "\n";
+		}
+
+		return ss.str();
+	}
+};
+
+template <typename T>
+struct MatrixBlock {
+	MatrixBlock(uint64_t _rows[3], uint64_t _cols[3]) : i(0), start(nullptr), T_length(sizeof(T))
+	{
+		for (uint8_t i = 0; i < 3; i++) rows[i] = _rows[i];
+		for (uint8_t i = 0; i < 3; i++) cols[i] = _cols[i];
+		size = std::ceil((1.0*rows[1] - rows[0] + 1.0)/rows[2]) * std::ceil((1.0*cols[1] - cols[0] + 1.0)/cols[2]);
+	}
+
+	MatrixBlock(MatrixBlock<T> & block) :  i(0), start(nullptr), T_length(sizeof(T))
+	{
+		for (uint8_t i = 0; i < 3; i++) rows[i] = block.rows[i];
+		for (uint8_t i = 0; i < 3; i++) cols[i] = block.cols[i];
+		size = block.size;
+	}
+
+	~MatrixBlock() { }
+
+	uint64_t i, size, rows[3], cols[3];
+	size_t T_length;
+	char * start;
+
+	void read_next(T * value)
+	{
+		if (i < size) {
+			memcpy(value, start + T_length*i, T_length);
+			i += 1;
+		}
+		else value = nullptr;
+	}
+
+	void write_next(T * value)
+	{
+		if (i < size) {
+			memcpy(start + T_length*i, value, T_length);
+			i += 1;
+		}
+		else value = nullptr;
+	}
+
+	void reset_counter() { i = 0; }
+
+	bool compare(T * A)
+	{
+		T temp;
+		for (uint64_t i = 0; i < size; i++) {
+			memcpy(&temp, start + T_length*i, T_length);
+			if (temp != A[i]) return false;
+		}
+		return true;
+	}
+
+	string to_string(bool print_data = false) const {
+		std::stringstream ss;
+		T temp;
+
+		ss << "Size: " << size << std::endl;
+		ss << "Rows: start = " << rows[0] << ", end = " << rows[1] << ", skip = " << rows[2] << std::endl;
+		ss << "Cols: start = " << cols[0] << ", end = " << cols[1] << ", skip = " << cols[2] << std::endl;
+		if (print_data) {
+			ss << "Data: ";
+			uint64_t m = 0;
+			if (size > 0) {
+				for (uint64_t j = 0; j < std::ceil((1.0*rows[1] - rows[0] + 1)/rows[2]); j++) {
+					for (uint64_t k = 0; k < std::ceil((1.0*cols[1] - cols[0] + 1)/cols[2]); k++) {
+
+						memcpy(&temp, start + T_length*m, T_length);
+						ss << temp << " ";
+						m++;
+					}
+					ss << std::endl;
+				}
+			}
+		}
 
 		return ss.str();
 	}
@@ -267,6 +424,8 @@ typedef std::shared_ptr<WorkerInfo> WorkerInfo_ptr;
 typedef std::shared_ptr<ArrayInfo> ArrayInfo_ptr;
 typedef std::shared_ptr<ArrayBlock<float>> FloatArrayBlock_ptr;
 typedef std::shared_ptr<ArrayBlock<double>> DoubleArrayBlock_ptr;
+typedef std::shared_ptr<MatrixInfo> MatrixInfo_ptr;
+typedef std::shared_ptr<MatrixBlock<double>> MatrixBlock_ptr;
 
 //inline bool exist_test (const std::string & name) {
 //    struct stat buffer;

@@ -54,11 +54,13 @@ public:
 	int get_transpose();
 	int matrix_multiply();
 
+	void handle_get_process_grid();
+
 	bool check_libraryID(LibraryID & libID);
 
 	int get_matrix_rows();
 
-	void print_data(ArrayID ID);
+	void print_data(MatrixID ID);
 
 	void serialize_parameters(Parameters & output_parameters, Message & msg);
 	void deserialize_parameters(Parameters & input_parameters, Message & msg);
@@ -66,14 +68,14 @@ public:
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 	void set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group);
 
-	uint64_t get_num_local_rows(ArrayID arrayID);
-	uint64_t get_num_local_cols(ArrayID arrayID);
+	uint64_t get_num_local_rows(MatrixID matrixID);
+	uint64_t get_num_local_cols(MatrixID matrixID);
 
-	void set_value(ArrayID arrayID, uint64_t row, uint64_t col, float value);
-	void set_value(ArrayID arrayID, uint64_t row, uint64_t col, double value);
+	void set_value(MatrixID matrixID, uint64_t row, uint64_t col, float value);
+	void set_value(MatrixID matrixID, uint64_t row, uint64_t col, double value);
 
-	void get_value(ArrayID arrayID, uint64_t row, uint64_t col, float & value);
-	void get_value(ArrayID arrayID, uint64_t row, uint64_t col, double & value);
+	void get_value(MatrixID matrixID, uint64_t row, uint64_t col, float & value);
+	void get_value(MatrixID matrixID, uint64_t row, uint64_t col, double & value);
 
 	int load_library();
 	void run_task();
@@ -84,7 +86,7 @@ private:
 	MPI_Comm group_peers;
 
 	GroupID groupID;
-	ArrayID current_matrixID;
+	MatrixID current_matrixID;
 	SessionID next_sessionID;
 
 	Worker & worker;
@@ -95,7 +97,7 @@ private:
 
 	map<LibraryID, Library *> libraries;
 	map<SessionID, WorkerSession_ptr> sessions;
-	map<ArrayID, DistMatrix_ptr> matrices;
+	map<MatrixID, DistMatrix_ptr> matrices;
 
 	bool connection_open;
 

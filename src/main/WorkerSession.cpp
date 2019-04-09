@@ -31,6 +31,7 @@ void WorkerSession::remove_session()
 int WorkerSession::handle_message()
 {
 //	log->info("{}", read_msg.to_string());
+//	log->info("IN: {}", read_msg.to_string());
 
 	client_command command = read_msg.cc;
 
@@ -75,7 +76,7 @@ int WorkerSession::handle_message()
 
 void WorkerSession::handle_send_indexed_rows()
 {
-	ArrayID arrayID = read_msg.read_ArrayID();
+	MatrixID matrixID = read_msg.read_MatrixID();
 	uint64_t row = 0, num_cols = 0, num_read_rows = 0;
 	double value = 0.0;
 
@@ -86,11 +87,11 @@ void WorkerSession::handle_send_indexed_rows()
 			row = read_msg.get_uint64();
 			num_cols = read_msg.get_uint64();
 
-			log->info("{} Receiving row {} for array {}", session_preamble(), row, arrayID);
+			log->info("{} Receiving row {} for matrix {}", session_preamble(), row, matrixID);
 
 			for (uint64_t i = 0; i < num_cols; i++) {
 				read_msg.get_double(value);
-				group_worker.set_value(arrayID, row, i, value);
+				group_worker.set_value(matrixID, row, i, value);
 			}
 
 			num_read_rows++;
@@ -100,10 +101,10 @@ void WorkerSession::handle_send_indexed_rows()
 		}
 	}
 
-	group_worker.print_data(arrayID);
+	group_worker.print_data(matrixID);
 
 	write_msg.start(clientID, sessionID, SEND_INDEXED_ROWS);
-	write_msg.write_ArrayID(arrayID);
+	write_msg.write_MatrixID(matrixID);
 	write_msg.write_uint64(num_read_rows);
 
 	flush();
@@ -111,21 +112,21 @@ void WorkerSession::handle_send_indexed_rows()
 
 void WorkerSession::handle_request_indexed_rows()
 {
-	ArrayID arrayID = read_msg.read_ArrayID();
+	MatrixID matrixID = read_msg.read_MatrixID();
 	uint64_t row = 0, num_cols = 0, num_read_rows = 0;
 	double value = 0.0;
 
 	write_msg.start(clientID, sessionID, REQUEST_INDEXED_ROWS);
-	write_msg.write_ArrayID(arrayID);
+	write_msg.write_MatrixID(matrixID);
 
 	while (!read_msg.eom()) {
 		row = read_msg.read_uint64();
-		num_cols = group_worker.get_num_local_cols(arrayID);
+		num_cols = group_worker.get_num_local_cols(matrixID);
 
 		write_msg.write_IndexedRow(row, num_cols);
 
 		for (uint64_t i = 0; i < num_cols; i++) {
-			group_worker.get_value(arrayID, row, i, value);
+			group_worker.get_value(matrixID, row, i, value);
 			write_msg.put_double(value);
 		}
 	}
@@ -138,26 +139,33 @@ bool WorkerSession::send_matrix_blocks()
 	uint32_t num_blocks = 0;
 	uint64_t i, j;
 	double temp;
-	DoubleArrayBlock_ptr in_block, out_block;
+	MatrixBlock_ptr in_block, out_block;
 
-	ArrayID matrixID = read_msg.read_uint16();
+	MatrixID matrixID = read_msg.read_MatrixID();
 
-	log->info("{} Sending data blocks for array {}", session_preamble(), matrixID);
+	log->info("{} Sending data blocks for matrix {}", session_preamble(), matrixID);
 
 	clock_t start = clock();
 
 	write_msg.start(clientID, sessionID, REQUEST_MATRIX_BLOCKS);
-	write_msg.write_uint16(matrixID);
+	write_msg.write_MatrixID(matrixID);
 
 	while (!read_msg.eom()) {
 
-		in_block = read_msg.read_DoubleArrayBlock();
-		out_block = std::make_shared<ArrayBlock<double>>(*in_block);
+		uint64_t rows[3], cols[3];
+		rows[0] = read_msg.read_uint64();
+		rows[1] = read_msg.read_uint64();
+		rows[2] = read_msg.read_uint64();
+		cols[0] = read_msg.read_uint64();
+		cols[1] = read_msg.read_uint64();
+		cols[2] = read_msg.read_uint64();
 
-		write_msg.write_DoubleArrayBlock(out_block);
+		out_block = std::make_shared<MatrixBlock<double>>(rows, cols);
 
-		for (i = in_block->dims[0][0]; i < in_block->dims[1][0]; i += in_block->dims[2][0])
-			for (j = in_block->dims[0][1]; j < in_block->dims[1][1]; j += in_block->dims[2][1]) {
+		write_msg.write_MatrixBlock(out_block);
+
+		for (i = out_block->rows[0]; i <= out_block->rows[1]; i += out_block->rows[2])
+			for (j = out_block->cols[0]; j <= out_block->cols[1]; j += out_block->cols[2]) {
 				group_worker.get_value(matrixID, i, j, temp);
 				out_block->write_next(&temp);
 			}
@@ -178,24 +186,24 @@ bool WorkerSession::receive_matrix_blocks()
 	uint64_t i, j;
 	double temp;
 
-	ArrayID matrixID = read_msg.read_ArrayID();
+	MatrixID matrixID = read_msg.read_MatrixID();
 
-	log->info("{} Receiving data blocks for array {}", session_preamble(), matrixID);
+	log->info("{} Receiving data blocks for matrix {}", session_preamble(), matrixID);
 
 	clock_t start = clock();
 
 	while (!read_msg.eom()) {
 
-		DoubleArrayBlock_ptr block = read_msg.read_DoubleArrayBlock();
+		MatrixBlock_ptr block = read_msg.read_MatrixBlock();
 
-		for (i = block->dims[0][0]; i < block->dims[1][0]; i += block->dims[2][0])
-			for (j = block->dims[0][1]; j < block->dims[1][1]; j += block->dims[2][1]) {
+		for (i = block->rows[0]; i <= block->rows[1]; i += block->rows[2])
+			for (j = block->cols[0]; j <= block->cols[1]; j += block->cols[2]) {
 				block->read_next(&temp);
 				group_worker.set_value(matrixID, i, j, temp);
 			}
 
 		num_blocks++;
-//		log->info("{} Array {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrixID, row_start, row_end, col_start, col_end);
+//		log->info("{} Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrixID, row_start, row_end, col_start, col_end);
 	}
 
 	write_msg.start(clientID, sessionID, SEND_MATRIX_BLOCKS);

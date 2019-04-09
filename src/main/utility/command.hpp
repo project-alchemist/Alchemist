@@ -49,6 +49,7 @@ typedef enum _alchemist_command : uint8_t {
 	_AM_GROUP_CLOSE_CONNECTIONS,
 	_AM_FREE_GROUP,
 	_AM_NEW_GROUP,
+	_AM_GET_PROCESS_GRID,
 	_AM_NEW_SESSION,
 	_AM_END_SESSION,
 	_AM_NEW_MATRIX,
@@ -141,6 +142,8 @@ inline const std::string get_command_name(const alchemist_command & c)
 			return "NEW GROUP";
 		case _AM_FREE_GROUP:
 			return "FREE GROUP";
+		case _AM_GET_PROCESS_GRID:
+			return "GET PROCESS GRID";
 		case _AM_NEW_SESSION:
 			return "NEW SESSION";
 		case _AM_END_SESSION:
