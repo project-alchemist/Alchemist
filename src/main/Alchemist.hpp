@@ -169,23 +169,23 @@ struct MatrixInfo {
 	uint64_t num_rows, num_cols;
 	uint8_t sparse;
 	layout l;
-	uint16_t num_partitions;
+	uint16_t num_grid_rows, num_grid_cols;
 
 	map<WorkerID, Coordinate> grid;
 
-	explicit MatrixInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(0), l(MC_MR), num_partitions(1) { }
+	explicit MatrixInfo() : ID(0), name(""), num_rows(1), num_cols(1), sparse(0), l(MC_MR), num_grid_rows(1), num_grid_cols(1) { }
 
 	MatrixInfo(MatrixID ID, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(0), l(MC_MR), num_partitions(1) { }
+		ID(ID), name(""), num_rows(_num_rows), num_cols(_num_cols), sparse(0), l(MC_MR), num_grid_rows(1), num_grid_cols(1) { }
 
 	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols) :
-		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(0), l(MC_MR), num_partitions(1) { }
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(0), l(MC_MR), num_grid_rows(1), num_grid_cols(1) { }
 
 	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, layout _l) :
-		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), l(_l), num_partitions(1) { }
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), l(_l), num_grid_rows(1), num_grid_cols(1) { }
 
-	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, layout _l, uint16_t _num_partitions) :
-		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), l(_l), num_partitions(_num_partitions) {
+	MatrixInfo(MatrixID ID, string _name, uint64_t _num_rows, uint64_t _num_cols, uint8_t _sparse, layout _l, uint16_t _num_grid_rows, uint16_t _num_grid_cols) :
+		ID(ID), name(_name), num_rows(_num_rows), num_cols(_num_cols), sparse(_sparse), l(_l), num_grid_rows(_num_grid_rows), num_grid_cols(_num_grid_cols) {
 	}
 
 	~MatrixInfo() { }
@@ -197,9 +197,9 @@ struct MatrixInfo {
 	string to_string(bool display_grid=false) const {
 		std::stringstream ss;
 
-		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ", # partitions: " << (uint16_t) num_partitions << ")";
+		ss << "Matrix " << name << " (ID: " << ID << ", dim: " << num_rows << " x " << num_cols << ", sparse: " << (uint16_t) sparse << ")";
 		if (display_grid) {
-			ss << std::endl << "Grid: " << std::endl;
+			ss << std::endl << "Grid (" << (uint16_t) num_grid_rows << " x " << (uint16_t) num_grid_cols << "):" << std::endl;
 			for (auto it = grid.begin(); it != grid.end(); it++)
 				ss << (uint16_t) it->first << ": " << it->second.row << ", " << it->second.col << "\n";
 		}
@@ -260,9 +260,23 @@ struct MatrixBlock {
 		return true;
 	}
 
-	string to_string(bool print_data = false) const {
+	double reverse_double(double * x)
+	{
+		char * x_char = (char *) x;
+		char temp;
+		temp = x_char[0]; x_char[0] = x_char[7]; x_char[7] = temp;
+		temp = x_char[1]; x_char[1] = x_char[6]; x_char[6] = temp;
+		temp = x_char[2]; x_char[2] = x_char[5]; x_char[5] = temp;
+		temp = x_char[3]; x_char[3] = x_char[4]; x_char[4] = temp;
+		x = (double *) x_char;
+
+		return *x;
+	}
+
+	string to_string(bool print_data = true) {
 		std::stringstream ss;
 		T temp;
+		double td = 0.0;
 
 		ss << "Size: " << size << std::endl;
 		ss << "Rows: start = " << rows[0] << ", end = " << rows[1] << ", skip = " << rows[2] << std::endl;
@@ -275,7 +289,8 @@ struct MatrixBlock {
 					for (uint64_t k = 0; k < std::ceil((1.0*cols[1] - cols[0] + 1)/cols[2]); k++) {
 
 						memcpy(&temp, start + T_length*m, T_length);
-						ss << temp << " ";
+						td = (double) temp;
+						ss << reverse_double(&td) << " ";
 						m++;
 					}
 					ss << std::endl;

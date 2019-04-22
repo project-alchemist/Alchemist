@@ -31,7 +31,7 @@ bool DriverSession::send_response_string()
 int DriverSession::handle_message()
 {
 //	log->info("Received message from Session {} at {}", getID(), get_address().c_str());
-//	log->info("IN: {}", read_msg.to_string());
+	log->info("IN: {}", read_msg.to_string());
 //	log->info("{}", read_msg.cc);
 
 	client_command command = read_msg.cc;

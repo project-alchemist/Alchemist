@@ -31,7 +31,7 @@ void WorkerSession::remove_session()
 int WorkerSession::handle_message()
 {
 //	log->info("{}", read_msg.to_string());
-//	log->info("IN: {}", read_msg.to_string());
+	log->info("IN: {}", read_msg.to_string());
 
 	client_command command = read_msg.cc;
 

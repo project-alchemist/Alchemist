@@ -421,7 +421,8 @@ public:
 		signed_ints_only ? put_int64((int64_t) x->num_cols) : put_uint64(x->num_cols);
 		signed_ints_only ? put_int8((int8_t) x->sparse) : put_uint8(x->sparse);
 		signed_ints_only ? put_int8((int8_t) x->l) : put_uint8(x->l);
-		signed_ints_only ? put_int16((int16_t) x->num_partitions) : put_uint16(x->num_partitions);
+		signed_ints_only ? put_int16((int16_t) x->num_grid_rows) : put_uint16(x->num_grid_rows);
+		signed_ints_only ? put_int16((int16_t) x->num_grid_cols) : put_uint16(x->num_grid_cols);
 		for (auto it = x->grid.begin(); it != x->grid.end(); it++) {
 			put_WorkerID(it->first);
 			signed_ints_only ? put_int16((int16_t) it->second.row) : put_uint16(it->second.row);
@@ -976,11 +977,12 @@ public:
 		uint64_t num_cols = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
 		uint8_t sparse = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
 		layout l = (layout) (signed_ints_only ? get_int8() : get_uint8());
-		uint16_t num_partitions = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
+		uint16_t num_grid_rows = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
+		uint16_t num_grid_cols = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
 
-		MatrixInfo_ptr x = std::make_shared<MatrixInfo>(ID, name, num_rows, num_cols, sparse, l, num_partitions);
+		MatrixInfo_ptr x = std::make_shared<MatrixInfo>(ID, name, num_rows, num_cols, sparse, l, num_grid_rows, num_grid_cols);
 
-		for (uint16_t i = 0; i < num_partitions; i++) {
+		for (uint16_t i = 0; i < num_grid_rows * num_grid_cols; i++) {
 			WorkerID w = get_WorkerID();
 			uint16_t row = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());
 			uint16_t col = (uint16_t) (signed_ints_only ? get_int16() : get_uint16());

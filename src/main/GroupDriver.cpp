@@ -297,6 +297,7 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 		bool sparse = false;
 		layout l = MC_MR;
 		uint8_t num_partitions = (uint8_t) workers.size();
+		uint16_t num_grid_rows, num_grid_cols;
 
 		WorkerID primary_worker = workers.begin()->first;
 
@@ -313,10 +314,12 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 				MPI_Recv(&l, 1, MPI_BYTE, primary_worker, 0, group, &status);
+				MPI_Recv(&num_grid_rows, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
+				MPI_Recv(&num_grid_cols, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
 
 				MPI_Barrier(group);
 
-				matrices.insert(std::make_pair(next_matrixID, std::make_shared<MatrixInfo>(next_matrixID, distmatrix_name, num_rows, num_cols, sparse, l, num_partitions)));
+				matrices.insert(std::make_pair(next_matrixID, std::make_shared<MatrixInfo>(next_matrixID, distmatrix_name, num_rows, num_cols, sparse, l, num_grid_rows, num_grid_cols)));
 				matrixIDs[i] = next_matrixID++;
 
 				for (auto it = workers.begin(); it != workers.end(); it++) {
@@ -655,15 +658,21 @@ MatrixInfo_ptr GroupDriver::new_matrix(const string name, const uint64_t num_row
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
+	WorkerID primary_worker = workers.begin()->first;
+
 	Coordinate c;
 	MatrixInfo_ptr x = std::make_shared<MatrixInfo>(next_matrixID++, name, num_rows, num_cols, sparse, l);
+
 
 	MPI_Bcast(&x->ID, 1, MPI_UNSIGNED_SHORT, 0, group);
 	MPI_Bcast(&x->num_rows, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&x->num_cols, 1, MPI_UNSIGNED_LONG, 0, group);
 	MPI_Bcast(&x->sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
 	MPI_Bcast(&x->l, 1, MPI_UNSIGNED_CHAR, 0, group);
-	x->num_partitions = (uint16_t) workers.size();
+
+	MPI_Recv(&x->num_grid_rows, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
+	MPI_Recv(&x->num_grid_cols, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
+//	x->num_partitions = num_grid_rows * num_grid_cols;
 
 	for (auto it = workers.begin(); it != workers.end(); it++) {
 		WorkerID id = it->first;

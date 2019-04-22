@@ -371,6 +371,13 @@ int GroupWorker::new_matrix()
 	MPI_Bcast(&sparse, 1, MPI_UNSIGNED_CHAR, 0, group);
 	MPI_Bcast(&l, 1, MPI_UNSIGNED_CHAR, 0, group);
 
+	if (primary_group_worker) {
+		uint16_t num_grid_rows = (uint16_t) grid->Height(), (uint16_t), num_grid_cols = grid->Width();
+
+		MPI_Send(&num_grid_rows, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
+		MPI_Send(&num_grid_cols, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
+	}
+
 	DistMatrix_ptr M;
 	switch (l) {
 	case MC_MR:
@@ -471,6 +478,9 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 				auto col_dist = distmatrix_ptrs[i]->ColDist();
 				auto row_dist = distmatrix_ptrs[i]->RowDist();
 
+				uint16_t num_grid_rows = grid->Height();
+				uint16_t num_grid_cols = grid->Width();
+
 				if (col_dist == 0 && row_dist == 2)
 					l = MC_MR;
 				else if (col_dist == 0 && row_dist == 5)
@@ -499,6 +509,9 @@ void GroupWorker::read_matrix_parameters(Parameters & output_parameters)
 					l = VR_STAR;
 
 				MPI_Send(&l, 1, MPI_BYTE, 0, 0, group);
+
+				MPI_Send(&num_grid_rows, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
+				MPI_Send(&num_grid_cols, 1, MPI_UNSIGNED_SHORT, 0, 0, group);
 			}
 
 			MPI_Barrier(group);
