@@ -19,10 +19,33 @@ export EIGEN3_PATH=$SCRATCH/lib/Eigen3
 export ARPACK_PATH=$SCRATCH/lib/ARPACK
 export ASIO_PATH=$SCRATCH/lib/asio
 
+export LD_LIBRARY_PATH=$ELEMENTAL_PATH/lib:$ARPACK_PATH/lib:$LIBRARY_PATH
+export CC="cc"
+export CXX="CC"
+export FC="ftn"
 export TEMP_DIR=$SCRATCH/lib/temp
 
 
 mkdir -p $TEMP_DIR
+
+
+# Check that the cmake toolchain file is where we expect
+TOOLCHAIN=$ALCHEMIST_PATH/setup/Cori/gnu.cmake
+[ -f "$TOOLCHAIN" ]
+
+# Setup
+module unload darshan
+module unload PrgEnv-intel
+module load PrgEnv-gnu
+module load gcc
+module load java
+module load python
+module load boost
+module load cmake
+module load sbt
+module load fftw
+module load hdf5-parallel
+
 
 # Install Elemental
 RUN cd $TEMP_DIR && \
