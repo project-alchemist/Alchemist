@@ -1,5 +1,5 @@
 #!/bin/bash
-set -o verbose
+#set -o verbose
 
 # This script installs the prerequisites for building Alchemist on Cori
 #
@@ -48,7 +48,7 @@ module load hdf5-parallel
 
 
 # Install Elemental
-RUN cd $TEMP_DIR && \
+cd $TEMP_DIR && \
     git clone git://github.com/elemental/Elemental.git && \
     cd Elemental && \
     git checkout 0.87 && \
@@ -61,7 +61,7 @@ RUN cd $TEMP_DIR && \
     rm -rf Elemental
 
 # Install ARPACK
-RUN cd $TEMP_DIR && \
+cd $TEMP_DIR && \
     git clone https://github.com/opencollab/arpack-ng && \
     cd arpack-ng && \
     git checkout 3.5.0 && \
@@ -74,7 +74,7 @@ RUN cd $TEMP_DIR && \
     rm -rf arrack-ng
 
 # Install ARPACKPP
-RUN cd $TEMP_DIR && \
+cd $TEMP_DIR && \
     git clone https://github.com/m-reuter/arpackpp && \
     cd arpackpp && \
     git checkout 88085d99c7cd64f71830dde3855d73673a5e872b && \
@@ -86,7 +86,7 @@ RUN cd $TEMP_DIR && \
     rm -rf arpackpp
 
 # Install Eigen3
-RUN cd $TEMP_DIR && \
+cd $TEMP_DIR && \
     curl -L http://bitbucket.org/eigen/eigen/get/3.3.4.tar.bz2 | tar xvfj - && \
     cd eigen-eigen-5a0156e40feb && \
     mkdir build && \
@@ -98,14 +98,14 @@ RUN cd $TEMP_DIR && \
     rm -rf eigen-eigen-5a0156e40feb
 
 # Install SPDlog
-RUN cd $TEMP_DIR && \
+cd $TEMP_DIR && \
     git clone https://github.com/gabime/spdlog.git && \
     cd spdlog && \
     mkdir $SPDLOG_PATH && cp -r include/ $SPDLOG_PATH/include/ && \
     cd $TEMP_DIR && rm -rf spdlog
 
 # Install asio
-RUN cd $TEMP_DIR && \
+cd $TEMP_DIR && \
     wget -O asio-1.12.1.zip https://sourceforge.net/projects/asio/files/asio/1.12.1%20%28Stable%29/asio-1.12.1.zip/download && \
     unzip asio-1.12.1.zip && \
     cd asio-1.12.1 && ./configure --prefix=$ASIO_PATH && make install -j4 && \
