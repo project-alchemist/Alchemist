@@ -56,6 +56,8 @@ public:
 
 	void set_client_language(client_language _cl);
 
+	void set_message_buffer_lengths(uint32_t buffer_length);
+
 //	void assign_workers();
 //	bool list_all_workers();
 //	bool list_active_workers();

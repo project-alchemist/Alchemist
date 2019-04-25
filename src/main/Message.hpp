@@ -44,7 +44,7 @@ public:
 	bool reverse_floats;
 	bool signed_ints_only;
 
-	Message() : Message(100000000) { }
+	Message() : Message(1000) { }
 
 	Message(uint32_t _max_body_length) : cc(WAIT), clientID(0), sessionID(0), body_length(0), cl(C), read_pos(header_length), current_datatype(NONE),
 				current_datatype_count(0), current_datatype_count_max(0), max_body_length(_max_body_length), current_datatype_count_pos(header_length+1),
@@ -162,6 +162,19 @@ public:
 
 		read_pos = header_length;
 		write_pos = header_length;
+	}
+
+	void set_buffer_length(uint32_t & buffer_length)
+	{
+		max_body_length = buffer_length - header_length;
+
+		delete [] data;
+		data = new char[header_length + max_body_length]();
+	}
+
+	uint32_t get_buffer_length()
+	{
+		return max_body_length;
 	}
 
 	void start(const ClientID & clientID, const SessionID & sessionID, const client_command & cc)

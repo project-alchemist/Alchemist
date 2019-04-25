@@ -141,8 +141,13 @@ bool Session::handle_handshake()
 			MatrixBlock_ptr block = read_msg.read_MatrixBlock();
 			if (read_msg.compare_matrix_block(block, temp)) {
 
+				uint32_t buffer_length = read_msg.read_uint32();
+
 				log->info("{} Received handshake", preamble());
 				log->info("{} Client Language is {}", preamble(), get_client_language_name(cl));
+
+				set_message_buffer_lengths(buffer_length);
+
 				return valid_handshake();
 			}
 		}
@@ -151,6 +156,21 @@ bool Session::handle_handshake()
 	invalid_handshake();
 
 	return false;
+}
+
+void Session::set_message_buffer_lengths(uint32_t buffer_length)
+{
+	uint32_t previous_buffer_length = read_msg.get_buffer_length();
+	read_msg.set_buffer_length(buffer_length);
+	uint32_t current_buffer_length = read_msg.get_buffer_length();
+
+	log->info("{} Input message buffer length changed from {} to {} bytes", previous_buffer_length, current_buffer_length);
+
+	uint32_t previous_buffer_length = write_msg.get_buffer_length();
+	write_msg.set_buffer_length(buffer_length);
+	uint32_t current_buffer_length = write_msg.get_buffer_length();
+
+	log->info("{} Output message buffer length changed from {} to {} bytes", previous_buffer_length, current_buffer_length);
 }
 
 bool Session::valid_handshake()
