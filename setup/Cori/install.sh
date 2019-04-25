@@ -26,12 +26,9 @@ export ARPACK_PATH=$SCRATCH/lib/ARPACK
 export ASIO_PATH=$SCRATCH/lib/asio
 
 export LD_LIBRARY_PATH=$ELEMENTAL_PATH/lib:$ARPACK_PATH/lib:$LIBRARY_PATH
-# export CC="cc"
-# export CXX="CC"
-# export FC="ftn"
-export CC=gcc-7
-export CXX=g++-7
-export FC=gfortran-7
+export CC="cc"
+export CXX="CC"
+export FC="ftn"
 export TEMP_DIR=$SCRATCH/lib/temp
 
 MAKE_THREADS=16
@@ -92,7 +89,7 @@ if [ "$INSTALL_ARPACK" = 1 ]; then
     git clone https://github.com/opencollab/arpack-ng
     cd arpack-ng
     git checkout 3.5.0
-    mkdir build
+    mkdir -p build
     cd build
     cmake -DMPI=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=${ARPACK_PATH} ..
     nice make -j"$MAKE_THREADS"
@@ -107,7 +104,7 @@ if [ "$INSTALL_ARPACK" = 1 ]; then
     git clone https://github.com/m-reuter/arpackpp
     cd arpackpp
     git checkout 88085d99c7cd64f71830dde3855d73673a5e872b
-    mkdir build
+    mkdir -p build
     cd build
     cmake -DCMAKE_INSTALL_PREFIX=${ARPACK_PATH} ..
     make install
@@ -123,7 +120,7 @@ if [ "$INSTALL_EIGEN" = 1 ]; then
 	cd $TEMP_DIR
     curl -L http://bitbucket.org/eigen/eigen/get/3.3.4.tar.bz2 | tar xvfj -
     cd eigen-eigen-5a0156e40feb
-    mkdir build
+    mkdir -p build
     cd build
     cmake -DCMAKE_INSTALL_PREFIX=${EIGEN3_PATH} ..
     nice make -j"$MAKE_THREADS"
