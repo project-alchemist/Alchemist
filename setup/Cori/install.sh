@@ -49,19 +49,16 @@ module load PrgEnv-gnu
 module load gcc
 module load java
 module load python
-module load boost
 module load cmake
 module load sbt
 module load fftw
-module load hdf5-parallel
 
+# Check that the cmake toolchain file is where we expect
+TOOLCHAIN=$ALCHEMIST_PATH/setup/Cori/gnu.cmake
+[ -f "$TOOLCHAIN" ]
 
 # Install Elemental
 if [ "$INSTALL_ELEMENTAL" = 1 ]; then
-
-	# Check that the cmake toolchain file is where we expect
-	TOOLCHAIN=$ALCHEMIST_PATH/setup/Cori/gnu.cmake
-	[ -f "$TOOLCHAIN" ]
 
 	echo " "
 	echo "Installing Elemental"
@@ -91,7 +88,8 @@ if [ "$INSTALL_ARPACK" = 1 ]; then
     git checkout 3.5.0
     mkdir -p build
     cd build
-    cmake -DMPI=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=${ARPACK_PATH} ..
+    cmake -DCMAKE_INSTALL_PREFIX=$ARPACK_PATH -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-dynamic" -DCMAKE_CXX_FLAGS="-dynamic" -DCMAKE_Fortran_FLAGS="-dynamic" ..
     nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
@@ -106,7 +104,8 @@ if [ "$INSTALL_ARPACK" = 1 ]; then
     git checkout 88085d99c7cd64f71830dde3855d73673a5e872b
     mkdir -p build
     cd build
-    cmake -DCMAKE_INSTALL_PREFIX=${ARPACK_PATH} ..
+    cmake -DCMAKE_INSTALL_PREFIX=${ARPACK_PATH} -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-dynamic" -DCMAKE_CXX_FLAGS="-dynamic" -DCMAKE_Fortran_FLAGS="-dynamic" ..
     make install
     cd $TEMP_DIR
     rm -rf arpackpp
@@ -122,7 +121,8 @@ if [ "$INSTALL_EIGEN" = 1 ]; then
     cd eigen-eigen-5a0156e40feb
     mkdir -p build
     cd build
-    cmake -DCMAKE_INSTALL_PREFIX=${EIGEN3_PATH} ..
+    cmake -DCMAKE_INSTALL_PREFIX=$EIGEN3_PATH -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-dynamic" -DCMAKE_CXX_FLAGS="-dynamic" -DCMAKE_Fortran_FLAGS="-dynamic" ..
     nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
