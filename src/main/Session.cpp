@@ -166,9 +166,9 @@ void Session::set_message_buffer_lengths(uint32_t buffer_length)
 
 	log->info("{} Input message buffer length changed from {} to {} bytes", previous_buffer_length, current_buffer_length);
 
-	uint32_t previous_buffer_length = write_msg.get_buffer_length();
+	previous_buffer_length = write_msg.get_buffer_length();
 	write_msg.set_buffer_length(buffer_length);
-	uint32_t current_buffer_length = write_msg.get_buffer_length();
+	current_buffer_length = write_msg.get_buffer_length();
 
 	log->info("{} Output message buffer length changed from {} to {} bytes", previous_buffer_length, current_buffer_length);
 }
