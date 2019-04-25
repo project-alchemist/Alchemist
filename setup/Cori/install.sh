@@ -65,7 +65,7 @@ if [ "$INSTALL_ELEMENTAL" = 1 ]; then
 	cd $TEMP_DIR
 	git clone git://github.com/elemental/Elemental.git
 	cd Elemental
-    git checkout 0.87
+    git checkout tags/v0.87.4
     mkdir -p build
     cd build
     cmake -DCMAKE_INSTALL_PREFIX="$ELEMENTAL_PATH" -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DCMAKE_BUILD_TYPE=Release \
