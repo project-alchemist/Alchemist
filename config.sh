@@ -17,11 +17,12 @@ elif [ "$SYSTEM" = "Linux" ]; then
 	export SPDLOG_PATH=/usr/local/spdlog
 
 elif [ "$SYSTEM" = "Cori" ]; then
-	export ALCHEMIST_PATH=$SCRATCH/Projects/Alchemist2
-	export ELEMENTAL_PATH=$SCRATCH/Software/Elemental
-	export SPDLOG_PATH=$SCRATCH/Software/SPDLog	
-	export EIGEN3_PATH=$SCRATCH/Software/Eigen3
-	export ARPACK_PATH=$SCRATCH/Software/ARPACK
+	export ALCHEMIST_PATH=$SCRATCH/Projects/Alchemist
+	export ELEMENTAL_PATH=$SCRATCH/lib/Elemental
+	export SPDLOG_PATH=$SCRATCH/lib/spdlog	
+	export EIGEN3_PATH=$SCRATCH/lib/Eigen
+	export ARPACK_PATH=$SCRATCH/lib/ARPACK
+	export ASIO_PATH=$SCRATCH/lib/asio
 	
 elif [ "$SYSTEM" = "<your system here>" ]; then
 	export ALCHEMIST_PATH=$HOME/Projects/Alchemist
