@@ -26,9 +26,12 @@ export ARPACK_PATH=$SCRATCH/lib/ARPACK
 export ASIO_PATH=$SCRATCH/lib/asio
 
 export LD_LIBRARY_PATH=$ELEMENTAL_PATH/lib:$ARPACK_PATH/lib:$LIBRARY_PATH
-export CC="cc"
-export CXX="CC"
-export FC="ftn"
+# export CC="cc"
+# export CXX="CC"
+# export FC="ftn"
+export CC=gcc-7
+export CXX=g++-7
+export FC=gfortran-7
 export TEMP_DIR=$SCRATCH/lib/temp
 
 MAKE_THREADS=16
@@ -41,9 +44,6 @@ mkdir -p $ARPACK_PATH
 mkdir -p $ASIO_PATH
 
 
-# Check that the cmake toolchain file is where we expect
-TOOLCHAIN=$ALCHEMIST_PATH/setup/Cori/gnu.cmake
-[ -f "$TOOLCHAIN" ]
 
 # Setup
 module unload darshan
@@ -61,6 +61,12 @@ module load hdf5-parallel
 
 # Install Elemental
 if [ "$INSTALL_ELEMENTAL" = 1 ]; then
+
+	# Check that the cmake toolchain file is where we expect
+	TOOLCHAIN=$ALCHEMIST_PATH/setup/Cori/gnu.cmake
+	[ -f "$TOOLCHAIN" ]
+
+	echo " "
 	echo "Installing Elemental"
 	echo "--------------------"
 	cd $TEMP_DIR
@@ -69,7 +75,8 @@ if [ "$INSTALL_ELEMENTAL" = 1 ]; then
     git checkout 0.87
     mkdir -p build
     cd build
-    CC=gcc-7 CXX=g++-7 FC=gfortran-7 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$ELEMENTAL_PATH ..
+    cmake -DCMAKE_INSTALL_PREFIX="$ELEMENTAL_PATH" -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_FLAGS="-dynamic" -DCMAKE_CXX_FLAGS="-dynamic" -DCMAKE_Fortran_FLAGS="-dynamic" ..
     nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
@@ -78,6 +85,7 @@ fi
 
 # Install ARPACK
 if [ "$INSTALL_ARPACK" = 1 ]; then
+	echo " "
 	echo "Installing Arpack-ng"
 	echo "--------------------"
 	cd $TEMP_DIR
@@ -92,6 +100,7 @@ if [ "$INSTALL_ARPACK" = 1 ]; then
     cd $TEMP_DIR
     rm -rf arrack-ng
 
+	echo " "
 	echo "Installing Arpackpp"
 	echo "-------------------"
     cd $TEMP_DIR
@@ -108,6 +117,7 @@ fi
 
 # Install Eigen
 if [ "$INSTALL_EIGEN" = 1 ]; then
+	echo " "
 	echo "Installing Eigen"
 	echo "----------------"
 	cd $TEMP_DIR
@@ -124,6 +134,7 @@ fi
 
 # Install spdlog
 if [ "$INSTALL_SPDLOG" = 1 ]; then
+	echo " "
 	echo "Installing spdlog"
 	echo "----------------"
 	cd $TEMP_DIR
@@ -137,15 +148,16 @@ fi
 
 # Install asio
 if [ "$INSTALL_ASIO" = 1 ]; then
+	echo " "
 	echo "Installing asio"
 	echo "---------------"
 	cd $TEMP_DIR
-    wget -O asio-1.12.1.zip https://sourceforge.net/projects/asio/files/asio/1.12.1%20%28Stable%29/asio-1.12.1.zip/download
-    unzip asio-1.12.1.zip
-    cd asio-1.12.1
+    wget -O asio-1.12.2.zip https://sourceforge.net/projects/asio/files/asio/1.12.2%20%28Stable%29/asio-1.12.2.zip/download
+    unzip asio-1.12.2.zip
+    cd asio-1.12.2
     ./configure --prefix=$ASIO_PATH --without-boost
     make install -j"$MAKE_THREADS"
     cd $TEMP_DIR
-    rm -rf asio-1.12.1 asio-1.12.1.zip
+    rm -rf asio-1.12.2 asio-1.12.2.zip
 fi
 
