@@ -41,7 +41,6 @@ mkdir -p $ARPACK_PATH
 mkdir -p $ASIO_PATH
 
 
-
 # Setup
 module unload darshan
 module unload PrgEnv-intel
