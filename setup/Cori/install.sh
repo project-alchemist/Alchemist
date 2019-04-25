@@ -70,7 +70,7 @@ if [ "$INSTALL_ELEMENTAL" = 1 ]; then
     mkdir -p build
     cd build
     CC=gcc-7 CXX=g++-7 FC=gfortran-7 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$ELEMENTAL_PATH ..
-    nice make -j"MAKE_THREADS"
+    nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
     rm -rf Elemental
@@ -87,7 +87,7 @@ if [ "$INSTALL_ARPACK" = 1 ]; then
     mkdir build
     cd build
     cmake -DMPI=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=${ARPACK_PATH} ..
-    nice make -j"MAKE_THREADS"
+    nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
     rm -rf arrack-ng
@@ -116,7 +116,7 @@ if [ "$INSTALL_EIGEN" = 1 ]; then
     mkdir build
     cd build
     cmake -DCMAKE_INSTALL_PREFIX=${EIGEN3_PATH} ..
-    nice make -j"MAKE_THREADS"
+    nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
     rm -rf eigen-eigen-5a0156e40feb
@@ -144,7 +144,7 @@ if [ "$INSTALL_ASIO" = 1 ]; then
     unzip asio-1.12.1.zip
     cd asio-1.12.1
     ./configure --prefix=$ASIO_PATH --without-boost
-    make install -j"MAKE_THREADS"
+    make install -j"$MAKE_THREADS"
     cd $TEMP_DIR
     rm -rf asio-1.12.1 asio-1.12.1.zip
 fi
