@@ -69,7 +69,7 @@ if [ "$INSTALL_ELEMENTAL" = 1 ]; then
     mkdir -p build
     cd build
     cmake -DCMAKE_INSTALL_PREFIX="$ELEMENTAL_PATH" -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_C_FLAGS="-dynamic" -DCMAKE_CXX_FLAGS="-dynamic" -DCMAKE_Fortran_FLAGS="-dynamic" ..
+    -DCMAKE_C_FLAGS="-dynamic" -DCMAKE_CXX_FLAGS="-dynamic" -DCMAKE_Fortran_FLAGS="-dynamic" -DEL_DISABLE_QUAD=TRUE -DMATH_LIBS="-mkl" ..
     nice make -j"$MAKE_THREADS"
     make install
     cd $TEMP_DIR
