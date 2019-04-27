@@ -3,7 +3,7 @@ include $(ELEMENTAL_PATH)/conf/ElVars
 SRC_PATH = $(ALCHEMIST_PATH)/src/main
 TARGET_PATH = $(ALCHEMIST_PATH)/target
 
-CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++14 -fext-numeric-literals -fopenmp
+CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++14 -fopenmp
 CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 CXXFLAGS += "-I$(SPDLOG_PATH)/include"
 CXXFLAGS += "-I$(ARPACK_PATH)/include"
@@ -15,7 +15,7 @@ LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-L$(ELEMENTAL_PATH)/lib64" "-Wl,-rpath,$(ELEMENTAL_PATH)/lib64"
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
 LDFLAGS += "-Wl,-rpath,$(ARPACK_PATH)/lib64"
-LDFLAGS += -larpack
+#LDFLAGS += -larpack
 LDFLAGS += -Wl,-rpath,/opt/intel/compilers_and_libraries_2018.3.222/linux/compiler/lib/intel64_lin/ -L/opt/intel/compilers_and_libraries_2018.3.222/linux/compiler/lib/intel64_lin/ -lirc
 
 OBJ_FILES = \
@@ -30,7 +30,7 @@ OBJ_FILES = \
 	$(TARGET_PATH)/GroupWorker.o
 
 $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
-	$(CXX) -c $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 $< -o $@
+	$(CXX) -c $(CXXFLAGS) $< -o $@
 
 .PHONY: default
 default: $(TARGET_PATH)/alchemist
