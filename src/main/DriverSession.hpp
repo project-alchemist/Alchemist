@@ -3,7 +3,6 @@
 
 #include "Session.hpp"
 #include "GroupDriver.hpp"
-#include "Parameters.hpp"
 
 namespace alchemist {
 

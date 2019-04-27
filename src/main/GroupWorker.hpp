@@ -4,7 +4,7 @@
 #include "Server.hpp"
 #include "Worker.hpp"
 #include "WorkerSession.hpp"
-#include "Library.hpp"
+//#include "Library.hpp"
 
 namespace alchemist {
 
@@ -12,6 +12,7 @@ class Worker;
 class WorkerSession;
 
 typedef std::shared_ptr<El::Grid> Grid_ptr;
+typedef std::shared_ptr<Parameter> Parameter_ptr;
 typedef std::shared_ptr<WorkerSession> WorkerSession_ptr;
 
 class GroupWorker : public Server, public std::enable_shared_from_this<GroupWorker>
@@ -62,8 +63,8 @@ public:
 
 	void print_data(MatrixID ID);
 
-	void serialize_parameters(Parameters & output_parameters, Message & msg);
-	void deserialize_parameters(Parameters & input_parameters, Message & msg);
+	void serialize_parameters(vector<Parameter_ptr> & out_parameters, Message & msg);
+	void deserialize_parameters(vector<Parameter_ptr> & in_parameters, Message & msg);
 
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 	void set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group);
@@ -130,9 +131,7 @@ private:
 
 	// ---------------------------------------   Parameters   ----------------------------------------
 
-	int process_input_parameters(Parameters & input_parameters);
-	int process_output_parameters(Parameters & output_parameters);
-	void read_matrix_parameters(Parameters & output_parameters);
+	void read_matrix_parameters(vector<Parameter_ptr> & out_parameters);
 
 	// -------------------------------------   Client Management   -----------------------------------
 

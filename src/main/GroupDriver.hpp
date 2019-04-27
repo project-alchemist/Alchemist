@@ -4,7 +4,6 @@
 #include "Alchemist.hpp"
 #include "Driver.hpp"
 #include "DriverSession.hpp"
-#include "Library.hpp"
 
 namespace alchemist {
 
@@ -57,11 +56,9 @@ public:
 //	int run_task(LibraryID libID, string task, ArrayID matrixID, uint32_t rank, uint8_t method);
 	void run_task(const char * & in_data, uint32_t & in_data_length, char * & out_data, uint32_t & out_data_length, client_language cl);
 	void run_task(Message & in, Message & out);
-	int process_input_parameters(Parameters & input_parameters);
-	int process_output_parameters(Parameters & output_parameters);
 
-	void serialize_parameters(Parameters & output_parameters, Message & msg);
-	void deserialize_parameters(Parameters & input_parameters, Message & msg);
+	void serialize_parameters(std::vector<Parameter_ptr> & out_parameters, Message & msg);
+	void deserialize_parameters(std::vector<Parameter_ptr> & in_parameters, Message & msg);
 
 	bool check_libraryID(LibraryID & libID);
 

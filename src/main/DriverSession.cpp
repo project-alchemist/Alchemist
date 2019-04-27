@@ -437,7 +437,7 @@ void DriverSession::handle_matrix_info()
 
 	MatrixInfo_ptr x = group_driver.new_matrix(matrix_name, num_rows, num_cols, sparse, l);
 
-	log->info("Sending back info for array {}", x->ID);
+	log->info("Sending back info for matrix {}", x->ID);
 
 	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
 	write_msg.write_MatrixInfo(x);

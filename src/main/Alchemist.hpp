@@ -18,6 +18,7 @@
 #include <sstream>
 #include <complex>
 #include <cmath>
+#include <dlfcn.h>
 #ifdef ASIO_STANDALONE
 #include <asio.hpp>
 #else
@@ -71,6 +72,8 @@ const string get_Alchemist_version();
 const string get_Boost_version();
 
 typedef El::Matrix<double> Array;
+typedef El::DistMatrix<double> DistMatrix;
+typedef std::shared_ptr<El::AbstractDistMatrix<double>> DistMatrix_ptr;
 
 typedef uint16_t WorkerID;
 typedef uint16_t ClientID;
@@ -138,6 +141,36 @@ struct WorkerInfo {
 		return ss.str();
 	}
 };
+
+struct Parameter {
+	Parameter(string _name, datatype _dt, void * _p) : name(_name), dt(_dt), p(_p) { }
+
+	string name;
+	datatype dt;
+	void * p;
+};
+
+typedef std::shared_ptr<Parameter> Parameter_ptr;
+
+struct Library {
+
+	Library(MPI_Comm & _world);
+
+	virtual ~Library() { }
+
+	Log_ptr log;
+
+	MPI_Comm & world;
+
+	virtual int load() = 0;
+	virtual int unload() = 0;
+	virtual int run(string & task_name, std::vector<Parameter_ptr> & in, std::vector<Parameter_ptr> & out) = 0;
+};
+
+typedef void * create_t(MPI_Comm &);
+typedef void destroy_t(void *);
+
+typedef std::shared_ptr<Library> Library_ptr;
 
 class Parameter_ {
 public:

@@ -67,19 +67,19 @@ public:
 	    return bint.c[0] == 1;
 	}
 
-	const uint32_t get_max_body_length() const { return max_body_length; }
+	uint32_t get_max_body_length() const { return max_body_length; }
 
-	const int32_t length() const
+	int32_t length() const
 	{
 		return body_length + header_length;
 	}
 
-	const int32_t get_body_length() const
+	int32_t get_body_length() const
 	{
 		return body_length;
 	}
 
-	const char * header() const
+	char * header() const
 	{
 		return &data[0];
 	}
@@ -107,7 +107,7 @@ public:
 		write_pos = body_length + header_length;
 	}
 
- 	const char * body() const
+ 	char * body() const
 	{
 		return &data[header_length];
 	}
@@ -117,7 +117,7 @@ public:
 		return &data[header_length];
 	}
 
-	const char * get_data()
+	char * get_data()
 	{
         put_body_length();
 
@@ -148,7 +148,7 @@ public:
 		}
 	}
 
-	const client_language get_client_language()
+	client_language get_client_language()
 	{
 		return cl;
 	}
@@ -186,7 +186,7 @@ public:
 		put_error_code(ERR_NONE);
 	}
 
-	const bool eom() {
+	bool eom() {
 		return (read_pos >= body_length + header_length);
 	}
 
@@ -219,7 +219,7 @@ public:
 		memcpy(data + write_pos++, &dt, 1);
 	}
 
-	const datatype get_datatype()
+	datatype get_datatype()
 	{
 		datatype next_datatype;
 		memcpy(&next_datatype, data + read_pos++, 1);
@@ -227,7 +227,7 @@ public:
 		return next_datatype;
 	}
 
-	const datatype preview_datatype()
+	datatype preview_datatype()
 	{
 		datatype next_datatype;
 		memcpy(&next_datatype, data + read_pos, 1);
@@ -424,6 +424,23 @@ public:
 	void put_MatrixID(const MatrixID & x)
 	{
 		signed_ints_only ? put_int16((int16_t) x) : put_uint16(x);
+	}
+
+	void put_MatrixInfo(const MatrixInfo & x)
+	{
+		put_MatrixID(x.ID);
+		put_string(x.name);
+		signed_ints_only ? put_int64((int64_t) x.num_rows) : put_uint64(x.num_rows);
+		signed_ints_only ? put_int64((int64_t) x.num_cols) : put_uint64(x.num_cols);
+		signed_ints_only ? put_int8((int8_t) x.sparse) : put_uint8(x.sparse);
+		signed_ints_only ? put_int8((int8_t) x.l) : put_uint8(x.l);
+		signed_ints_only ? put_int16((int16_t) x.num_grid_rows) : put_uint16(x.num_grid_rows);
+		signed_ints_only ? put_int16((int16_t) x.num_grid_cols) : put_uint16(x.num_grid_cols);
+		for (auto it = x.grid.begin(); it != x.grid.end(); it++) {
+			put_WorkerID(it->first);
+			signed_ints_only ? put_int16((int16_t) it->second.row) : put_uint16(it->second.row);
+			signed_ints_only ? put_int16((int16_t) it->second.col) : put_uint16(it->second.col);
+		}
 	}
 
 	void put_MatrixInfo(const MatrixInfo_ptr & x)
@@ -709,6 +726,13 @@ public:
 		put_MatrixID(x);
 	}
 
+	void write_MatrixInfo(const MatrixInfo & x, bool is_parameter = false)
+	{
+		if (is_parameter) put_datatype(PARAMETER);
+		put_datatype(MATRIX_INFO);
+		put_MatrixInfo(x);
+	}
+
 	void write_MatrixInfo(const MatrixInfo_ptr & x, bool is_parameter = false)
 	{
 		if (is_parameter) put_datatype(PARAMETER);
@@ -753,7 +777,7 @@ public:
 
 	// ========================================================================================================================================================
 
-	const ClientID get_ClientID()
+	ClientID get_ClientID()
 	{
 		if (signed_ints_only) {
 			int16_t x;
@@ -767,7 +791,7 @@ public:
 		}
 	}
 
-	const SessionID get_SessionID()
+	SessionID get_SessionID()
 	{
 		if (signed_ints_only) {
 			int16_t x;
@@ -781,7 +805,7 @@ public:
 		}
 	}
 
-	const client_command get_client_command()
+	client_command get_client_command()
 	{
 		client_command cc;
 		memcpy(&cc, data + 4, 1);
@@ -789,7 +813,7 @@ public:
 		return cc;
 	}
 
-	const alchemist_error_code get_error_code()
+	alchemist_error_code get_error_code()
 	{
 		alchemist_error_code ec;
 		memcpy(&ec, data + 5, 1);
@@ -797,7 +821,7 @@ public:
 		return ec;
 	}
 
-	const uint32_t get_body_length()
+	uint32_t get_body_length()
 	{
 		if (signed_ints_only) {
 			int32_t x;
@@ -811,7 +835,7 @@ public:
 		}
 	}
 
-	const uint8_t get_byte()
+	uint8_t get_byte()
 	{
 		uint8_t x;
 
@@ -821,7 +845,7 @@ public:
 		return x;
 	}
 
-	const char get_char()
+	char get_char()
 	{
 		char x;
 
@@ -831,7 +855,7 @@ public:
 		return x;
 	}
 
-	const int8_t get_int8()
+	int8_t get_int8()
 	{
 		int8_t x;
 
@@ -841,7 +865,7 @@ public:
 		return x;
 	}
 
-	const int16_t get_int16()
+	int16_t get_int16()
 	{
 		int16_t x;
 
@@ -851,7 +875,7 @@ public:
 		return be16toh(x);
 	}
 
-	const int32_t get_int32()
+	int32_t get_int32()
 	{
 		int32_t x;
 
@@ -861,7 +885,7 @@ public:
 		return be32toh(x);
 	}
 
-	const int64_t get_int64()
+	int64_t get_int64()
 	{
 		int64_t x;
 
@@ -871,7 +895,7 @@ public:
 		return be64toh(x);
 	}
 
-	const uint8_t get_uint8()
+	uint8_t get_uint8()
 	{
 		uint8_t x;
 
@@ -881,7 +905,7 @@ public:
 		return x;
 	}
 
-	const uint16_t get_uint16()
+	uint16_t get_uint16()
 	{
 		uint16_t x;
 
@@ -891,7 +915,7 @@ public:
 		return be16toh(x);
 	}
 
-	const uint32_t get_uint32()
+	uint32_t get_uint32()
 	{
 		uint32_t x;
 
@@ -901,7 +925,7 @@ public:
 		return be32toh(x);
 	}
 
-	const uint64_t get_uint64()
+	uint64_t get_uint64()
 	{
 		uint64_t x;
 
@@ -911,7 +935,7 @@ public:
 		return be64toh(x);
 	}
 
-	const float get_float()
+	float get_float()
 	{
 		float x;
 
@@ -922,7 +946,7 @@ public:
 		return x;
 	}
 
-	const double get_double()
+	double get_double()
 	{
 		double x;
 
@@ -940,7 +964,7 @@ public:
 		read_pos += 8;
 	}
 
-	const string get_string()
+	string get_string()
 	{
 		uint16_t string_length = signed_ints_only ? (uint16_t) get_int16() : get_uint16();
 		char string_c[string_length+1];
@@ -951,22 +975,22 @@ public:
 		return string(string_c);
 	}
 
-	const LibraryID get_LibraryID()
+	LibraryID get_LibraryID()
 	{
 		return (LibraryID) (signed_ints_only ? get_int8() : get_uint8());
 	}
 
-	const GroupID get_GroupID()
+	GroupID get_GroupID()
 	{
 		return (GroupID) (signed_ints_only ? get_int16() : get_uint16());
 	}
 
-	const WorkerID get_WorkerID()
+	WorkerID get_WorkerID()
 	{
 		return (WorkerID) (signed_ints_only ? get_int16() : get_uint16());
 	}
 
-	const WorkerInfo_ptr get_WorkerInfo()
+	WorkerInfo_ptr get_WorkerInfo()
 	{
 		WorkerID ID = get_WorkerID();
 		string hostname = get_string();
@@ -977,12 +1001,12 @@ public:
 		return std::make_shared<WorkerInfo>(ID, hostname, address, port, groupID);
 	}
 
-	const MatrixID get_MatrixID()
+	MatrixID get_MatrixID()
 	{
 		return (MatrixID) (signed_ints_only ? get_int16() : get_uint16());
 	}
 
-	const MatrixInfo_ptr get_MatrixInfo()
+	MatrixInfo_ptr get_MatrixInfo()
 	{
 		MatrixID ID = get_MatrixID();
 		string name = get_string();
@@ -1006,7 +1030,7 @@ public:
 		return x;
 	}
 
-	const MatrixBlock_ptr get_MatrixBlock()
+	MatrixBlock_ptr get_MatrixBlock()
 	{
 		uint64_t rows[3], cols[3];
 		for (uint8_t i = 0; i < 3; i++) rows[i] = (uint64_t) (signed_ints_only ? get_int64() : get_uint64());
@@ -1020,7 +1044,7 @@ public:
 		return block;
 	}
 
-	const string get_IndexedRow()
+	string get_IndexedRow()
 	{
 		uint64_t row = get_uint64();
 		uint64_t num_cols = get_uint64();
@@ -1032,12 +1056,12 @@ public:
 		return string("Indexed row");
 	}
 
-	const ArrayID get_ArrayID()
+	ArrayID get_ArrayID()
 	{
 		return (ArrayID) (signed_ints_only ? get_int16() : get_uint16());
 	}
 
-	const ArrayInfo_ptr get_ArrayInfo()
+	ArrayInfo_ptr get_ArrayInfo()
 	{
 		ArrayID ID = get_ArrayID();
 		string name = get_string();
@@ -1058,7 +1082,7 @@ public:
 		return x;
 	}
 
-	const FloatArrayBlock_ptr get_FloatArrayBlock()
+	FloatArrayBlock_ptr get_FloatArrayBlock()
 	{
 		uint8_t ndims = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
 		FloatArrayBlock_ptr block = std::make_shared<ArrayBlock<float>>(ndims);
@@ -1072,7 +1096,7 @@ public:
 		return block;
 	}
 
-	const DoubleArrayBlock_ptr get_DoubleArrayBlock()
+	DoubleArrayBlock_ptr get_DoubleArrayBlock()
 	{
 		uint8_t ndims = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
 		DoubleArrayBlock_ptr block = std::make_shared<ArrayBlock<double>>(ndims);
@@ -1142,7 +1166,7 @@ public:
 
 	// ========================================================================================================================================================
 
-	const client_language read_client_language()
+	client_language read_client_language()
 	{
 		client_language cl;
 		datatype dt = preview_datatype();
@@ -1156,49 +1180,49 @@ public:
 		return cl;
 	}
 
-	const uint8_t read_byte()
+	uint8_t read_byte()
 	{
 		check_datatype(BYTE);
 
 		return get_byte();
 	}
 
-	const char read_char()
+	char read_char()
 	{
 		check_datatype(CHAR);
 
 		return get_char();
 	}
 
-	const int8_t read_int8()
+	int8_t read_int8()
 	{
 		check_datatype(INT8);
 
 		return get_int8();
 	}
 
-	const int16_t read_int16()
+	int16_t read_int16()
 	{
 		check_datatype(INT16);
 
 		return get_int16();
 	}
 
-	const int32_t read_int32()
+	int32_t read_int32()
 	{
 		check_datatype(INT32);
 
 		return get_int32();
 	}
 
-	const int64_t read_int64()
+	int64_t read_int64()
 	{
 		check_datatype(INT64);
 
 		return get_int64();
 	}
 
-	const uint8_t read_uint8()
+	uint8_t read_uint8()
 	{
 		if (signed_ints_only) {
 			check_datatype(INT8);
@@ -1210,7 +1234,7 @@ public:
 		}
 	}
 
-	const uint16_t read_uint16()
+	uint16_t read_uint16()
 	{
 		if (signed_ints_only) {
 			check_datatype(INT16);
@@ -1222,7 +1246,7 @@ public:
 		}
 	}
 
-	const uint32_t read_uint32()
+	uint32_t read_uint32()
 	{
 		if (signed_ints_only) {
 			check_datatype(INT32);
@@ -1234,7 +1258,7 @@ public:
 		}
 	}
 
-	const uint64_t read_uint64()
+	uint64_t read_uint64()
 	{
 		if (signed_ints_only) {
 			check_datatype(INT64);
@@ -1246,105 +1270,105 @@ public:
 		}
 	}
 
-	const float read_float()
+	float read_float()
 	{
 		check_datatype(FLOAT);
 
 		return get_float();
 	}
 
-	const double read_double()
+	double read_double()
 	{
 		check_datatype(DOUBLE);
 
 		return get_double();
 	}
 
-	const string read_string()
+	string read_string()
 	{
 		check_datatype(STRING);
 
 		return get_string();
 	}
 
-//	const Parameter_ read_Parameter()
+//	Parameter_ read_Parameter()
 //	{
 //		check_datatype(PARAMETER);
 //
 //		return get_Parameter();
 //	}
 
-	const LibraryID read_LibraryID()
+	LibraryID read_LibraryID()
 	{
 		check_datatype(LIBRARY_ID);
 
 		return get_LibraryID();
 	}
 
-	const GroupID read_GroupID()
+	GroupID read_GroupID()
 	{
 		check_datatype(GROUP_ID);
 
 		return get_GroupID();
 	}
 
-	const WorkerID read_WorkerID()
+	WorkerID read_WorkerID()
 	{
 		check_datatype(WORKER_ID);
 
 		return get_WorkerID();
 	}
 
-	const WorkerInfo_ptr read_WorkerInfo()
+	WorkerInfo_ptr read_WorkerInfo()
 	{
 		check_datatype(WORKER_INFO);
 
 		return get_WorkerInfo();
 	}
 
-	const MatrixID read_MatrixID()
+	MatrixID read_MatrixID()
 	{
 		check_datatype(MATRIX_ID);
 
 		return get_MatrixID();
 	}
 
-	const MatrixInfo_ptr read_MatrixInfo()
+	MatrixInfo_ptr read_MatrixInfo()
 	{
 		check_datatype(MATRIX_INFO);
 
 		return get_MatrixInfo();
 	}
 
-	const MatrixBlock_ptr read_MatrixBlock()
+	MatrixBlock_ptr read_MatrixBlock()
 	{
 		check_datatype(MATRIX_BLOCK);
 
 		return get_MatrixBlock();
 	}
 
-	const ArrayID read_ArrayID()
+	ArrayID read_ArrayID()
 	{
 		check_datatype(ARRAY_ID);
 
 		return get_ArrayID();
 	}
 
-	const ArrayInfo_ptr read_ArrayInfo()
+	ArrayInfo_ptr read_ArrayInfo()
 	{
 		check_datatype(ARRAY_INFO);
 
 		return get_ArrayInfo();
 	}
 
-	const FloatArrayBlock_ptr read_FloatArrayBlock()
+	FloatArrayBlock_ptr read_FloatArrayBlock()
 	{
 		check_datatype(ARRAY_BLOCK_FLOAT);
 
 		return get_FloatArrayBlock();
 	}
 
-	const DoubleArrayBlock_ptr read_DoubleArrayBlock()
+	DoubleArrayBlock_ptr read_DoubleArrayBlock()
 	{
 		check_datatype(ARRAY_BLOCK_DOUBLE);
 
@@ -1379,7 +1403,7 @@ public:
 		return true;
 	}
 
-	const string to_string()
+	string to_string()
 	{
 		decode_header();
 
@@ -1516,7 +1540,7 @@ public:
 
 
 
-//const void read_next(stringstream & ss, uint32_t & i, const datatype & dt)
+//void read_next(stringstream & ss, uint32_t & i, const datatype & dt)
 //{
 //	switch (dt) {
 //		case BYTE:
