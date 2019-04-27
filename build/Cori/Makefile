@@ -3,8 +3,9 @@ include $(ELEMENTAL_PATH)/conf/ElVars
 SRC_PATH = $(ALCHEMIST_PATH)/src/main
 TARGET_PATH = $(ALCHEMIST_PATH)/target
 
+# Put Elemental's CXXFLAGS in front so ours can override them
+CXXFLAGS += $(EL_COMPILE_FLAGS)
 CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++14 -fopenmp
-CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 CXXFLAGS += "-I$(SPDLOG_PATH)/include"
 CXXFLAGS += "-I$(ASIO_PATH)/include"
 
