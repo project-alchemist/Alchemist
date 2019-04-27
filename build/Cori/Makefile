@@ -9,9 +9,10 @@ CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++14 -fopenmp
 CXXFLAGS += "-I$(SPDLOG_PATH)/include"
 CXXFLAGS += "-I$(ASIO_PATH)/include"
 
-LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-L$(ELEMENTAL_PATH)/lib64" "-Wl,-rpath,$(ELEMENTAL_PATH)/lib64"
+LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS) 
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
+LDFLAGS += -lgfortran
 LDFLAGS += -Wl,-rpath,/opt/intel/compilers_and_libraries_2019.3.199/linux/compiler/lib/intel64_lin/ -L/opt/intel/compilers_and_libraries_2019.3.199/linux/compiler/lib/intel64_lin/ -lirc
 
 OBJ_FILES = \
