@@ -11,11 +11,11 @@ CXXFLAGS += "-I$(SPDLOG_PATH)/include"
 CXXFLAGS += "-I$(ARPACK_PATH)/include"
 CXXFLAGS += "-I$(ASIO_PATH)/include"
 
-#LDLIBS = -lmpi -ldl
+LDLIBS = -lmpi -ldl
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
+LDFLAGS += "-L$(ELEMENTAL_PATH)/lib64" "-Wl,-rpath,$(ELEMENTAL_PATH)/lib64"
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
-LDFLAGS += "-L$(ELEMENTAL_PATH)/lib64"
 LDFLAGS += -larpack
 LDFLAGS += -Wl,-rpath,/opt/intel/compilers_and_libraries_2018.3.222/linux/compiler/lib/intel64_lin/ -L/opt/intel/compilers_and_libraries_2018.3.222/linux/compiler/lib/intel64_lin/ -lirc
 
