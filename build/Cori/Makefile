@@ -3,15 +3,13 @@ include $(ELEMENTAL_PATH)/conf/ElVars
 SRC_PATH = $(ALCHEMIST_PATH)/src/main
 TARGET_PATH = $(ALCHEMIST_PATH)/target
 
-# Put Elemental's CXXFLAGS in front so ours can override them
-CXXFLAGS += $(EL_COMPILE_FLAGS) -fdiagnostics-color=always
 CXXFLAGS += -Wno-unused -Wno-reorder -DASIO_STANDALONE -std=c++14 -fext-numeric-literals -fopenmp
 CXXFLAGS += "-I$(ELEMENTAL_PATH)/include"
 CXXFLAGS += "-I$(SPDLOG_PATH)/include"
 CXXFLAGS += "-I$(ARPACK_PATH)/include"
 CXXFLAGS += "-I$(ASIO_PATH)/include"
 
-LDLIBS = -lmpi -ldl
+# LDLIBS = -lmpi -ldl
 
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS)
 LDFLAGS += "-L$(ELEMENTAL_PATH)/lib64" "-Wl,-rpath,$(ELEMENTAL_PATH)/lib64"
@@ -37,7 +35,7 @@ $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
 default: $(TARGET_PATH)/alchemist
 
 $(TARGET_PATH)/alchemist: $(TARGET_PATH) $(OBJ_FILES)
-	$(CXX) $(CXXFLAGS) -D_GLIBCXX_USE_CXX11_ABI=1 -o $@ $(OBJ_FILES) -rdynamic $(LDLIBS) $(LDFLAGS)
+	$(CXX) -dynamic $(CXXFLAGS) -o $@ $(OBJ_FILES) -rdynamic $(LDFLAGS)
 
 $(TARGET_PATH):
 	mkdir -p $(TARGET_PATH)
