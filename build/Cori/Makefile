@@ -36,7 +36,7 @@ $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
 default: $(TARGET_PATH)/alchemist
 
 $(TARGET_PATH)/alchemist: $(TARGET_PATH) $(OBJ_FILES)
-	$(CXX) -dynamic $(CXXFLAGS) -o $@ $(OBJ_FILES) -rdynamic $(LDFLAGS)
+	$(CXX) -dynamic $(CXXFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS)
 
 $(TARGET_PATH):
 	mkdir -p $(TARGET_PATH)
