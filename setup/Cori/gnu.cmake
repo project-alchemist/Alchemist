@@ -17,4 +17,4 @@ set(OpenMP_CXX_FLAGS "-fopenmp")
 
 string(REPLACE " " ";" GNU_VERSIONS $ENV{PE_LIBSCI_GENCOMPS_GNU_x86_64})
 list(GET GNU_VERSIONS 0 GNU_VERSION_NUMBER)
-set(MATH_LIBS "-L/opt/cray/pe/libsci/default/GNU/${GNU_VERSION_NUMBER}/x86_64/lib -lsci_gnu")
+# set(MATH_LIBS "-L/opt/cray/pe/libsci/default/GNU/${GNU_VERSION_NUMBER}/x86_64/lib -lsci_gnu")

@@ -12,7 +12,7 @@ CXXFLAGS += "-I$(ASIO_PATH)/include"
 LDFLAGS += "-L$(ELEMENTAL_PATH)/lib64" "-Wl,-rpath,$(ELEMENTAL_PATH)/lib64"
 LDFLAGS += "-L$(EL_LIB)" "-Wl,-rpath,$(EL_LIB)" $(EL_LIBS) 
 LDFLAGS += "-Wl,-rpath,$(SPDLOG_PATH)/lib"
-LDFLAGS += -lgfortran
+#LDFLAGS += -lgfortran
 LDFLAGS += -Wl,-rpath,/opt/intel/compilers_and_libraries_2019.3.199/linux/compiler/lib/intel64_lin/ -L/opt/intel/compilers_and_libraries_2019.3.199/linux/compiler/lib/intel64_lin/ -lirc
 
 OBJ_FILES = \
