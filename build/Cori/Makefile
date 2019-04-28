@@ -27,13 +27,13 @@ OBJ_FILES = \
 	$(TARGET_PATH)/GroupWorker.o
 
 $(TARGET_PATH)/%.o: $(SRC_PATH)/%.cpp
-	$(CXX) -c $(CXXFLAGS) $< -o $@
+	$(CXX) -shared -fPIC $(CXXFLAGS) $< -o $@
 
 .PHONY: default
 default: $(TARGET_PATH)/alchemist
 
 $(TARGET_PATH)/alchemist: $(TARGET_PATH) $(OBJ_FILES)
-	$(CXX) -dynamic $(CXXFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS)
+	$(CXX) -dynamic -fPIC $(CXXFLAGS) -o $@ $(OBJ_FILES) $(LDFLAGS)
 
 $(TARGET_PATH):
 	mkdir -p $(TARGET_PATH)
