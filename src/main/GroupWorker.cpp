@@ -105,9 +105,12 @@ int GroupWorker::wait_for_command()
 		MPI_Ibcast(&c, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 		while (flag == 0) {
 			MPI_Test(&req, &flag, &status);
-			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		}
 
+//		GroupWorker::handle_command(c);
+		//std::future<int> handle = std::async(std::launch::async, &GroupWorker::handle_command, this, c);
+		//		int ret = handle.get();
 		threads.push_back(std::thread(&GroupWorker::handle_command, this, c));
 
 		flag = 0;
@@ -160,24 +163,54 @@ int GroupWorker::handle_command(alchemist_command c)
 		case _AM_GROUP_CLOSE_CONNECTIONS:
 			handle_group_close_connections();
 			break;
-		case _AM_GET_PROCESS_GRID:
+		case _AM_GET_PROCESS_GRID: {
+//			std::thread t = std::thread(&GroupWorker::handle_get_process_grid, this);
+//			t.join();
+////			std::future<void> handle1 = std::async(std::launch::async, &GroupWorker::handle_get_process_grid, this);
+////			handle1.get();
 			handle_get_process_grid();
 			break;
-		case _AM_NEW_MATRIX:
+		}
+		case _AM_NEW_MATRIX: {
+//			std::thread t = std::thread(&GroupWorker::new_matrix, this);
+//			t.join();
+////			std::future<int> handle2 = std::async(std::launch::async, &GroupWorker::new_matrix, this);
+////			int dummy2 = handle2.get();
 			new_matrix();
 			break;
-		case _AM_FREE_GROUP:
+		}
+		case _AM_FREE_GROUP: {
+//			std::thread t = std::thread(&GroupWorker::handle_free_group, this);
+//			t.join();
+////			std::future<void> handle3 = std::async(std::launch::async, &GroupWorker::handle_free_group, this);
+////			handle3.get();
 			handle_free_group();
 			break;
-		case _AM_CLIENT_MATRIX_LAYOUT:
+		}
+		case _AM_CLIENT_MATRIX_LAYOUT: {
+//			std::thread t = std::thread(&GroupWorker::get_matrix_layout, this);
+//			t.join();
+////			std::future<int> handle4 = std::async(std::launch::async, &GroupWorker::get_matrix_layout, this);
+////			int dummy4 = handle4.get();
 			get_matrix_layout();
 			break;
-		case _AM_WORKER_LOAD_LIBRARY:
+		}
+		case _AM_WORKER_LOAD_LIBRARY: {
+//			std::thread t = std::thread(&GroupWorker::load_library, this);
+//			t.join();
+////			std::future<int> handle5 = std::async(std::launch::async, &GroupWorker::load_library, this);
+////			int dummy5 = handle5.get();
 			load_library();
 			break;
-		case _AM_WORKER_RUN_TASK:
+		}
+		case _AM_WORKER_RUN_TASK: {
+//			std::thread t = std::thread(&GroupWorker::run_task, this);
+//			t.join();
+////			std::future<void> handle6 = std::async(std::launch::async, &GroupWorker::run_task, this);
+////			handle6.get();
 			run_task();
 			break;
+		}
 	}
 
 	return 0;
@@ -204,7 +237,15 @@ void GroupWorker::handle_group_open_connections()
 {
 	connection_open = true;
 	MPI_Barrier(group);
-	accept_connection();
+	log->info("Accepting connections ...");
+//	while (true) {
+		std::thread t = std::thread(&GroupWorker::accept_connection, this);
+//		std::future<int> handle = std::async(std::launch::async, &GroupWorker::accept_connection, this);
+//		int dummy = handle.get();
+		t.join();
+//	}
+
+//	accept_connection();
 }
 
 void GroupWorker::handle_group_close_connections()
