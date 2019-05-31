@@ -267,15 +267,12 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	log->info("A1");
-
-	uint32_t in_data_length = in_msg.get_body_length();
-	log->info("A2");
-
-	MPI_Bcast(&in_data_length, 1, MPI_UNSIGNED, 0, group);
-	log->info("A3");
-	MPI_Bcast(in_msg.body(), in_data_length, MPI_CHAR, 0, group);
-	log->info("A4");
+	uint32_t msg_settings[2] = {0, 0};;
+	msg_settings[0] = in_msg.get_body_length();
+	if (in_msg.reverse_floats)
+		msg_settings[1] = 1;
+	MPI_Bcast(&msg_settings, 2, MPI_UNSIGNED, 0, group);
+	MPI_Bcast(in_msg.body(), msg_settings[0], MPI_CHAR, 0, group);
 
 	MPI_Barrier(group);
 
@@ -284,44 +281,14 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 
 	MPI_Barrier(group);
 
-	log->info("A5");
 	LibraryID libID = in_msg.read_LibraryID();
 
-	log->info("A6 {}", libID);
 	if (check_libraryID(libID)) {
 		string function_name = in_msg.read_string();
 
-		log->info("A7 {}", function_name);
-
 		deserialize_parameters(in_parameters, in_msg);
 
-		int rank = 0;
-		MatrixInfo * A = nullptr;
-		log->info("___b2");
-
-		for (auto it = in_parameters.begin(); it != in_parameters.end(); it++) {
-			log->info("___b3 {}", (*it)->name);
-			if ((*it)->name == "rank") {
-				log->info("___b4");
-				rank = (int) * reinterpret_cast<uint32_t * >((*it)->p);
-				log->info("___bb_ {} {}", (*it)->name, rank);
-			}
-			else if ((*it)->name == "A") {
-				log->info("___b4");
-				A = reinterpret_cast<MatrixInfo * >((*it)->p);
-				log->info("___b5");
-				log->info("___bb_ {} {}", (*it)->name, A->num_rows);
-			}
-		}
-
-		log->info("A8");
-
-		for (auto it = in_parameters.begin(); it != in_parameters.end(); it++) {
-			log->info("{} {}", (*it)->name, get_datatype_name((*it)->dt));
-		}
-
 		libraries[libID]->run(function_name, in_parameters, out_parameters);
-		log->info("A9");
 
 		MPI_Barrier(group);
 
@@ -334,36 +301,26 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 		layout l = MC_MR;
 		uint8_t num_partitions = (uint8_t) workers.size();
 		uint16_t num_grid_rows, num_grid_cols;
-		log->info("A10");
 
 		WorkerID primary_worker = workers.begin()->first;
-		log->info("A11");
-
 
 		MPI_Recv(&num_distmatrices, 1, MPI_INT, primary_worker, 0, group, &status);
-		log->info("A12");
-
 
 		if (num_distmatrices > 0) {
-			log->info("A13");
-
 			MatrixID matrixIDs[num_distmatrices];
 			for (int i = 0; i < num_distmatrices; i++) {
-				log->info("A14 {}", i);
 
 				MPI_Recv(&dmnl, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
 				char distmatrix_name_c[dmnl];
 				MPI_Recv(distmatrix_name_c, dmnl, MPI_CHAR, primary_worker, 0, group, &status);
 				distmatrix_name = string(distmatrix_name_c);
-				log->info("A15 {}", i);
 
 				MPI_Recv(&num_rows, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
 				MPI_Recv(&num_cols, 1, MPI_UNSIGNED_LONG, primary_worker, 0, group, &status);
-				log->info("A16 {}", i);
+
 				MPI_Recv(&l, 1, MPI_BYTE, primary_worker, 0, group, &status);
 				MPI_Recv(&num_grid_rows, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
 				MPI_Recv(&num_grid_cols, 1, MPI_UNSIGNED_SHORT, primary_worker, 0, group, &status);
-				log->info("A17 {}", i);
 
 				MPI_Barrier(group);
 
@@ -383,42 +340,11 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 			}
 
 			MPI_Bcast(&matrixIDs, num_distmatrices, MPI_UNSIGNED_SHORT, 0, group);
-
-//			uint64_t worker_num_rows;
-//			uint64_t * row_indices;
-//
-//			for (int i = 0; i < num_distmatrices; i++) {
-//
-//				std::clock_t start;
-//
-//				MPI_Bcast(&matrixIDs[i], 1, MPI_UNSIGNED_SHORT, 0, group);
-//				MPI_Barrier(group);
-//
-//				for (auto it = workers.begin(); it != workers.end(); it++) {
-//
-//					WorkerID id = it->first;
-//					MPI_Recv(&worker_num_rows, 1, MPI_UNSIGNED_LONG, id, 0, group, &status);
-//
-//					row_indices = new uint64_t[worker_num_rows];
-//
-//					MPI_Recv(row_indices, (int) worker_num_rows, MPI_UNSIGNED_LONG, id, 0, group, &status);
-//					for (uint64_t j = 0; j < worker_num_rows; j++)
-//						matrices[matrixIDs[i]]->worker_assignments[row_indices[j]] = id;
-//
-//					delete [] row_indices;
-//				}
-//				out.add_matrix_info(matrices[matrixIDs[i]]->name, matrices[matrixIDs[i]]);
-//			}
 		}
 
-		log->info("A99");
-		MPI_Barrier(group);
-
 		serialize_parameters(out_parameters, out_msg);
+		MPI_Barrier(group);
 	}
-
-//	out_msg.update_body_length();
-//	out_msg.update_datatype_count();
 }
 
 void GroupDriver::deserialize_parameters(std::vector<Parameter_ptr> & in_parameters, Message & msg) {
@@ -429,52 +355,48 @@ void GroupDriver::deserialize_parameters(std::vector<Parameter_ptr> & in_paramet
 	while (!msg.eom()) {
 		dt = (datatype) msg.get_datatype();
 		if (dt == PARAMETER) {
-//			msg.read_Parameter();
 			name = msg.read_string();
 			dt = (datatype) msg.preview_datatype();
 
-			log->info("____ {} {}", name, get_datatype_name(dt));
-
-
 			switch (dt) {
 				case BYTE: {
-					std::shared_ptr<uint8_t> pbyte = std::make_shared<uint8_t>(msg.read_byte());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pbyte)));
+					uint8_t * pbyte = new uint8_t(msg.read_byte());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pbyte)));
 					break;
 				}
 				case CHAR: {
-					std::shared_ptr<char> pchar = std::make_shared<char>(msg.read_char());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pchar)));
+					char * pchar = new char(msg.read_char());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pchar)));
 					break;
 				}
 				case INT8: {
-					std::shared_ptr<int8_t> pint8 = std::make_shared<int8_t>(msg.read_int8());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pint8)));
+					int8_t * pint8 = new int8_t(msg.read_int8());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pint8)));
 					break;
 				}
 				case INT16: {
-					std::shared_ptr<int16_t> pint16 = std::make_shared<int16_t>(msg.read_int16());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pint16)));
+					int16_t * pint16 = new int16_t(msg.read_int16());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pint16)));
 					break;
 				}
 				case INT32: {
-					int32_t pint32 = msg.read_int32();
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pint32)));
+					int32_t * pint32 = new int32_t(msg.read_int32());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pint32)));
 					break;
 				}
 				case INT64: {
-					std::shared_ptr<int64_t> pint64 = std::make_shared<int64_t>(msg.read_int64());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pint64)));
+					int64_t * pint64 = new int64_t(msg.read_int64());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pint64)));
 					break;
 				}
 				case UINT8: {
-					std::shared_ptr<uint8_t> puint8 = std::make_shared<uint8_t>(msg.read_int8());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&puint8)));
+					uint8_t * puint8 = new uint8_t(msg.read_uint8());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(puint8)));
 					break;
 				}
 				case UINT16: {
-					std::shared_ptr<uint16_t> puint16 = std::make_shared<uint16_t>(msg.read_uint16());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&puint16)));
+					uint16_t * puint16 = new uint16_t(msg.read_uint16());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(puint16)));
 					break;
 				}
 				case UINT32: {
@@ -483,51 +405,31 @@ void GroupDriver::deserialize_parameters(std::vector<Parameter_ptr> & in_paramet
 					break;
 				}
 				case UINT64: {
-					std::shared_ptr<uint64_t> puint64 = std::make_shared<uint64_t>(msg.read_uint64());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&puint64)));
+					uint64_t * puint64 = new uint64_t(msg.read_uint64());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(puint64)));
 					break;
 				}
 				case FLOAT: {
-					std::shared_ptr<float> pfloat = std::make_shared<float>(msg.read_float());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pfloat)));
+					float * pfloat = new float(msg.read_float());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pfloat)));
 					break;
 				}
 				case DOUBLE: {
-					std::shared_ptr<double> pdouble = std::make_shared<double>(msg.read_double());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pdouble)));
+					double * pdouble = new double(msg.read_double());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pdouble)));
 					break;
 				}
 				case STRING: {
-					std::shared_ptr<string> pstring = std::make_shared<string>(msg.read_string());
-					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(&pstring)));
+					string * pstring = new string(msg.read_string());
+					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pstring)));
 					break;
 				}
 				case MATRIX_ID: {
 					MatrixInfo_ptr pmi = matrices[msg.read_MatrixID()];
-					log->info("___ {}", pmi->to_string());
 					in_parameters.push_back(std::make_shared<Parameter>(name, dt, reinterpret_cast<void *>(pmi.get())));
 					break;
 				}
 			}
-		}
-	}
-
-	int rank = 0;
-	MatrixInfo * A = nullptr;
-
-
-	for (auto it = in_parameters.begin(); it != in_parameters.end(); it++) {
-		log->info("__uuu_b3 {}", (*it)->name);
-		if ((*it)->name == "rank") {
-			log->info("__uuu_b4");
-			rank = (int) * reinterpret_cast<uint32_t * >((*it)->p);
-			log->info("__uu_bb_ {} {}", (*it)->name, rank);
-		}
-		else if ((*it)->name == "A") {
-			log->info("__uu_b4");
-			A = reinterpret_cast<MatrixInfo *>((*it)->p);
-			log->info("__uu_b5");
-			log->info("__uu_bb_ {} {}", (*it)->name, A->num_rows);
 		}
 	}
 }
@@ -544,81 +446,66 @@ void GroupDriver::serialize_parameters(std::vector<Parameter_ptr> & out_paramete
 
 		switch (dt) {
 			case BYTE: {
-				auto pbyte = * reinterpret_cast<std::shared_ptr<uint8_t> * >((*it)->p);
-				msg.write_byte(*pbyte);
+				msg.write_byte(* reinterpret_cast<uint8_t * >((*it)->p));
 				break;
 			}
 			case CHAR: {
-				auto pchar = * reinterpret_cast<std::shared_ptr<char> * >((*it)->p);
-				msg.write_byte(*pchar);
+				msg.write_char(* reinterpret_cast<char * >((*it)->p));
 				break;
 			}
 			case INT8: {
-				auto pint8 = * reinterpret_cast<std::shared_ptr<int8_t> * >((*it)->p);
-				msg.write_int8(*pint8);
+				msg.write_int8(* reinterpret_cast<int8_t * >((*it)->p));
 				break;
 			}
 			case INT16: {
-				auto pint16 = * reinterpret_cast<std::shared_ptr<int16_t> * >((*it)->p);
-				msg.write_int16(*pint16);
+				msg.write_int16(* reinterpret_cast<int16_t * >((*it)->p));
 				break;
 			}
 			case INT32: {
-				auto pint32 = * reinterpret_cast<std::shared_ptr<int32_t> * >((*it)->p);
-				msg.write_int32(*pint32);
+				msg.write_int32(* reinterpret_cast<int32_t * >((*it)->p));
 				break;
 			}
 			case INT64: {
-				auto pint64 = * reinterpret_cast<std::shared_ptr<int64_t> * >((*it)->p);
-				msg.write_int64(*pint64);
+				msg.write_int64(* reinterpret_cast<int64_t * >((*it)->p));
 				break;
 			}
 			case UINT8: {
-				auto puint8 = * reinterpret_cast<std::shared_ptr<uint8_t> * >((*it)->p);
-				msg.write_uint8(*puint8);
+				msg.write_uint8(* reinterpret_cast<uint8_t * >((*it)->p));
 				break;
 			}
 			case UINT16: {
-				auto puint16 = * reinterpret_cast<std::shared_ptr<uint16_t> * >((*it)->p);
-				msg.write_uint16(*puint16);
+				msg.write_uint16(* reinterpret_cast<uint16_t * >((*it)->p));
 				break;
 			}
 			case UINT32: {
-				auto puint32 = * reinterpret_cast<std::shared_ptr<uint32_t> * >((*it)->p);
-				msg.write_uint32(*puint32);
+				msg.write_uint32(* reinterpret_cast<uint32_t * >((*it)->p));
 				break;
 			}
 			case UINT64: {
-				auto puint64 = * reinterpret_cast<std::shared_ptr<uint64_t> * >((*it)->p);
-				msg.write_uint64(*puint64);
+				msg.write_uint64(* reinterpret_cast<uint64_t * >((*it)->p));
 				break;
 			}
 			case FLOAT: {
-				auto pfloat = * reinterpret_cast<std::shared_ptr<float> * >((*it)->p);
-				msg.write_float(*pfloat);
+				msg.write_float(* reinterpret_cast<float * >((*it)->p));
 				break;
 			}
 			case DOUBLE: {
-				auto pdouble = * reinterpret_cast<std::shared_ptr<double> * >((*it)->p);
-				msg.write_double(*pdouble);
+				msg.write_double(* reinterpret_cast<double * >((*it)->p));
 				break;
 			}
 			case STRING: {
-				auto pstring = * reinterpret_cast<std::shared_ptr<string> * >((*it)->p);
-				msg.write_string(*pstring);
+				msg.write_string(* reinterpret_cast<string * >((*it)->p));
 				break;
 			}
 			case MATRIX_ID: {
-				auto pmid = * reinterpret_cast<MatrixInfo_ptr * >((*it)->p);
-				msg.write_MatrixID(pmid->ID);
+				msg.write_MatrixID((* reinterpret_cast<MatrixInfo_ptr * >((*it)->p))->ID);
 				break;
 			}
 			case MATRIX_INFO: {
-				msg.write_MatrixInfo(*reinterpret_cast<MatrixInfo *>((*it)->p));
+				msg.write_MatrixInfo(* reinterpret_cast<MatrixInfo *>((*it)->p));
 				break;
 			}
 		}
-		log->info("PPPP 4");
 	}
 
 //
