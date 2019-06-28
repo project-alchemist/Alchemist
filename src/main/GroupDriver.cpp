@@ -94,11 +94,15 @@ void GroupDriver::print_info()
 	MPI_Barrier(group);
 }
 
-const map<WorkerID, WorkerInfo_ptr> & GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
+map<WorkerID, WorkerInfo_ptr> GroupDriver::allocate_workers(const uint16_t & num_requested_workers)
 {
-	driver.allocate_workers(ID, num_requested_workers);
+	vector<WorkerID> new_allocated_workerIDs = driver.allocate_workers(ID, num_requested_workers);
+	map<WorkerID, WorkerInfo_ptr> new_allocated_workers;
 
-	return workers;
+	for (auto it = new_allocated_workerIDs.begin(); it != new_allocated_workerIDs.end(); it++)
+		new_allocated_workers.insert(std::make_pair(*it, workers[*it]));
+
+	return new_allocated_workers;
 }
 
 vector<WorkerID> GroupDriver::deallocate_workers(const vector<WorkerID> & yielded_workers)

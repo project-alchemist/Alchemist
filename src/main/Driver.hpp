@@ -23,7 +23,7 @@ public:
 
 	// -----------------------------------------   Workers   -----------------------------------------
 
-	uint16_t allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers);
+	vector<WorkerID> allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers);
 	vector<WorkerID> deallocate_workers(const GroupID groupID, const vector<WorkerID> & selected_workers);
 
 	vector<WorkerInfo_ptr> get_all_workers();

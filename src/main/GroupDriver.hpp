@@ -31,7 +31,7 @@ public:
 	void ready_group();
 	void set_group_comm(MPI_Comm & world, MPI_Group & temp_group);
 
-	const map<WorkerID, WorkerInfo_ptr> & allocate_workers(const uint16_t & num_requested_workers);
+	map<WorkerID, WorkerInfo_ptr> allocate_workers(const uint16_t & num_requested_workers);
 	vector<WorkerID> deallocate_workers(const vector<WorkerID> & yielded_workers);
 
 	string list_workers();

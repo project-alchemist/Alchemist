@@ -180,19 +180,18 @@ void DriverSession::handle_request_workers()
 	write_msg.start(clientID, sessionID, REQUEST_WORKERS);
 
 	if (num_requested_workers > 0) {
-		map<WorkerID, WorkerInfo_ptr> allocated_workers = group_driver.allocate_workers(num_requested_workers);
+		map<WorkerID, WorkerInfo_ptr> new_allocated_workers = group_driver.allocate_workers(num_requested_workers);
 
-		if (allocated_workers.size() > 0) {
-			uint16_t num_allocated_workers = allocated_workers.size();
+		if (new_allocated_workers.size() > 0) {
+			uint16_t num_allocated_workers = new_allocated_workers.size();
 			write_msg.write_uint16(num_allocated_workers);
-			for (auto it = allocated_workers.begin(); it != allocated_workers.end(); it++)
+			for (auto it = new_allocated_workers.begin(); it != new_allocated_workers.end(); it++)
 				write_msg.write_WorkerInfo(it->second);
 		}
 		else write_msg.write_error_code(ERR_NO_WORKERS);
 	}
-	else {
+	else
 		write_msg.write_error_code(ERR_NONPOS_WORKER_REQUEST);
-	}
 
 	flush();
 }

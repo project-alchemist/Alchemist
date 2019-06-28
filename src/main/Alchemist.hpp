@@ -411,7 +411,7 @@ struct ArrayBlock {
 	uint64_t* dims[3];
 	size_t T_length = sizeof(T);
 
-	char* start;
+	char * start;
 
 	void read_next(T * value)
 	{

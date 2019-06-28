@@ -1479,7 +1479,7 @@ public:
 				ss << get_MatrixInfo()->to_string(true);
 				break;
 			case MATRIX_BLOCK:
-				ss << get_MatrixBlock()->to_string();
+				ss << get_MatrixBlock()->to_string(false);
 				break;
 			case INDEXED_ROW:
 				ss << get_IndexedRow();

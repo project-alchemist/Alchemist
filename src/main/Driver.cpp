@@ -239,13 +239,18 @@ int Driver::register_workers()
 	return 0;
 }
 
-uint16_t Driver::allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers)
+vector<WorkerID> Driver::allocate_workers(const GroupID groupID, const uint16_t & num_requested_workers)
 {
-	uint16_t num_allocated_workers = std::min(num_requested_workers, (uint16_t) unallocated_workers.size());
+	vector<WorkerID> new_allocated_workers;
+	uint16_t num_available_workers = (uint16_t) unallocated_workers.size();
+	uint16_t num_allocated_workers = std::min(num_requested_workers, num_available_workers);
 
 	std::lock_guard<std::mutex> lock(worker_mutex);
 
 	if (num_allocated_workers > 0) {
+		if (num_requested_workers > num_allocated_workers)
+			log->info("{} workers requested but only {} available", num_requested_workers, num_allocated_workers);
+		log->info("Allocating {} workers", num_allocated_workers);
 
 		WorkerID workerID;
 		GroupID _groupID = groupID;
@@ -254,8 +259,9 @@ uint16_t Driver::allocate_workers(const GroupID groupID, const uint16_t & num_re
 			workerID = unallocated_workers[i];
 			workers.find(workerID)->second->groupID = _groupID;
 			groups[groupID]->add_worker(workerID, workers.find(workerID)->second);
+			new_allocated_workers.push_back(workerID);
 		}
-		unallocated_workers.erase(unallocated_workers.begin(), unallocated_workers.begin() + num_requested_workers);
+		unallocated_workers.erase(unallocated_workers.begin(), unallocated_workers.begin() + num_allocated_workers);
 
 		set_group_communicator(groupID);
 	}
@@ -264,7 +270,7 @@ uint16_t Driver::allocate_workers(const GroupID groupID, const uint16_t & num_re
 
 	log->info(list_all_workers());
 
-	return num_allocated_workers;
+	return new_allocated_workers;
 }
 
 //void GroupDriver::new_group()
