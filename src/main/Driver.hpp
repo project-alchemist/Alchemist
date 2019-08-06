@@ -75,7 +75,7 @@ private:
 
 	map<GroupID, GroupDriver_ptr> groups;
 
-
+	void print_group(GroupID groupID);
 
 	ArrayID next_matrixID;
 

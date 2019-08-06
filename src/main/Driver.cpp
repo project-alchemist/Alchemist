@@ -60,18 +60,18 @@ void Driver::print_welcome_message()
 	message += "-----------------------------\n";
 //	message += SPACE;
 //	message += "Maximum number of OpenMP threads: {}\n";
-	#ifndef ASIO_STANDALONE
+#ifndef ASIO_STANDALONE
 	message += SPACE;
 	message += "Using Boost.Asio {}\n";
-	#endif
+#endif
 	message += SPACE;
 	message += "Running on {} {}:{}";
 
-	#ifndef ASIO_STANDALONE
+#ifndef ASIO_STANDALONE
 	log->info(message.c_str(), get_Alchemist_version(), get_Boost_version(), hostname, address, port);
-	#else
+#else
 	log->info(message.c_str(), get_Alchemist_version(), hostname, address, port);
-	#endif
+#endif
 }
 
 void Driver::print_ready_message()
@@ -138,7 +138,9 @@ void Driver::set_group_communicator(const GroupID & groupID)
 
 	alchemist_command command = _AM_NEW_GROUP;
 
-	log->info("Sending command {} to {} workers", get_command_name(command), group_size);
+#ifdef DEBUG
+	log->info("Sending command {} to workers", get_command_name(command));
+#endif
 	groups[groupID]->free_group();
 
 	MPI_Request req;
@@ -151,8 +153,7 @@ void Driver::set_group_communicator(const GroupID & groupID)
 
 	int primary_group_worker = 0;
 
-	for (int j = 1; j <= num_workers; j++) {
-		workerID = j;
+	for (WorkerID workerID = 1; workerID <= num_workers; workerID++) {
 		if (groups[groupID]->workers.find(workerID) == groups[groupID]->workers.end() )
 			MPI_Send(&null_groupID, 1, MPI_UNSIGNED_SHORT, workerID, 0, world);
 		else {
@@ -171,6 +172,13 @@ void Driver::set_group_communicator(const GroupID & groupID)
 	MPI_Group_free(&temp_group);
 	MPI_Group_free(&temp_peer_group);
 //	MPI_Barrier(world);
+
+	print_group(groupID);
+}
+
+void Driver::print_group(GroupID groupID)
+{
+	groups[groupID]->print_workers();
 }
 
 // -----------------------------------------   Workers   -----------------------------------------
@@ -179,9 +187,9 @@ void Driver::set_group_communicator(const GroupID & groupID)
 int Driver::start_workers()
 {
 	alchemist_command command = _AM_START;
-
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
-
+#endif
 	MPI_Request req;
 	MPI_Status status;
 //	for (int temp_workerID = 1; temp_workerID <= num_workers; temp_workerID++) {
@@ -200,9 +208,9 @@ int Driver::start_workers()
 int Driver::register_workers()
 {
 	alchemist_command command = _AM_SEND_INFO;
-
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
-
+#endif
 	WorkerID temp_workerID;
 	MPI_Request req;
 	MPI_Status status;
@@ -253,11 +261,10 @@ vector<WorkerID> Driver::allocate_workers(const GroupID groupID, const uint16_t 
 		log->info("Allocating {} workers", num_allocated_workers);
 
 		WorkerID workerID;
-		GroupID _groupID = groupID;
 
 		for (uint16_t i = 0; i < num_allocated_workers; i++) {
 			workerID = unallocated_workers[i];
-			workers.find(workerID)->second->groupID = _groupID;
+			workers.find(workerID)->second->groupID = groupID;
 			groups[groupID]->add_worker(workerID, workers.find(workerID)->second);
 			new_allocated_workers.push_back(workerID);
 		}
@@ -278,9 +285,9 @@ vector<WorkerID> Driver::allocate_workers(const GroupID groupID, const uint16_t 
 //	alchemist_command command = _AM_NEW_GROUP;
 //
 //	//, map<WorkerID, WorkerInfo> & allocated_group
-//
+//#ifdef DEBUG
 //	log->info("Sending command {} to workers", get_command_name(command));
-//
+//#endif
 //	WorkerID temp_workerID;
 //	MPI_Request req;
 //	MPI_Status status;
@@ -610,7 +617,9 @@ int Driver::get_num_sessions()
 
 void Driver::new_group(tcp::socket socket)
 {
+#ifdef DEBUG
 	log->info("NEW GROUP");
+#endif
 	next_groupID++;
 	auto group_ptr = std::make_shared<GroupDriver>(next_groupID, *this, log);
 	groups.insert(std::make_pair(next_groupID, group_ptr));

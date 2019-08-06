@@ -36,7 +36,9 @@ void GroupDriver::open_workers()
 {
 	alchemist_command command = _AM_GROUP_OPEN_CONNECTIONS;
 
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
+#endif
 
 	MPI_Request req;
 	MPI_Status status;
@@ -50,7 +52,9 @@ void GroupDriver::close_workers()
 {
 	alchemist_command command = _AM_GROUP_CLOSE_CONNECTIONS;
 
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
+#endif
 
 	MPI_Request req;
 	MPI_Status status;
@@ -67,7 +71,9 @@ void GroupDriver::free_group()
 
 		alchemist_command command = _AM_FREE_GROUP;
 
+#ifdef DEBUG
 		log->info("Sending command {} to workers", get_command_name(command));
+#endif
 
 		MPI_Request req;
 		MPI_Status status;
@@ -84,7 +90,9 @@ void GroupDriver::print_info()
 {
 	alchemist_command command = _AM_PRINT_INFO;
 
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
+#endif
 
 	MPI_Request req;
 	MPI_Status status;
@@ -130,13 +138,11 @@ void GroupDriver::set_group_comm(MPI_Comm & world, MPI_Group & temp_group)
 	log->info("Creating new group");
 	MPI_Comm_create_group(world, temp_group, 0, &group);
 	MPI_Barrier(group);
-
 }
 
 void GroupDriver::ready_group()
 {
 	print_info();
-
 	open_workers();
 	get_process_grid();
 }
@@ -152,10 +158,17 @@ string GroupDriver::list_sessions()
 //
 //	return list_of_sessions.str();
 
-	return "NOWE";
+	return "NONE";
 
 //	for(auto it = sessions.begin(); it != sessions.end(); ++it)
 //		log->info("        Session {}: {}:{}, assigned to Session {}", it->first, workers[it->first].hostname, workers[it->first].port, it->second);
+}
+
+void GroupDriver::print_workers()
+{
+	for (auto it = workers.begin(); it != workers.end(); it++) {
+		log->info("Worker {}: {}", it->first, it->second->address);
+	}
 }
 
 
@@ -184,9 +197,9 @@ vector<WorkerInfo_ptr> GroupDriver::get_assigned_workers()
 LibraryID GroupDriver::load_library(string library_name, string library_path)
 {
 	alchemist_command command = _AM_WORKER_LOAD_LIBRARY;
-
-	log->info("Sending command {} to workers {} {} ", get_command_name(command), library_name, library_path);
-
+#ifdef DEBUG
+	log->info("Sending command {} to workers", get_command_name(command));
+#endif
 	MPI_Request req;
 	MPI_Status status;
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
@@ -264,14 +277,15 @@ void GroupDriver::run_task(Message & in_msg, Message & out_msg)
 {
 	alchemist_command command = _AM_WORKER_RUN_TASK;
 
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
-
+#endif
 	MPI_Request req;
 	MPI_Status status;
 	MPI_Ibcast(&command, 1, MPI_UNSIGNED_CHAR, 0, group, &req);
 	MPI_Wait(&req, &status);
 
-	uint32_t msg_settings[2] = {0, 0};;
+	uint32_t msg_settings[2] = {0, 0};
 	msg_settings[0] = in_msg.get_body_length();
 	if (in_msg.reverse_floats)
 		msg_settings[1] = 1;
@@ -672,7 +686,9 @@ MatrixInfo_ptr GroupDriver::new_matrix(const string name, const uint64_t num_row
 {
 	alchemist_command command = _AM_NEW_MATRIX;
 
+#ifdef DEBUG
 	log->info("Sending command {} to workers", get_command_name(command));
+#endif
 
 	MPI_Request req;
 	MPI_Status status;

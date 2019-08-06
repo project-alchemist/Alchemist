@@ -79,6 +79,7 @@ public:
 	void remove_worker(const WorkerID & workerID);
 
 	void idle_workers();
+	void print_workers();
 private:
 	MPI_Comm group;
 

@@ -1038,6 +1038,9 @@ public:
 
 		MatrixBlock_ptr block = std::make_shared<MatrixBlock<double>>(rows, cols);
 
+		if (cl == SCALA && reverse_floats == true)
+			block->reverse_floats = true;
+
 		block->start = data + read_pos;
 		read_pos += 8*block->size;
 

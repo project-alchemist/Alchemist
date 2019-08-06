@@ -130,15 +130,19 @@ bool Session::handle_handshake()
 
 	if (read_msg.read_uint16() == 1234 && read_msg.read_string().compare(string("ABCD")) == 0) {
 		double d1 = read_msg.read_double();
+		log->info("Reve {}", d1);
 		if (d1 != 1.11) {
 			read_msg.reverse_floats = true;
 			write_msg.reverse_floats = true;
 		}
+		log->info("Reverse floats set to {}", read_msg.reverse_floats);
 		double d2 = read_msg.read_double();
+		log->info("Reve2 {}", d2);
 		if (d2 == 2.22) {
 			double * temp = new double[12];
 			for (auto i = 0; i < 12; i++) temp[i] = 1.11*(i+3);
 			MatrixBlock_ptr block = read_msg.read_MatrixBlock();
+
 			if (read_msg.compare_matrix_block(block, temp)) {
 
 				uint32_t buffer_length = read_msg.read_uint32();
@@ -233,7 +237,9 @@ void Session::read_body()
 void Session::flush()
 {
 	write_msg.finish();
+#ifdef DEBUG
 	log->info("OUT: {}", write_msg.to_string());
+#endif
 	auto self(shared_from_this());
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),

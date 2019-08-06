@@ -243,14 +243,14 @@ struct MatrixInfo {
 
 template <typename T>
 struct MatrixBlock {
-	MatrixBlock(uint64_t _rows[3], uint64_t _cols[3]) : i(0), start(nullptr), T_length(sizeof(T))
+	MatrixBlock(uint64_t _rows[3], uint64_t _cols[3]) : i(0), start(nullptr), T_length(sizeof(T)), reverse_floats(false)
 	{
 		for (uint8_t i = 0; i < 3; i++) rows[i] = _rows[i];
 		for (uint8_t i = 0; i < 3; i++) cols[i] = _cols[i];
 		size = std::ceil((1.0*rows[1] - rows[0] + 1.0)/rows[2]) * std::ceil((1.0*cols[1] - cols[0] + 1.0)/cols[2]);
 	}
 
-	MatrixBlock(MatrixBlock<T> & block) :  i(0), start(nullptr), T_length(sizeof(T))
+	MatrixBlock(MatrixBlock<T> & block) :  i(0), start(nullptr), T_length(sizeof(T)), reverse_floats(false)
 	{
 		for (uint8_t i = 0; i < 3; i++) rows[i] = block.rows[i];
 		for (uint8_t i = 0; i < 3; i++) cols[i] = block.cols[i];
@@ -262,11 +262,13 @@ struct MatrixBlock {
 	uint64_t i, size, rows[3], cols[3];
 	size_t T_length;
 	char * start;
+	bool reverse_floats;
 
 	void read_next(T * value)
 	{
 		if (i < size) {
 			memcpy(value, start + T_length*i, T_length);
+			if (reverse_floats) reverse_double(value);
 			i += 1;
 		}
 		else value = nullptr;
@@ -275,6 +277,7 @@ struct MatrixBlock {
 	void write_next(T * value)
 	{
 		if (i < size) {
+			if (reverse_floats) reverse_double(value);
 			memcpy(start + T_length*i, value, T_length);
 			i += 1;
 		}
@@ -323,7 +326,7 @@ struct MatrixBlock {
 
 						memcpy(&temp, start + T_length*m, T_length);
 						td = (double) temp;
-						ss << reverse_double(&td) << " ";
+						ss << reverse_double(&td) << " (" << temp << ") ";
 						m++;
 					}
 					ss << std::endl;

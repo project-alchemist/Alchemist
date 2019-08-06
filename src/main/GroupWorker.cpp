@@ -16,7 +16,7 @@ GroupWorker::GroupWorker(GroupID _groupID, Worker & _worker, io_context & _io_co
 
 GroupWorker::GroupWorker(GroupID _groupID, Worker & _worker, io_context & _io_context, const tcp::endpoint & endpoint, bool _primary_group_worker, Log_ptr & _log) :
 			Server(_io_context, endpoint, _log), grid(nullptr), current_grid(-1), groupID(_groupID), group(MPI_COMM_NULL), group_peers(MPI_COMM_NULL), worker(_worker),
-			next_sessionID(0), current_matrixID(0), connection_open(false), primary_group_worker(_primary_group_worker)
+			El_group_peers(El::mpi::COMM_NULL), next_sessionID(0), current_matrixID(0), connection_open(false), primary_group_worker(_primary_group_worker)
 {
 	workerID = worker.get_ID();
 
@@ -35,15 +35,24 @@ void GroupWorker::set_group_peers_comm(MPI_Comm & world, MPI_Group & temp_group)
 {
 	MPI_Comm_create_group(world, temp_group, 0, &group_peers);
 
-//
-//	MPI_Barrier(group_peers);
-//	if (grid == nullptr)
-//	else {
+	MPI_Barrier(group_peers);
+//	if (grid != nullptr) {
 //		grid = nullptr;
 //		grid.reset(new El::Grid(El::mpi::Comm(group_peers)));
 //	}
-	grid = std::make_shared<El::Grid>(El::mpi::Comm(group_peers));
 	MPI_Barrier(group_peers);
+
+//	if (El_group_peers != El::mpi::COMM_NULL) {
+//		El::mpi::Free(El_group_peers);
+//	}
+	El_group_peers = El::mpi::Comm(group_peers);
+	int height = 1;
+	if (El::mpi::Size(El_group_peers) > 2)
+		height = 1;
+	auto kk = new El::Grid(El_group_peers, height, El::COLUMN_MAJOR);
+	grid = std::make_shared<El::Grid>(El_group_peers, El::ROW_MAJOR);
+	MPI_Barrier(group_peers);
+
 
 //	current_grid++;
 //	grids.push_back(std::make_shared<El::Grid>(El::mpi::Comm(group_peers)));
@@ -126,6 +135,8 @@ int GroupWorker::wait_for_command()
 
 void GroupWorker::handle_free_group()
 {
+	grid = nullptr;
+
 	if (group != MPI_COMM_NULL) {
 		MPI_Barrier(group);
 
@@ -136,6 +147,11 @@ void GroupWorker::handle_free_group()
 	if (group_peers != MPI_COMM_NULL) {
 //		grids[current_grid] = nullptr;
 		MPI_Barrier(group_peers);
+
+		El::mpi::Free(El_group_peers);
+		El_group_peers = El::mpi::COMM_NULL;
+
+		usleep(10000000);
 
 		MPI_Comm_free(&group_peers);
 		group_peers = MPI_COMM_NULL;
@@ -736,6 +752,21 @@ void GroupWorker::run_task()
 		string function_name = temp_in_msg.read_string();
 
 		deserialize_parameters(in_parameters, temp_in_msg);
+
+		DistMatrix * A = nullptr;
+
+		for (auto it = in_parameters.begin(); it != in_parameters.end(); it++)
+			if ((*it)->name == "A") A = reinterpret_cast<DistMatrix * >((*it)->p);
+
+		for (uint64_t ii = 0; ii < 10; ii++)
+		{
+			log->info("Row {}", ii);
+			for (uint64_t jj = 0; jj < 10; jj++)
+				log->info(" {}", A->Get(ii, jj));
+			log->info("\n");
+		}
+
+		log->info("Reverse floats {}", temp_in_msg.reverse_floats);
 
 
 		libraries[libID]->run(function_name, in_parameters, out_parameters);

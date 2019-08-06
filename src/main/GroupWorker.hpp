@@ -86,6 +86,8 @@ private:
 	MPI_Comm group;
 	MPI_Comm group_peers;
 
+	El::mpi::Comm El_group_peers;
+
 	GroupID groupID;
 	MatrixID current_matrixID;
 	SessionID next_sessionID;

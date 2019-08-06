@@ -3,7 +3,7 @@ set -o errexit
 
 source ./config.sh
 
-export ALCHEMIST_EXE=$ALCHEMIST_PATH/target/alchemist
+export ALCHEMIST_EXE=$ALCHEMIST_PATH/target/$1/alchemist
 
 CURR_DIR=$PWD
 
@@ -20,7 +20,7 @@ echo " "
 echo "Creating Alchemist executable:"
 echo " "
 cd ./build/$SYSTEM/
-nice make -j4
+nice make -j4 $1
 cd ../..
 echo " "
 echo $LINE
