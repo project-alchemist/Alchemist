@@ -17,21 +17,21 @@ WorkerSession::WorkerSession(tcp::socket _socket, GroupWorker & _group_worker, S
 
 void WorkerSession::start()
 {
-	log->info("{} Connection established", session_preamble());
+	log->info("{} Connection established", preamble());
 //	worker.write_session(shared_from_this());
 	read_header();
 }
 
 void WorkerSession::remove_session()
 {
-	log->info("{} Removing session", session_preamble());
+	log->info("{} Removing session", preamble());
 //	worker.remove_session();
 }
 
 int WorkerSession::handle_message()
 {
 //	log->info("{}", read_msg.to_string());
-	log->info("IN: {}", read_msg.to_string());
+//	log->info("IN: {}", read_msg.to_string());
 
 	client_command command = read_msg.cc;
 
@@ -44,7 +44,7 @@ int WorkerSession::handle_message()
 		SessionID _sessionID = read_msg.sessionID;
 
 		if (sessionID != _sessionID) {
-			log->info("{} Error in WorkerSession: Wrong session ID", session_preamble());
+			log->info("{} Error in WorkerSession: Wrong session ID", preamble());
 		}
 
 		switch (command) {
@@ -87,7 +87,7 @@ void WorkerSession::handle_send_indexed_rows()
 			row = read_msg.get_uint64();
 			num_cols = read_msg.get_uint64();
 
-			log->info("{} Receiving row {} for matrix {}", session_preamble(), row, matrixID);
+			log->info("{} Receiving row {} for matrix {}", preamble(), row, matrixID);
 
 			for (uint64_t i = 0; i < num_cols; i++) {
 				read_msg.get_double(value);
@@ -143,7 +143,7 @@ bool WorkerSession::send_matrix_blocks()
 
 	MatrixID matrixID = read_msg.read_MatrixID();
 
-	log->info("{} Sending data blocks for matrix {}", session_preamble(), matrixID);
+	log->info("{} Sending data blocks for matrix {}", preamble(), matrixID);
 
 	clock_t start = clock();
 
@@ -174,7 +174,7 @@ bool WorkerSession::send_matrix_blocks()
 	}
 
 	clock_t end = clock();
-	log->info("{} Sending data blocks took {}ms", session_preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));
+	log->info("{} Sending data blocks took {}ms", preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));
 	flush();
 
 	return true;
@@ -188,7 +188,7 @@ bool WorkerSession::receive_matrix_blocks()
 
 	MatrixID matrixID = read_msg.read_MatrixID();
 
-	log->info("{} Receiving data blocks for matrix {}", session_preamble(), matrixID);
+	log->info("{} Receiving data blocks for matrix {}", preamble(), matrixID);
 
 	clock_t start = clock();
 
@@ -203,7 +203,7 @@ bool WorkerSession::receive_matrix_blocks()
 			}
 
 		num_blocks++;
-//		log->info("{} Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", session_preamble(), matrixID, row_start, row_end, col_start, col_end);
+//		log->info("{} Matrix {}: Received matrix block (rows {}-{}, columns {}-{})", preamble(), matrixID, row_start, row_end, col_start, col_end);
 	}
 
 	write_msg.start(clientID, sessionID, SEND_MATRIX_BLOCKS);
@@ -211,7 +211,7 @@ bool WorkerSession::receive_matrix_blocks()
 	write_msg.write_uint32(num_blocks);
 
 	clock_t end = clock();
-	log->info("{} Receiving data blocks took {}ms", session_preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));
+	log->info("{} Receiving data blocks took {}ms", preamble(), 1000.0*((double) (end - start))/((double) CLOCKS_PER_SEC));
 	flush();
 
 	return true;
@@ -235,7 +235,7 @@ bool WorkerSession::send_test_string()
 
 //int WorkerSession::receive_test_string(const char * data, const uint32_t length)
 //{
-//	log->info("{} Test string: {}", session_preamble(), string(data, length));
+//	log->info("{} Test string: {}", preamble(), string(data, length));
 //
 //	return 0;
 //}

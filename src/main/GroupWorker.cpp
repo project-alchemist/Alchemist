@@ -343,7 +343,7 @@ string GroupWorker::client_preamble()
 {
 	std::stringstream ss;
 
-	ss << "[Job " << groupID << " (" << address.c_str() << ":" << port << ")]";
+	ss << "[Client " << groupID << " (" << address.c_str() << ":" << port << ")]";
 
 	return ss.str();
 }
@@ -381,12 +381,12 @@ int GroupWorker::load_library()
 	char cstr[library_path.length()+1];
 	std::strcpy(cstr, library_path.c_str());
 
-	log->info("Loading library {} located at {}", library_name, library_path);
+	log->info("{} Loading library {} located at {}", client_preamble(), library_name, library_path);
 
 	void * lib = dlopen(library_path.c_str(), RTLD_LAZY);
 	const char * dlopen_error = dlerror();
 	if (dlopen_error != NULL) {
-		log->info("dlopen failed: {}", string(dlopen_error));
+		log->info("{} dlopen failed: {}", client_preamble(), string(dlopen_error));
 
 		return 0;
 	}
@@ -396,7 +396,7 @@ int GroupWorker::load_library()
 	create_t * create_library = reinterpret_cast<create_t *>(dlsym(lib, "create_library"));
 	const char * dlsym_error = dlerror();
 	if (dlsym_error != NULL) {
-		log->info("dlsym with command \"create\" failed: {}", string(dlsym_error));
+		log->info("{} dlsym with command \"create\" failed: {}", client_preamble(), string(dlsym_error));
 
 		return 0;
 	}
@@ -416,7 +416,7 @@ int GroupWorker::load_library()
 
 int GroupWorker::new_matrix()
 {
-	log->info("Creating new Elemental distributed matrix");
+	log->info("{} Creating new Elemental distributed matrix", client_preamble());
 
 	uint64_t num_rows, num_cols;
 	unsigned char sparse;
@@ -690,7 +690,6 @@ void GroupWorker::get_value(MatrixID matrixID, uint64_t row, uint64_t col, float
 
 void GroupWorker::get_value(MatrixID matrixID, uint64_t row, uint64_t col, double & value)
 {
-//	clock_t start1 = clock();
 	value = matrices[matrixID]->GetLocal(matrices[matrixID]->LocalRow(row), matrices[matrixID]->LocalCol(col));
 }
 
@@ -758,21 +757,22 @@ void GroupWorker::run_task()
 		for (auto it = in_parameters.begin(); it != in_parameters.end(); it++)
 			if ((*it)->name == "A") A = reinterpret_cast<DistMatrix * >((*it)->p);
 
-		for (uint64_t ii = 0; ii < 10; ii++)
-		{
-			log->info("Row {}", ii);
-			for (uint64_t jj = 0; jj < 10; jj++)
-				log->info(" {}", A->Get(ii, jj));
-			log->info("\n");
-		}
-
-		log->info("Reverse floats {}", temp_in_msg.reverse_floats);
-
-
 		libraries[libID]->run(function_name, in_parameters, out_parameters);
 		MPI_Barrier(group);
 
 		read_matrix_parameters(out_parameters);
+
+
+//		DistMatrix * S = nullptr;
+//
+//		for (auto it = in_parameters.begin(); it != in_parameters.end(); it++)
+//			if ((*it)->name == "S") S = reinterpret_cast<DistMatrix * >((*it)->p);
+//
+//		for (uint64_t ii = 0; ii < 10; ii++)
+//		{
+//			log->info("Row {} {}", ii, S->Get(ii, 0));
+//			log->info("\n");
+//		}
 
 		MPI_Barrier(group);
 	}

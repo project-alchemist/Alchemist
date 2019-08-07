@@ -464,6 +464,10 @@ public:
 	{
 		for (uint8_t i = 0; i < 3; i++) signed_ints_only ? put_int64((int64_t) x->rows[i]) : put_uint64(x->rows[i]);
 		for (uint8_t i = 0; i < 3; i++) signed_ints_only ? put_int64((int64_t) x->cols[i]) : put_uint64(x->cols[i]);
+
+		if (cl == SCALA && reverse_floats == true)
+			x->reverse_floats = true;
+
 		x->start = data + write_pos;
 		write_pos += 8*x->size;
 	}

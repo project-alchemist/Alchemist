@@ -32,7 +32,7 @@ int DriverSession::handle_message()
 {
 #ifdef DEBUG
 	//	log->info("Received message from Session {} at {}", getID(), get_address().c_str());
-		log->info("IN: {}", read_msg.to_string());
+//		log->info("IN: {}", read_msg.to_string());
 	//	log->info("{}", read_msg.cc);
 #endif
 
@@ -438,7 +438,7 @@ void DriverSession::handle_matrix_info()
 
 	MatrixInfo_ptr x = group_driver.new_matrix(matrix_name, num_rows, num_cols, sparse, l);
 
-	log->info("Sending back info for matrix {}", x->ID);
+	log->info("{} Sending back info for matrix {}", preamble(), x->ID);
 
 	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
 	write_msg.write_MatrixInfo(x);
@@ -555,7 +555,7 @@ void DriverSession::remove_session()
 void DriverSession::send_matrix_info(MatrixID matrixID)
 {
 	write_msg.start(clientID, sessionID, SEND_MATRIX_INFO);
-	log->info("Sending back ID for matrix {}", matrixID);
+	log->info("{} Sending back ID for matrix {}", preamble(), matrixID);
 	write_msg.write_MatrixInfo(group_driver.get_matrix_info(matrixID));
 
 	flush();
