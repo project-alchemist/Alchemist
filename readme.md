@@ -116,9 +116,3 @@ Alchemist is started using
 ./start.sh
 ```
 
-# Testing Alchemist
-
-For now, testing is done using the Alchemist-Client Interface (ACI) located at 
-```
-github.com/project-alchemist/ACI
-```

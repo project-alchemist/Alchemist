@@ -243,14 +243,14 @@ struct MatrixInfo {
 
 template <typename T>
 struct MatrixBlock {
-	MatrixBlock(uint64_t _rows[3], uint64_t _cols[3]) : i(0), start(nullptr), T_length(sizeof(T)), reverse_floats(false)
+	MatrixBlock(uint64_t _rows[3], uint64_t _cols[3]) : i(0), start(nullptr), T_length(sizeof(T)), reverse_floats(false), empty(false)
 	{
 		for (uint8_t i = 0; i < 3; i++) rows[i] = _rows[i];
 		for (uint8_t i = 0; i < 3; i++) cols[i] = _cols[i];
 		size = std::ceil((1.0*rows[1] - rows[0] + 1.0)/rows[2]) * std::ceil((1.0*cols[1] - cols[0] + 1.0)/cols[2]);
 	}
 
-	MatrixBlock(MatrixBlock<T> & block) :  i(0), start(nullptr), T_length(sizeof(T)), reverse_floats(false)
+	MatrixBlock(MatrixBlock<T> & block) :  i(0), start(nullptr), T_length(sizeof(T)), reverse_floats(false), empty(false)
 	{
 		for (uint8_t i = 0; i < 3; i++) rows[i] = block.rows[i];
 		for (uint8_t i = 0; i < 3; i++) cols[i] = block.cols[i];
@@ -262,7 +262,7 @@ struct MatrixBlock {
 	uint64_t i, size, rows[3], cols[3];
 	size_t T_length;
 	char * start;
-	bool reverse_floats;
+	bool reverse_floats, empty;
 
 	void read_next(T * value)
 	{

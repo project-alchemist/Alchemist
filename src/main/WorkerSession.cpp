@@ -152,15 +152,9 @@ bool WorkerSession::send_matrix_blocks()
 
 	while (!read_msg.eom()) {
 
-		uint64_t rows[3], cols[3];
-		rows[0] = read_msg.read_uint64();
-		rows[1] = read_msg.read_uint64();
-		rows[2] = read_msg.read_uint64();
-		cols[0] = read_msg.read_uint64();
-		cols[1] = read_msg.read_uint64();
-		cols[2] = read_msg.read_uint64();
+		MatrixBlock_ptr in_block = read_msg.read_MatrixBlock();
 
-		out_block = std::make_shared<MatrixBlock<double>>(rows, cols);
+		out_block = std::make_shared<MatrixBlock<double>>(in_block->rows, in_block->cols);
 
 		write_msg.write_MatrixBlock(out_block);
 

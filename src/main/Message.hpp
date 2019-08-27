@@ -465,6 +465,9 @@ public:
 		for (uint8_t i = 0; i < 3; i++) signed_ints_only ? put_int64((int64_t) x->rows[i]) : put_uint64(x->rows[i]);
 		for (uint8_t i = 0; i < 3; i++) signed_ints_only ? put_int64((int64_t) x->cols[i]) : put_uint64(x->cols[i]);
 
+		if (x->empty) signed_ints_only ? put_int8(0) : put_uint8(0);
+		else signed_ints_only ? put_int8(1) : put_uint8(1);
+
 		if (cl == SCALA && reverse_floats == true)
 			x->reverse_floats = true;
 
@@ -1045,8 +1048,14 @@ public:
 		if (cl == SCALA && reverse_floats == true)
 			block->reverse_floats = true;
 
-		block->start = data + read_pos;
-		read_pos += 8*block->size;
+		uint8_t empty = (uint8_t) (signed_ints_only ? get_int8() : get_uint8());
+
+		block->empty = empty == 0;
+
+		if (!block->empty) {
+			block->start = data + read_pos;
+			read_pos += 8*block->size;
+		}
 
 		return block;
 	}
