@@ -19,6 +19,7 @@
 #include <complex>
 #include <cmath>
 #include <dlfcn.h>
+#include <stdlib.h>
 #ifdef ASIO_STANDALONE
 #include <asio.hpp>
 #else
@@ -36,7 +37,6 @@
 
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
-#define ALCHEMIST_PORT 24960
 #define ALCHEMIST_VERSION_MAJOR 0
 #define ALCHEMIST_VERSION_MINOR 5
 

@@ -235,9 +235,9 @@ void Session::read_body()
 void Session::flush()
 {
 	write_msg.finish();
-#ifdef DEBUG
+//#ifdef DEBUG
 //	log->info("OUT: {}", write_msg.to_string());
-#endif
+//#endif
 	auto self(shared_from_this());
 	asio::async_write(socket,
 			asio::buffer(write_msg.header(), write_msg.length()),
