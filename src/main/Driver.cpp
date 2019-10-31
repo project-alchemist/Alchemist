@@ -5,11 +5,11 @@ namespace alchemist {
 // ===============================================================================================
 // =======================================   CONSTRUCTOR   =======================================
 
-Driver::Driver(io_context & _io_context, const unsigned int port) :
-				Driver(_io_context, tcp::endpoint(tcp::v4(), port)) { }
+Driver::Driver(io_context & _io_context, const uint16_t port, const uint64_t _max_buffer_length, const std::string _output_dir) :
+				Driver(_io_context, tcp::endpoint(tcp::v4(), port), _max_buffer_length, _output_dir) { }
 
-Driver::Driver(io_context & _io_context, const tcp::endpoint & endpoint) :
-				Server(_io_context, endpoint), next_matrixID(0), next_groupID(0)
+Driver::Driver(io_context & _io_context, const tcp::endpoint & endpoint, const uint64_t _max_buffer_length, const std::string _output_dir) :
+				Server(_io_context, endpoint), max_buffer_length(_max_buffer_length), output_dir(_output_dir), next_matrixID(0), next_groupID(0)
 {
 	log = start_log("driver", "[%Y-%m-%d %H:%M:%S.%e] [%n] [%l]        %^%v%$", bold, iwhite);
 	Server::set_log(log);
@@ -58,14 +58,25 @@ void Driver::print_welcome_message()
 	message += "Starting Alchemist {}\n";
 	message += SPACE;
 	message += "-----------------------------\n";
-//	message += SPACE;
-//	message += "Maximum number of OpenMP threads: {}\n";
 #ifndef ASIO_STANDALONE
 	message += SPACE;
 	message += "Using Boost.Asio {}\n";
 #endif
 	message += SPACE;
-	message += "Running on {} {}:{}";
+	message += "Running on {} {}:{}\n";
+	//	message += SPACE + "Maximum number of OpenMP threads: {}\n";
+	message += SPACE;
+	if (output_dir.empty())
+		message += "No output directory specified\n";
+	else
+		message += "Output directory set to " + output_dir + "\n";
+	message += SPACE;
+	if (max_buffer_length == 0)
+		message += "No maximum buffer length set\n";
+	else
+		message += "Maximum buffer length set to " + std::to_string(max_buffer_length) + " bytes\n";
+	message += SPACE;
+	message += "-----------------------------";
 
 #ifndef ASIO_STANDALONE
 	log->info(message.c_str(), get_Alchemist_version(), get_Boost_version(), hostname, address, port);

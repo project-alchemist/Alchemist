@@ -15,8 +15,8 @@ class Driver : public Server, public std::enable_shared_from_this<Driver>
 {
 public:
 
-	Driver(io_context & _io_context, const unsigned int port);
-	Driver(io_context & _io_context, const tcp::endpoint & endpoint);
+	Driver(io_context & _io_context, const uint16_t port, const uint64_t _max_buffer_length, const std::string _output_dir);
+	Driver(io_context & _io_context, const tcp::endpoint & endpoint, const uint64_t _max_buffer_length, const std::string _output_dir);
 	~Driver();
 
 	int start();
@@ -79,15 +79,15 @@ private:
 
 	ArrayID next_matrixID;
 
+	std::string output_dir;
+	uint64_t max_buffer_length;
+
 	// ====================================   UTILITY FUNCTIONS   ====================================
 
 	// ----------------------------------------   Printing   -----------------------------------------
 
 	void print_welcome_message();
 	void print_ready_message();
-
-
-	// ====================================   UTILITY FUNCTIONS   ====================================
 
 	// -----------------------------------------   Groups   ------------------------------------------
 
