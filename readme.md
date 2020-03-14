@@ -86,8 +86,8 @@ rm -rf Elemental
 ### Clone the Alchemist repo
 ```
 export ALCHEMIST_PATH=(/desired/path/to/Alchemist/directory)
+git clone https://github.com/project-alchemist/Alchemist.git $ALCHEMIST_PATH
 cd $ALCHEMIST_PATH
-git clone https://github.com/project-alchemist/Alchemist.git
 ```
 
 ### Update configuration file
